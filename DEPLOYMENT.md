@@ -59,6 +59,7 @@ Create a **new project** (for example `sinversegames`) so nothing touches your e
 
 1. **New Service → GitHub Repo →** `SaiNikhilk2002/sinversegames`, branch `main`. Leave Root Directory empty. `railway.json` at the repo root sets everything else:
    - Dockerfile build: `apps/realtime/Dockerfile`
+   - start command `node --enable-source-maps /app/dist/index.js`. The runtime image has no pnpm, so a `pnpm …` Start Command in the dashboard would fail with "The executable 'pnpm' could not be found". `railway.json` overrides it, but you can clear the dashboard field too.
    - health check: `/health`
    - one replica, restart on failure
    - watch paths, so a web-only commit doesn't redeploy the game server

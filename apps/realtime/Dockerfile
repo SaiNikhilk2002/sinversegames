@@ -12,6 +12,9 @@ RUN pnpm install --frozen-lockfile --filter "@platform/realtime..." \
  && pnpm --filter @platform/db generate \
  && pnpm --filter @platform/realtime build
 
+# Runtime: Node and the bundle only (no pnpm, no node_modules). Start it with
+# node directly; railway.json pins the same command so a pnpm start command set
+# in the Railway dashboard can't override it.
 FROM node:24-slim
 ENV NODE_ENV=production
 WORKDIR /app
