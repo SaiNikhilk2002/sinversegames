@@ -1,0 +1,25 @@
+{
+  "name": "playwave-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @platform/web --filter @platform/realtime dev",
+    "dev:web": "pnpm --filter @platform/web dev",
+    "dev:realtime": "pnpm --filter @platform/realtime dev",
+    "build": "pnpm --filter @platform/db generate && pnpm -r --filter @platform/web --filter @platform/realtime build",
+    "start:web": "pnpm --filter @platform/web start",
+    "start:realtime": "pnpm --filter @platform/realtime start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --filter @platform/engines --filter @platform/shared --filter @platform/realtime test",
+    "test:e2e": "pnpm --filter @platform/web test:e2e",
+    "db:local": "pnpm --filter @platform/db local",
+    "db:generate": "pnpm --filter @platform/db generate",
+    "db:migrate": "pnpm --filter @platform/db migrate:dev",
+    "db:deploy": "pnpm --filter @platform/db migrate:deploy",
+    "db:studio": "pnpm --filter @platform/db studio"
+  }
+}

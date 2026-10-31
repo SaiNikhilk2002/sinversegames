@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+/* Dark mode is class-based so players can override the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Surfaces/ink switch with the theme; brand accents stay
+ * constant. Components use the Tailwind utilities generated from @theme
+ * (bg-surface, text-ink-muted, etc.).
+ */
+:root {
+  --bg: #f5f4fb;
+  --bg-glow: #e7e2ff;
+  --surface: #ffffff;
+  --surface-2: #f0eef8;
+  --surface-3: #e5e2f1;
+  --line: #dcd8ea;
+  --ink: #17142b;
+  --ink-muted: #5b5775;
+  --ink-faint: #8a86a3;
+  --shadow: 0 1px 2px rgb(23 20 43 / 0.06), 0 8px 24px -12px rgb(23 20 43 / 0.18);
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0b0a18;
+  --bg-glow: #1c1440;
+  --surface: #15132a;
+  --surface-2: #1d1a37;
+  --surface-3: #282448;
+  --line: #2e2a52;
+  --ink: #f3f1ff;
+  --ink-muted: #b2adcf;
+  --ink-faint: #7d789e;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -16px rgb(0 0 0 / 0.7);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-brand-50: #f1edff;
+  --color-brand-100: #e2d9ff;
+  --color-brand-300: #b39cff;
+  --color-brand-400: #9a7bff;
+  --color-brand-500: #7c5cff;
+  --color-brand-600: #6542f0;
+  --color-brand-700: #5130cc;
+  --color-hot: #ff4f8b;
+  --color-sun: #ffb23d;
+  --color-mint: #2fd6a8;
+  --color-danger: #ff4d5e;
+
+  --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+  --shadow-card: var(--shadow);
+
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-ring: pulse-ring 1.6s ease-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgb(124 92 255 / 0.55); }
+  100% { box-shadow: 0 0 0 14px rgb(124 92 255 / 0); }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(1200px 600px at 10% -10%, var(--bg-glow), transparent 60%),
+    radial-gradient(900px 500px at 110% 0%, color-mix(in oklab, var(--bg-glow) 70%, transparent), transparent 60%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-brand-400);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, #9a7bff 0%, #ff4f8b 55%, #ffb23d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bg-brand-gradient {
+  background-image: linear-gradient(120deg, #7c5cff 0%, #c04dff 45%, #ff4f8b 100%);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Players who prefer reduced motion (OS setting or our toggle) get no decorative animation. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

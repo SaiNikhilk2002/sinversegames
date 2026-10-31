@@ -1,0 +1,36 @@
+{
+  "name": "@platform/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3200",
+    "build": "next build",
+    "start": "next start --port 3200",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@platform/db": "workspace:*",
+    "@platform/engines": "workspace:*",
+    "@platform/shared": "workspace:*",
+    "lucide-react": "^1.0.0",
+    "motion": "^12.23.0",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "^0.0.1",
+    "socket.io-client": "^4.8.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@next/env": "16.4.3",
+    "@playwright/test": "^1.56.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.9.0"
+  }
+}

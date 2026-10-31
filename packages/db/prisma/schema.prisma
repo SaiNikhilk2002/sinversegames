@@ -1,0 +1,174 @@
+// Persistent platform data. Active gameplay state (hands, strokes, timers) is
+// deliberately NOT stored here; it lives in the realtime server's memory.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PlayerKind {
+  GUEST
+  REGISTERED
+}
+
+/// A player identity. Guests are created on first visit; REGISTERED is reserved for future auth.
+model Player {
+  id           String     @id @db.VarChar(64)
+  displayName  String     @db.VarChar(32)
+  avatarColor  String     @db.VarChar(16)
+  kind         PlayerKind @default(GUEST)
+  /// Progression foundation: XP drives level (see src/progression.ts).
+  xp           Int        @default(0)
+  level        Int        @default(1)
+  bannedUntil  DateTime?
+  bannedReason String?    @db.VarChar(500)
+  createdAt    DateTime   @default(now())
+  lastSeenAt   DateTime   @default(now())
+
+  stats             PlayerGameStats[]
+  participations    MatchParticipant[]
+  achievements      PlayerAchievement[]
+  rewards           RewardLedgerEntry[]
+  favorites         FavoriteGame[]
+  reportsFiled      AbuseReport[]       @relation("reporter")
+  reportsAgainst    AbuseReport[]       @relation("target")
+  moderationActions ModerationAction[]
+}
+
+/// Aggregate per-game statistics; also backs the leaderboards.
+model PlayerGameStats {
+  playerId     String   @db.VarChar(64)
+  gameId       String   @db.VarChar(32)
+  gamesPlayed  Int      @default(0)
+  wins         Int      @default(0)
+  losses       Int      @default(0)
+  totalPoints  Int      @default(0)
+  bestScore    Int      @default(0)
+  lastPlayedAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, gameId])
+  @@index([gameId, totalPoints(sort: Desc)])
+  @@index([gameId, wins(sort: Desc)])
+}
+
+model Match {
+  id          String   @id @default(uuid()) @db.Uuid
+  gameId      String   @db.VarChar(32)
+  roomCode    String   @db.VarChar(16)
+  visibility  String   @db.VarChar(16)
+  playerCount Int
+  config      Json
+  endReason   String   @db.VarChar(32)
+  startedAt   DateTime
+  endedAt     DateTime
+  durationMs  Int
+
+  participants MatchParticipant[]
+
+  @@index([gameId, endedAt(sort: Desc)])
+}
+
+model MatchParticipant {
+  id          String   @id @default(uuid()) @db.Uuid
+  matchId     String   @db.Uuid
+  playerId    String   @db.VarChar(64)
+  /// Name at the time of the match (players can rename later).
+  displayName String   @db.VarChar(32)
+  placement   Int
+  score       Int
+  isWinner    Boolean
+  details     Json?
+  createdAt   DateTime @default(now())
+
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, playerId])
+  @@index([playerId, createdAt(sort: Desc)])
+}
+
+/// Achievement definitions live in code (src/achievements.ts); this records unlocks.
+model PlayerAchievement {
+  playerId       String   @db.VarChar(64)
+  achievementKey String   @db.VarChar(64)
+  unlockedAt     DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, achievementKey])
+}
+
+/// Append-only, auditable ledger for the non-purchasable, non-transferable reward
+/// currency. A balance is always SUM(amount); rows are never updated or deleted.
+/// (playerId, reason, refId) is unique so the same reward can't be granted twice.
+model RewardLedgerEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  playerId  String   @db.VarChar(64)
+  amount    Int
+  reason    String   @db.VarChar(64)
+  refType   String?  @db.VarChar(32)
+  refId     String?  @db.VarChar(64)
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, reason, refId])
+  @@index([playerId, createdAt])
+}
+
+model FavoriteGame {
+  playerId  String   @db.VarChar(64)
+  gameId    String   @db.VarChar(32)
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, gameId])
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model AbuseReport {
+  id             String       @id @default(uuid()) @db.Uuid
+  reporterId     String       @db.VarChar(64)
+  targetPlayerId String?      @db.VarChar(64)
+  roomCode       String?      @db.VarChar(16)
+  gameId         String?      @db.VarChar(32)
+  reason         String       @db.VarChar(32)
+  details        String?      @db.VarChar(1000)
+  status         ReportStatus @default(OPEN)
+  resolutionNote String?      @db.VarChar(1000)
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+
+  reporter Player  @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target   Player? @relation("target", fields: [targetPlayerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+/// Audit trail of moderator actions.
+model ModerationAction {
+  id        String    @id @default(uuid()) @db.Uuid
+  playerId  String    @db.VarChar(64)
+  action    String    @db.VarChar(16)
+  reason    String?   @db.VarChar(500)
+  actor     String    @db.VarChar(64)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
+}
