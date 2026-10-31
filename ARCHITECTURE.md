@@ -26,7 +26,7 @@ Two independently deployable services share TypeScript packages:
 | `apps/web` | Next.js App Router: discovery and SEO pages, play hub, room UI, game clients, profile, leaderboard, legal pages, admin, API routes. |
 | `apps/realtime` | Socket.IO server: authentication, rooms, matchmaking, rate limits, timers, persistence of results, admin/metrics HTTP. |
 
-Why a separate realtime server: serverless platforms (e.g. Vercel) don't keep WebSocket connections or in-memory timers alive. The web app can be hosted anywhere, and the realtime server runs on any always-on Node host.
+Why a separate realtime server: serverless platforms (such as Cloudflare Workers, where the web app runs) don't keep WebSocket connections or in-memory timers alive. The web app can be hosted anywhere, and the realtime server runs on any always-on Node host.
 
 ## Game integration contract
 

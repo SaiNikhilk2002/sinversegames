@@ -7,6 +7,16 @@ generator client {
   moduleFormat = "esm"
 }
 
+// Same client for Cloudflare Workers: loads the query compiler as a static
+// WebAssembly module (Workers forbid compiling wasm from bytes at runtime).
+// The web app's Cloudflare build aliases the client above to this one.
+generator workerd {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma-workerd"
+  moduleFormat = "esm"
+  runtime      = "workerd"
+}
+
 datasource db {
   provider = "postgresql"
 }

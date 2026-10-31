@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Cloudflare Worker for the Next.js web app (built by @opennextjs/cloudflare).
+  // Secrets (AUTH_SECRET, ADMIN_TOKEN, DATABASE_URL) are set with
+  // `wrangler secret put`, never here. NEXT_PUBLIC_* values are inlined at build
+  // time and must be present in the build environment.
+  "name": "sinversegames-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Pages query Neon on most requests; run the Worker near the database rather
+  // than near each visitor.
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true },
+  "vars": {
+    "NODE_ENV": "production"
+  }
+}

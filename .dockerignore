@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/.open-next
+**/.wrangler
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+packages/db/src/generated
+.data
+.git
+**/.env
+**/.env.*
+!.env.example
+**/.dev.vars*
+*.log

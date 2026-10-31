@@ -14,3 +14,4 @@ allowBuilds:
   "@embedded-postgres/darwin-x64": true
   sharp: true
   unrs-resolver: true
+  workerd: true

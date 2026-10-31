@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "imports": {
+    "#prisma-client": "./src/generated/prisma/client.ts"
+  },
   "scripts": {
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",

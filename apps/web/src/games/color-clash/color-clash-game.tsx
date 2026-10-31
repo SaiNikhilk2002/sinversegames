@@ -237,6 +237,7 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
 }
 
 function Opponent({ p, active, compact }: { p: CCView["players"][number]; active: boolean; compact?: boolean }) {
+  const cardsLabel = p.cardCount === 1 ? "1 card" : `${p.cardCount} cards`;
   return (
     <div
       className={cn(
@@ -256,12 +257,12 @@ function Opponent({ p, active, compact }: { p: CCView["players"][number]; active
               <span className="inline-flex items-center gap-1 text-sun">
                 <WifiOff className="size-3" /> Offline
               </span>
-            ) : active ? "Playing…" : `${p.cardCount} cards`}
+            ) : active ? `Playing… · ${cardsLabel}` : cardsLabel}
           </p>
         </div>
       </div>
       {!compact && (
-        <div className="flex -space-x-8" aria-label={`${p.cardCount} cards`}>
+        <div className="flex -space-x-8" aria-label={cardsLabel}>
           {Array.from({ length: Math.min(p.cardCount, 7) }, (_, i) => (
             <CardBack key={i} size="sm" className="!shadow-md" />
           ))}

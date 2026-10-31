@@ -96,7 +96,11 @@ pnpm start:web
 
 ## Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md): Vercel (web) + Fly.io/Render (realtime) + Neon (Postgres), with a production checklist.
+See [DEPLOYMENT.md](DEPLOYMENT.md): Cloudflare Workers (web, via OpenNext) + Railway (realtime) + Neon (Postgres), with a launch checklist.
+
+```bash
+pnpm --filter @platform/web cf:preview   # web app in the real Workers runtime (Linux/WSL only)
+```
 
 ## Project conventions
 

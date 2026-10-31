@@ -10,6 +10,8 @@ loadEnvConfig(path.resolve(import.meta.dirname, "../.."), process.env.NODE_ENV !
 const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL ?? "http://localhost:4200";
 const realtimeWs = realtimeUrl.replace(/^http/, "ws");
 const isDev = process.env.NODE_ENV !== "production";
+// Set by open-next.config.ts when building the Cloudflare Worker.
+const isCloudflare = process.env.NEXT_BUILD_TARGET === "cloudflare";
 
 // Next.js injects small inline bootstrap scripts, hence 'unsafe-inline' for scripts;
 // everything else is locked to our own origin and the realtime server.
@@ -32,6 +34,18 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@platform/shared", "@platform/engines", "@platform/db"],
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
   outputFileTracingRoot: path.resolve(import.meta.dirname, "../.."),
+  // Workers can't compile wasm from bytes at runtime; use the Prisma client
+  // generated for workerd, which imports the query compiler as a wasm module.
+  ...(isCloudflare && {
+    turbopack: {
+      resolveAlias: { "#prisma-client": "../../packages/db/src/generated/prisma-workerd/client.ts" },
+    },
+    // pg loads its Workers socket shim (an optional dependency) only when
+    // running on workerd, so Node-based file tracing never sees it.
+    outputFileTracingIncludes: {
+      "/**": ["../../node_modules/.pnpm/pg@*/node_modules/pg-cloudflare/**", "../../node_modules/.pnpm/pg-cloudflare@*/**"],
+    },
+  }),
   async headers() {
     return [
       {
