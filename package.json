@@ -13,6 +13,8 @@
     "build": "pnpm --filter @platform/db generate && pnpm -r --filter @platform/web --filter @platform/realtime build",
     "start:web": "pnpm --filter @platform/web start",
     "start:realtime": "pnpm --filter @platform/realtime start",
+    "cloudflare:build": "pnpm --filter @platform/web cf:build",
+    "cloudflare:deploy": "pnpm --filter @platform/web exec opennextjs-cloudflare deploy",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --filter @platform/engines --filter @platform/shared --filter @platform/realtime test",
     "test:e2e": "pnpm --filter @platform/web test:e2e",

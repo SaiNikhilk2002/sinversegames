@@ -86,12 +86,14 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 | Setting | Value |
 | --- | --- |
 | Project name | `sinversegames-web` (must match `name` in `apps/web/wrangler.jsonc`) |
-| Root directory | `apps/web` |
-| Build command | `pnpm cf:build` |
-| Deploy command | `npx wrangler deploy` |
+| Root directory | `/` (repository root; leave empty) |
+| Build command | `pnpm cloudflare:build` |
+| Deploy command | `pnpm cloudflare:deploy` |
 | Build variables | `NEXT_PUBLIC_SITE_URL=https://<your-domain>`, `NEXT_PUBLIC_REALTIME_URL=https://rt.<your-domain>`, `NEXT_PUBLIC_BRAND_NAME=SinverseGames`, `NEXT_PUBLIC_SUPPORT_EMAIL=…` |
 
-The Node version comes from `apps/web/.node-version` (24) and pnpm from `packageManager`.
+Both commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Don't use a bare `npx wrangler deploy` at the repo root: it fails with "The Cloudflare application detection logic has been run in the root of a workspace".
+
+The Node version comes from `apps/web/.node-version` (24) and pnpm from `packageManager`. If the build image picks an older Node, add the build variable `NODE_VERSION=24`.
 
 `NEXT_PUBLIC_*` values are **inlined at build time** (including the CSP `connect-src`), so set them as *build* variables and redeploy after changing them.
 
