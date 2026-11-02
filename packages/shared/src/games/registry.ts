@@ -4,11 +4,31 @@
  * adding a game starts with adding an entry below, then implementing its engine
  * (packages/engines) and its client (apps/web/src/games).
  */
-export const GAME_IDS = ["color-clash", "doodle-duel"] as const;
+export const GAME_IDS = [
+  "color-clash",
+  "doodle-duel",
+  "kitchen-rush",
+  "token-trail",
+  "cascade-solitaire",
+  "mahjong-garden",
+  "bumper-blitz",
+] as const;
 export type GameId = (typeof GAME_IDS)[number];
+
+/** Games played in realtime rooms (engines in packages/engines, rooms on the realtime server). */
+export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail", "bumper-blitz"] as const;
+export type MultiplayerGameId = (typeof MULTIPLAYER_GAME_IDS)[number];
+
+/** Single-player games: played in the browser, scores verified by replaying the move log on the server. */
+export const SOLO_GAME_IDS = ["kitchen-rush", "cascade-solitaire", "mahjong-garden"] as const;
+export type SoloGameId = (typeof SOLO_GAME_IDS)[number];
 
 export const GAME_CATEGORIES = {
   cards: "Card games",
+  board: "Board games",
+  puzzle: "Puzzle",
+  cooking: "Cooking",
+  arcade: "Arcade & action",
   drawing: "Drawing",
   party: "Party",
   word: "Word games",
@@ -17,19 +37,23 @@ export const GAME_CATEGORIES = {
 } as const;
 export type GameCategory = keyof typeof GAME_CATEGORIES;
 
-export type GameModeId = "private-room" | "public-match" | "two-player" | "group";
+export type GameModeId = "private-room" | "public-match" | "two-player" | "group" | "solo" | "daily";
 
 export const GAME_MODE_LABELS: Record<GameModeId, string> = {
   "private-room": "Private rooms",
   "public-match": "Public matchmaking",
   "two-player": "1 vs 1",
   group: "Group play",
+  solo: "Single player",
+  daily: "Daily best scores",
 };
 
 export interface GameMeta {
   id: GameId;
   /** URL slug; equal to id for now but kept separate so URLs can change independently. */
   slug: string;
+  /** "multiplayer" games run in realtime rooms; "solo" games run in the browser with verified scores. */
+  kind: "multiplayer" | "solo";
   name: string;
   tagline: string;
   description: string;
@@ -53,6 +77,7 @@ export const GAMES: readonly GameMeta[] = [
   {
     id: "color-clash",
     slug: "color-clash",
+    kind: "multiplayer",
     name: "Color Clash",
     tagline: "Match colours, fire off action cards, empty your hand first.",
     description:
@@ -81,6 +106,7 @@ export const GAMES: readonly GameMeta[] = [
   {
     id: "doodle-duel",
     slug: "doodle-duel",
+    kind: "multiplayer",
     name: "Doodle Duel",
     tagline: "Draw it, guess it, win it — a real-time sketching party game.",
     description:
@@ -106,12 +132,161 @@ export const GAMES: readonly GameMeta[] = [
     ],
     keywords: ["drawing game", "guess the drawing", "online sketch game", "draw and guess with friends"],
   },
+  {
+    id: "kitchen-rush",
+    slug: "kitchen-rush",
+    kind: "solo",
+    name: "Kitchen Rush",
+    tagline: "Chop, cook and plate up before the customers lose patience.",
+    description:
+      "A time-management cooking game. Prepare ingredients, cook them to perfection, assemble orders and serve hungry customers across 12 levels of rising chaos.",
+    longDescription: [
+      "Kitchen Rush puts you in charge of a busy little kitchen. Customers arrive with orders and a patience meter, and it's your job to chop, grill, fry and plate every dish before they walk out.",
+      "Each level adds new recipes, stations and customers. Serve quickly for tips, don't burn anything, and chase three stars on every level.",
+    ],
+    categories: ["cooking", "casual", "arcade"],
+    minPlayers: 1,
+    maxPlayers: 1,
+    avgDurationMinutes: [2, 4],
+    modes: ["solo"],
+    featured: true,
+    popular: true,
+    addedAt: "2026-11-02",
+    theme: { from: "#ff8a3d", to: "#ffd25e", ink: "#3a1700" },
+    howToPlay: [
+      { title: "Read the order", body: "Each customer shows the dish they want and how patient they are." },
+      { title: "Prep and cook", body: "Pick up an ingredient, then tap a station: chop on the board, grill or fry on the stove. Take food off before it burns!" },
+      { title: "Plate it up", body: "Drop every finished part of the dish onto a plate." },
+      { title: "Serve fast", body: "Tap the customer to serve. Faster service earns tips; wrong dishes and burnt food cost points." },
+    ],
+    keywords: ["cooking game", "restaurant game", "time management game", "kitchen game online", "free cooking game"],
+  },
+  {
+    id: "token-trail",
+    slug: "token-trail",
+    kind: "multiplayer",
+    name: "Token Trail",
+    tagline: "Roll, race and bump rivals back to base on the way home.",
+    description:
+      "A classic race-home board game for 2–4 players. Roll the die, move your tokens around the trail, capture rivals and be first to bring every token home.",
+    longDescription: [
+      "Token Trail is a friendly race around a cross-shaped board. Roll a 6 to bring a token out, then race it round the trail and up your home lane.",
+      "Land on a rival to send them back to base — unless they're resting on a star. Sixes, captures and reaching home all earn another roll.",
+    ],
+    categories: ["board", "strategy", "casual"],
+    minPlayers: 2,
+    maxPlayers: 4,
+    avgDurationMinutes: [6, 20],
+    modes: ["private-room", "public-match", "two-player", "group"],
+    featured: false,
+    popular: true,
+    addedAt: "2026-11-02",
+    theme: { from: "#2fb36b", to: "#3fa4ff", ink: "#05261a" },
+    howToPlay: [
+      { title: "Roll to start", body: "Roll a 6 to move a token from your base onto your start square." },
+      { title: "Race around", body: "Move a token by the number rolled. Tokens travel the whole trail, then up your coloured home lane." },
+      { title: "Capture", body: "Land on a rival's token to send it back to base. Star squares are safe: nobody can be captured there." },
+      { title: "Bonus rolls", body: "Rolling a 6, capturing or reaching home gives you another roll. Three 6s in a row ends your turn." },
+    ],
+    keywords: ["ludo online", "board game with friends", "dice board game", "race board game multiplayer"],
+  },
+  {
+    id: "cascade-solitaire",
+    slug: "cascade-solitaire",
+    kind: "solo",
+    name: "Cascade Solitaire",
+    tagline: "The classic patience card game, with undo, hints and daily best scores.",
+    description:
+      "Classic Klondike-rules solitaire. Build the four foundations from Ace to King, with undo, hints, a timer and daily best scores.",
+    longDescription: [
+      "Cascade Solitaire is the timeless patience game: build down the seven columns in alternating colours and move every card up to the four foundations.",
+      "Choose draw-one for a relaxed game or draw-three for a challenge. Your best scores each day go on the daily leaderboard.",
+    ],
+    categories: ["cards", "puzzle", "casual"],
+    minPlayers: 1,
+    maxPlayers: 1,
+    avgDurationMinutes: [4, 10],
+    modes: ["solo", "daily"],
+    featured: false,
+    popular: false,
+    addedAt: "2026-11-02",
+    theme: { from: "#0f8a5f", to: "#3fd0a4", ink: "#02261a" },
+    howToPlay: [
+      { title: "Build columns", body: "Stack cards in descending order, alternating red and black." },
+      { title: "Move runs", body: "Move a face-up run of cards together. Only a King can fill an empty column." },
+      { title: "Fill foundations", body: "Build each suit from Ace up to King on the four foundations." },
+      { title: "Use the stock", body: "Tap the stock to draw. Stuck? Use a hint or undo." },
+    ],
+    keywords: ["solitaire", "klondike solitaire", "free solitaire online", "patience card game"],
+  },
+  {
+    id: "mahjong-garden",
+    slug: "mahjong-garden",
+    kind: "solo",
+    name: "Mahjong Garden",
+    tagline: "Match free tiles and clear the garden. Every board is solvable.",
+    description:
+      "A relaxing tile-matching puzzle. Match pairs of free tiles to clear the board across several layouts and difficulty levels. Every board is guaranteed solvable.",
+    longDescription: [
+      "Mahjong Garden is a calm solitaire tile-matching game. A tile is free when nothing sits on top of it and its left or right side is open.",
+      "Match two identical free tiles to remove them. Clear every tile to win: quick matches and fewer hints score higher.",
+    ],
+    categories: ["puzzle", "casual"],
+    minPlayers: 1,
+    maxPlayers: 1,
+    avgDurationMinutes: [3, 12],
+    modes: ["solo", "daily"],
+    featured: false,
+    popular: false,
+    addedAt: "2026-11-02",
+    theme: { from: "#d95f8d", to: "#ffb7a1", ink: "#3a0f22" },
+    howToPlay: [
+      { title: "Find free tiles", body: "A tile is free if no tile covers it and its left or right side is open." },
+      { title: "Match pairs", body: "Select two identical free tiles to clear them. Seasons and flowers match within their group." },
+      { title: "Use your tools", body: "Hints show a valid pair, shuffle mixes the remaining tiles and undo takes back a match." },
+      { title: "Clear the garden", body: "Remove every tile to win. Faster clears with fewer hints score more." },
+    ],
+    keywords: ["mahjong solitaire", "mahjong online free", "tile matching game", "mahjong puzzle"],
+  },
+  {
+    id: "bumper-blitz",
+    slug: "bumper-blitz",
+    kind: "multiplayer",
+    name: "Bumper Blitz",
+    tagline: "Ram your rivals off the arena in a frantic bumper-pod brawl.",
+    description:
+      "A real-time arena game for 2–6 players. Steer your bumper pod, grab power-ups and knock rivals out of the ring before the timer runs out.",
+    longDescription: [
+      "Bumper Blitz is a fast top-down brawl on a floating arena. Steer with the keyboard or the on-screen stick and ram the other pods off the edge.",
+      "Grab Turbo, Heavy and Shield power-ups, avoid the bumpers and hazard zones, and score a point for every rival you knock out.",
+    ],
+    categories: ["arcade", "party"],
+    minPlayers: 2,
+    maxPlayers: 6,
+    avgDurationMinutes: [2, 4],
+    modes: ["private-room", "public-match", "two-player", "group"],
+    featured: true,
+    popular: false,
+    addedAt: "2026-11-02",
+    theme: { from: "#7b2ff7", to: "#f107a3", ink: "#1d0636" },
+    howToPlay: [
+      { title: "Steer", body: "Use WASD or the arrow keys, or the on-screen stick on mobile." },
+      { title: "Boost", body: "Press Space (or the boost button) for a burst of speed. It recharges after a moment." },
+      { title: "Knock them out", body: "Ram rivals out of the ring. You score when a pod you hit falls off." },
+      { title: "Power up", body: "Turbo makes you faster, Heavy hits harder and Shield blocks one knock." },
+    ],
+    keywords: ["bumper cars game", "arena brawler online", "multiplayer arena game", "knockout game online"],
+  },
 ];
 
 const byId = new Map<string, GameMeta>(GAMES.map((g) => [g.id, g]));
 const bySlug = new Map<string, GameMeta>(GAMES.map((g) => [g.slug, g]));
 
 export const isGameId = (value: unknown): value is GameId => typeof value === "string" && byId.has(value);
+export const isMultiplayerGameId = (value: unknown): value is MultiplayerGameId =>
+  typeof value === "string" && (MULTIPLAYER_GAME_IDS as readonly string[]).includes(value);
+export const isSoloGameId = (value: unknown): value is SoloGameId =>
+  typeof value === "string" && (SOLO_GAME_IDS as readonly string[]).includes(value);
 
 export function getGame(id: GameId): GameMeta {
   const game = byId.get(id);

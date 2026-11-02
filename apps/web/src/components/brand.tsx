@@ -1,4 +1,5 @@
 import { brand, type GameId } from "@platform/shared";
+import { BumperBlitzArt, KitchenRushArt, MahjongArt, SolitaireArt, TokenTrailArt } from "./game-art";
 import { cn } from "./ui/primitives";
 
 /** Placeholder platform mark: a rounded tile with a play-wave glyph. The wordmark comes from brand config. */
@@ -30,8 +31,22 @@ export function Logo({ className }: { className?: string }) {
 
 /** Original game artwork, drawn as SVG so it scales crisply and needs no image assets. */
 export function GameArt({ gameId, className }: { gameId: GameId; className?: string }) {
-  if (gameId === "color-clash") return <ColorClashArt className={className} />;
-  return <DoodleDuelArt className={className} />;
+  switch (gameId) {
+    case "color-clash":
+      return <ColorClashArt className={className} />;
+    case "doodle-duel":
+      return <DoodleDuelArt className={className} />;
+    case "kitchen-rush":
+      return <KitchenRushArt className={className} />;
+    case "token-trail":
+      return <TokenTrailArt className={className} />;
+    case "cascade-solitaire":
+      return <SolitaireArt className={className} />;
+    case "mahjong-garden":
+      return <MahjongArt className={className} />;
+    case "bumper-blitz":
+      return <BumperBlitzArt className={className} />;
+  }
 }
 
 function ColorClashArt({ className }: { className?: string }) {

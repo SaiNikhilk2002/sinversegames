@@ -17,7 +17,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const game = getGameBySlug((await params).slug);
   if (!game) return {};
-  const title = `${game.name} — play free online with friends`;
+  const title = game.kind === "solo" ? `${game.name} — play free online` : `${game.name} — play free online with friends`;
   return {
     title,
     description: game.description,
@@ -30,7 +30,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function GamePage({ params }: { params: Params }) {
   const game = getGameBySlug((await params).slug);
   if (!game) notFound();
-  const others = GAMES.filter((g) => g.id !== game.id);
+  // Related games: those sharing the most categories first.
+  const others = GAMES.filter((g) => g.id !== game.id)
+    .map((g) => ({ g, shared: g.categories.filter((c) => game.categories.includes(c)).length }))
+    .sort((a, b) => b.shared - a.shared || Number(b.g.popular) - Number(a.g.popular))
+    .slice(0, 3)
+    .map(({ g }) => g);
 
   // Only facts we can stand behind: no ratings, reviews or age claims.
   const jsonLd = {
@@ -40,7 +45,7 @@ export default async function GamePage({ params }: { params: Params }) {
     description: game.description,
     url: `${brand.siteUrl}/games/${game.slug}`,
     genre: game.categories.map((c) => GAME_CATEGORIES[c]),
-    playMode: "MultiPlayer",
+    playMode: game.kind === "solo" ? "SinglePlayer" : "MultiPlayer",
     numberOfPlayers: { "@type": "QuantitativeValue", minValue: game.minPlayers, maxValue: game.maxPlayers },
     gamePlatform: "Web browser",
     applicationCategory: "Game",

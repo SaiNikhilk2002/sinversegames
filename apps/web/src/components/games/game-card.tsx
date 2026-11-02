@@ -4,7 +4,9 @@ import { GAME_CATEGORIES, type GameMeta } from "@platform/shared";
 import { GameArt } from "../brand";
 import { Badge, cn } from "../ui/primitives";
 
-export const playerRange = (g: GameMeta) => `${g.minPlayers}–${g.maxPlayers} players`;
+export const playerRange = (g: GameMeta) => (g.kind === "solo" ? "Single player" : `${g.minPlayers}–${g.maxPlayers} players`);
+const NEW_FOR_DAYS = 30;
+export const isNew = (g: GameMeta, now = Date.now()) => now - Date.parse(g.addedAt) < NEW_FOR_DAYS * 86_400_000;
 export const durationRange = (g: GameMeta) => `${g.avgDurationMinutes[0]}–${g.avgDurationMinutes[1]} min`;
 
 export function GameCard({ game, size = "md", className }: { game: GameMeta; size?: "md" | "lg"; className?: string }) {
@@ -22,6 +24,7 @@ export function GameCard({ game, size = "md", className }: { game: GameMeta; siz
         <div className="absolute top-3 left-3 flex gap-1.5">
           {game.featured && <Badge className="border-white/30 bg-black/45 text-white backdrop-blur">Featured</Badge>}
           {game.popular && <Badge className="border-white/30 bg-black/45 text-white backdrop-blur">🔥 Popular</Badge>}
+          {isNew(game) && <Badge className="border-white/30 bg-black/45 text-white backdrop-blur">✨ New</Badge>}
         </div>
       </div>
       <div className="flex flex-1 flex-col gap-2 p-5">

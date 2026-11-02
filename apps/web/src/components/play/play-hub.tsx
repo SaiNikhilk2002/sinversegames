@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Globe2, Lock, Radar, X } from "lucide-react";
-import { getGame, type GameId, type MatchStatusPayload, type RoomVisibility } from "@platform/shared";
+import { getGame, type MatchStatusPayload, type MultiplayerGameId, type RoomVisibility } from "@platform/shared";
 import { GameArt } from "../brand";
 import { JoinCodeForm } from "../games/join-code-form";
 import { Button, Card, Spinner } from "../ui/primitives";
@@ -18,7 +18,7 @@ function useConnected() {
   return status;
 }
 
-export function PlayHub({ gameId }: { gameId: GameId }) {
+export function PlayHub({ gameId }: { gameId: MultiplayerGameId }) {
   const game = getGame(gameId);
   const router = useRouter();
   const toast = useToast();

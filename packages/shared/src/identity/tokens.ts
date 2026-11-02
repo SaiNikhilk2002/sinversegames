@@ -91,3 +91,67 @@ export async function verifyPlayerToken(
     throw new InvalidTokenError("invalid");
   }
 }
+
+// ---------------------------------------------------------------------------
+// Single-player run tokens
+// ---------------------------------------------------------------------------
+
+/**
+ * Issued when a single-player game starts. It binds the run to a player, game,
+ * seed and config, so the score can only be computed by replaying a move log
+ * against exactly that deal. `jti` doubles as the stored match id, which makes
+ * each run recordable once.
+ */
+export interface RunClaims {
+  sub: string;
+  gameId: string;
+  seed: number;
+  config: Record<string, unknown>;
+  jti: string;
+  /** Issue time, epoch ms. */
+  issuedAt: number;
+}
+
+export const RUN_TTL_SECONDS = 6 * 60 * 60;
+
+export async function signRunToken(claims: Omit<RunClaims, "issuedAt">, secret: string | undefined): Promise<string> {
+  return new SignJWT({ gid: claims.gameId, seed: claims.seed, cfg: claims.config, typ: "run" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(claims.sub)
+    .setJti(claims.jti)
+    .setIssuer(ISSUER)
+    .setAudience("run")
+    .setIssuedAt()
+    .setExpirationTime(Math.floor(Date.now() / 1000) + RUN_TTL_SECONDS)
+    .sign(key(secret));
+}
+
+export async function verifyRunToken(token: string, secret: string | undefined): Promise<RunClaims> {
+  try {
+    const { payload } = await jwtVerify(token, key(secret), { issuer: ISSUER, audience: "run", algorithms: ["HS256"] });
+    if (
+      payload.typ !== "run" ||
+      typeof payload.sub !== "string" ||
+      typeof payload.gid !== "string" ||
+      typeof payload.seed !== "number" ||
+      typeof payload.jti !== "string" ||
+      typeof payload.iat !== "number" ||
+      typeof payload.cfg !== "object" ||
+      payload.cfg === null
+    ) {
+      throw new InvalidTokenError("invalid");
+    }
+    return {
+      sub: payload.sub,
+      gameId: payload.gid,
+      seed: payload.seed,
+      config: payload.cfg as Record<string, unknown>,
+      jti: payload.jti,
+      issuedAt: payload.iat * 1000,
+    };
+  } catch (err) {
+    if (err instanceof InvalidTokenError) throw err;
+    if (err instanceof errors.JWTExpired) throw new InvalidTokenError("expired");
+    throw new InvalidTokenError("invalid");
+  }
+}

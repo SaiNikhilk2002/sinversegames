@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { gameIdSchema } from "@platform/shared";
+import { anyGameIdSchema } from "@platform/shared";
 import { getDb, toggleFavorite, upsertPlayer } from "@platform/db";
 import { getSession, isSameOrigin } from "@/lib/server/session";
 
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   if (!(await isSameOrigin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const player = await getSession();
   if (!player) return NextResponse.json({ error: "Join with a name first" }, { status: 401 });
-  const parsed = z.object({ gameId: gameIdSchema }).safeParse(await req.json().catch(() => null));
+  const parsed = z.object({ gameId: anyGameIdSchema }).safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid game" }, { status: 400 });
   const db = getDb();
   if (!db) return NextResponse.json({ error: "Favourites are unavailable right now" }, { status: 503 });

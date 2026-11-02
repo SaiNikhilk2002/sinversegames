@@ -10,6 +10,8 @@ export const RATE_LIMITS = {
   action: { perSecond: 6, burst: 12 },
   guess: { perSecond: 2, burst: 5 },
   stroke: { perSecond: 60, burst: 120 },
+  /** Arena steering: clients send input on change, at most ~20 times a second. */
+  input: { perSecond: 30, burst: 45 },
 } as const;
 export type RateCategory = keyof typeof RATE_LIMITS;
 
@@ -35,6 +37,7 @@ export const categoryFor = (event: string): RateCategory => {
   if (event === "room:join") return "join";
   if (event === "doodle:stroke" || event === "doodle:undo" || event === "doodle:clear") return "stroke";
   if (event === "doodle:guess") return "guess";
-  if (event.startsWith("card:") || event === "doodle:select-word") return "action";
+  if (event === "arena:input") return "input";
+  if (event.startsWith("card:") || event.startsWith("trail:") || event === "doodle:select-word") return "action";
   return "room";
 };

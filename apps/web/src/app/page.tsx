@@ -4,12 +4,14 @@ import { brand, GAME_CATEGORIES, GAMES, type GameCategory } from "@platform/shar
 import { GameArt } from "@/components/brand";
 import { GameCard } from "@/components/games/game-card";
 import { JoinCodeForm } from "@/components/games/join-code-form";
+import { RecentlyPlayed } from "@/components/games/recently-played";
 import { ButtonLink, SectionHeading } from "@/components/ui/primitives";
 
-const featured = GAMES.filter((g) => g.featured);
-const popular = GAMES.filter((g) => g.popular);
-const recent = [...GAMES].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
-const multiplayer = GAMES.filter((g) => g.maxPlayers > 1);
+const featured = GAMES.filter((g) => g.featured).slice(0, 4);
+const popular = GAMES.filter((g) => g.popular).slice(0, 4);
+const recent = [...GAMES].sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 4);
+const multiplayer = GAMES.filter((g) => g.kind === "multiplayer");
+const solo = GAMES.filter((g) => g.kind === "solo");
 const usedCategories = Object.entries(GAME_CATEGORIES).filter(([key]) => GAMES.some((g) => g.categories.includes(key as GameCategory)));
 
 export default function HomePage() {
@@ -32,8 +34,8 @@ export default function HomePage() {
               <ButtonLink href="/games" size="lg">
                 <Gamepad2 className="size-5" /> Browse games
               </ButtonLink>
-              <ButtonLink href="/play/doodle-duel" size="lg" variant="secondary">
-                Quick play Doodle Duel
+              <ButtonLink href="/play/kitchen-rush" size="lg" variant="secondary">
+                Quick play Kitchen Rush
               </ButtonLink>
             </div>
             <div className="mt-8 max-w-md">
@@ -56,8 +58,10 @@ export default function HomePage() {
       </section>
 
       <div className="mx-auto max-w-7xl space-y-20 px-4 sm:px-6">
+        <RecentlyPlayed />
+
         <section aria-labelledby="featured">
-          <SectionHeading id="featured" title="Featured games" subtitle="Hand-picked multiplayer favourites." action={<Link href="/games" className="text-sm font-semibold text-brand-500 hover:underline">See all</Link>} />
+          <SectionHeading id="featured" title="Featured games" subtitle="Hand-picked favourites, solo and multiplayer." action={<Link href="/games" className="text-sm font-semibold text-brand-500 hover:underline">See all</Link>} />
           <div className="grid gap-6 md:grid-cols-2">
             {featured.map((g) => (
               <GameCard key={g.id} game={g} size="lg" />
@@ -118,11 +122,28 @@ export default function HomePage() {
           </ul>
         </section>
 
+        <section aria-labelledby="solo">
+          <SectionHeading id="solo" title="Play solo" subtitle="Single-player games with levels, verified high scores and daily leaderboards." />
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {solo.map((g) => (
+              <li key={g.id}>
+                <Link href={`/play/${g.slug}`} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-3 shadow-card transition hover:border-brand-400/60">
+                  <GameArt gameId={g.id} className="h-16 w-24 shrink-0 rounded-xl object-cover" />
+                  <div className="min-w-0">
+                    <p className="font-display text-lg font-bold">{g.name}</p>
+                    <p className="line-clamp-2 text-sm text-ink-muted">{g.tagline}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section aria-labelledby="how" className="rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-10">
           <h2 id="how" className="font-display text-3xl font-bold tracking-tight">How it works</h2>
           <ol className="mt-8 grid gap-8 md:grid-cols-4">
             {[
-              { icon: Gamepad2, title: "Pick a game", body: "Choose from our original multiplayer games." },
+              { icon: Gamepad2, title: "Pick a game", body: "Choose from our original games, solo or multiplayer." },
               { icon: UserPlus, title: "Choose a name", body: "No account needed — just a display name." },
               { icon: Link2, title: "Invite friends", body: "Share your room link or code, or find a public match." },
               { icon: Trophy, title: "Play & climb", body: "Earn points, track stats and top the leaderboard." },

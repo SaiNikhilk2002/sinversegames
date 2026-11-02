@@ -3,8 +3,14 @@ import { defineConfig, devices } from "@playwright/test";
 /**
  * End-to-end tests run against production builds of both services:
  *   pnpm build && pnpm test:e2e
- * Existing servers on :3000 / :4000 are reused when already running.
+ * Existing servers on :3200 / :4200 are reused when already running.
+ *
+ * Tests create players and matches, so servers started here always use the
+ * local database (`pnpm db:local`), never whatever DATABASE_URL is in .env.
+ * Set E2E_DATABASE_URL to point them somewhere else on purpose.
  */
+const env = { DATABASE_URL: process.env.E2E_DATABASE_URL ?? "postgresql://platform:platform@localhost:5433/platform" };
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 120_000,
@@ -25,6 +31,7 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 60_000,
       cwd: "../..",
+      env,
     },
     {
       command: "pnpm --filter @platform/web start",
@@ -32,6 +39,7 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 120_000,
       cwd: "../..",
+      env,
     },
   ],
 });

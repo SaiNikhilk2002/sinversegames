@@ -28,7 +28,10 @@ export interface AchievementDef {
   title: string;
   description: string;
   /** Evaluated after a match with the player's updated per-game stats. */
-  unlocked: (stats: StatsSnapshot[], lastMatch: { gameId: string; score: number; isWinner: boolean }) => boolean;
+  unlocked: (
+    stats: StatsSnapshot[],
+    lastMatch: { gameId: string; score: number; isWinner: boolean; details: Record<string, number | string> },
+  ) => boolean;
 }
 
 const total = (stats: StatsSnapshot[], k: "gamesPlayed" | "wins") => stats.reduce((n, s) => n + s[k], 0);
@@ -51,6 +54,32 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     title: "Clean sweep",
     description: "Win a Color Clash match worth 100+ points.",
     unlocked: (_s, m) => m.gameId === "color-clash" && m.isWinner && m.score >= 100,
+  },
+  {
+    key: "three-star-chef",
+    title: "Three-star chef",
+    description: "Earn 3 stars on any Kitchen Rush level.",
+    unlocked: (_s, m) => m.gameId === "kitchen-rush" && Number(m.details.stars) === 3,
+  },
+  {
+    key: "master-chef",
+    title: "Master chef",
+    description: "Pass the final Kitchen Rush level.",
+    unlocked: (_s, m) => m.gameId === "kitchen-rush" && m.isWinner && Number(m.details.level) === 12,
+  },
+  { key: "trail-boss", title: "Trail boss", description: "Win 3 games of Token Trail.", unlocked: (s) => (forGame(s, "token-trail")?.wins ?? 0) >= 3 },
+  {
+    key: "demolition-derby",
+    title: "Demolition derby",
+    description: "Knock out 5 rivals in a single Bumper Blitz match.",
+    unlocked: (_s, m) => m.gameId === "bumper-blitz" && Number(m.details.knockouts) >= 5,
+  },
+  { key: "patience-pays", title: "Patience pays", description: "Win a game of Cascade Solitaire.", unlocked: (_s, m) => m.gameId === "cascade-solitaire" && m.isWinner },
+  {
+    key: "pagoda-master",
+    title: "Pagoda master",
+    description: "Clear the Pagoda layout in Mahjong Garden.",
+    unlocked: (_s, m) => m.gameId === "mahjong-garden" && m.isWinner && m.details.layout === "pagoda",
   },
 ];
 

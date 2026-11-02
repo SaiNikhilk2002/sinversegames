@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { GAME_IDS, type GameId } from "../games/registry";
+import { GAME_IDS, MULTIPLAYER_GAME_IDS, type GameId, type MultiplayerGameId } from "../games/registry";
 
 /**
  * Wire protocol shared by the web client and the realtime server.
@@ -23,7 +23,10 @@ export const roomCodeSchema = z
   .toUpperCase()
   .regex(/^[A-HJKMNP-Z2-9]{6}$/, "Invalid room code");
 
-export const gameIdSchema = z.enum(GAME_IDS);
+/** Only realtime (multiplayer) games have rooms. */
+export const gameIdSchema = z.enum(MULTIPLAYER_GAME_IDS);
+/** Any game in the catalogue (favourites, profiles, leaderboards). */
+export const anyGameIdSchema = z.enum(GAME_IDS);
 
 export const ERROR_CODES = [
   "UNAUTHORIZED",
@@ -105,7 +108,7 @@ export interface RoomPlayerInfo {
 
 export interface RoomSnapshot {
   code: string;
-  gameId: GameId;
+  gameId: MultiplayerGameId;
   visibility: RoomVisibility;
   status: RoomStatus;
   hostId: string;
@@ -145,7 +148,7 @@ export interface GameStatePayload<V = unknown> {
 
 export interface MatchStatusPayload {
   state: "idle" | "searching" | "matched";
-  gameId?: GameId;
+  gameId?: MultiplayerGameId;
   queued?: number;
   since?: number;
   roomCode?: string;
@@ -193,6 +196,9 @@ export const GAME_ACTION_EVENTS = [
   "doodle:undo",
   "doodle:clear",
   "doodle:guess",
+  "trail:roll",
+  "trail:move",
+  "arena:input",
 ] as const;
 export type GameActionEvent = (typeof GAME_ACTION_EVENTS)[number];
 

@@ -106,11 +106,15 @@ export default async function ProfilePage() {
                 <li key={p.id}>
                   <Card className="flex items-center gap-3 p-3 text-sm">
                     <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl font-display font-bold", p.isWinner ? "bg-sun/20 text-amber-600 dark:text-sun" : "bg-surface-2 text-ink-muted")}>
-                      #{p.placement}
+                      {p.match.visibility === "solo" ? (p.isWinner ? "✓" : "–") : `#${p.placement}`}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{isGameId(p.match.gameId) ? getGame(p.match.gameId).name : p.match.gameId}</p>
-                      <p className="truncate text-ink-muted">vs {p.match.participants.filter((x) => x.playerId !== session.id).map((x) => x.displayName).join(", ")}</p>
+                      <p className="truncate text-ink-muted">
+                        {p.match.visibility === "solo"
+                          ? soloSummary(p.details as Record<string, string | number> | null, p.isWinner)
+                          : `vs ${p.match.participants.filter((x) => x.playerId !== session.id).map((x) => x.displayName).join(", ")}`}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="font-bold">{p.score} pts</p>
@@ -150,4 +154,15 @@ export default async function ProfilePage() {
       </div>
     </div>
   );
+}
+
+/** One-line description of a single-player run for the match history. */
+function soloSummary(d: Record<string, string | number> | null, completed: boolean): string {
+  const parts: string[] = [];
+  if (d?.level) parts.push(`Level ${d.level}`);
+  if (d?.stars !== undefined) parts.push(`${"★".repeat(Number(d.stars))}${"☆".repeat(3 - Number(d.stars))}`);
+  if (typeof d?.layout === "string") parts.push(d.layout.charAt(0).toUpperCase() + d.layout.slice(1));
+  if (d?.draw) parts.push(`Draw ${d.draw}`);
+  parts.push(completed ? "Completed" : "Not finished");
+  return `Solo · ${parts.join(" · ")}`;
 }

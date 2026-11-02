@@ -3,36 +3,63 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { GAME_CATEGORIES, GAMES, type GameCategory } from "@platform/shared";
 import { GameCard } from "@/components/games/game-card";
+import { RecentlyPlayed } from "@/components/games/recently-played";
 import { Button, cn } from "@/components/ui/primitives";
 
 export const metadata: Metadata = {
   title: "All games",
-  description: "Browse free multiplayer browser games — card games, drawing games and party games you can play instantly with friends.",
+  description: "Browse free browser games: cooking, puzzle, card, board, arcade and party games you can play instantly, solo or with friends.",
   alternates: { canonical: "/games" },
 };
 
-type SearchParams = Promise<{ q?: string; category?: string }>;
+type SearchParams = Promise<{ q?: string; category?: string; sort?: string; type?: string }>;
+
+const SORTS = { popular: "Popular", new: "Newest", name: "A–Z" } as const;
+const TYPES = { all: "All", multiplayer: "Multiplayer", solo: "Single player" } as const;
 
 export default async function GamesPage({ searchParams }: { searchParams: SearchParams }) {
-  const { q = "", category = "" } = await searchParams;
+  const { q = "", category = "", sort = "popular", type = "all" } = await searchParams;
+  const sortKey = (sort in SORTS ? sort : "popular") as keyof typeof SORTS;
+  const typeKey = (type in TYPES ? type : "all") as keyof typeof TYPES;
   const query = q.trim().toLowerCase().slice(0, 60);
   const cat = category in GAME_CATEGORIES ? (category as GameCategory) : null;
 
   const results = GAMES.filter((g) => {
     if (cat && !g.categories.includes(cat)) return false;
+    if (typeKey !== "all" && g.kind !== typeKey) return false;
     if (!query) return true;
     return [g.name, g.tagline, g.description, ...g.keywords].join(" ").toLowerCase().includes(query);
-  });
+  }).sort((a, b) =>
+    sortKey === "name"
+      ? a.name.localeCompare(b.name)
+      : sortKey === "new"
+        ? b.addedAt.localeCompare(a.addedAt) || a.name.localeCompare(b.name)
+        : Number(b.popular) - Number(a.popular) || Number(b.featured) - Number(a.featured) || b.addedAt.localeCompare(a.addedAt),
+  );
+
+  const href = (patch: Record<string, string | null>) => {
+    const params = new URLSearchParams();
+    const merged = { q: query || null, category: cat, sort: sortKey === "popular" ? null : sortKey, type: typeKey === "all" ? null : typeKey, ...patch };
+    for (const [k, v] of Object.entries(merged)) if (v) params.set(k, v);
+    return `/games${params.size ? `?${params}` : ""}`;
+  };
+  const pill = (key: string, label: string, active: boolean, to: string) => (
+    <Link
+      key={key}
+      href={to}
+      aria-current={active ? "true" : undefined}
+      className={cn("rounded-full px-3 py-1.5 text-sm font-semibold transition", active ? "bg-ink text-surface" : "text-ink-muted hover:text-ink")}
+    >
+      {label}
+    </Link>
+  );
 
   const chip = (key: string | null, label: string) => {
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    if (key) params.set("category", key);
     const active = (key ?? null) === cat;
     return (
       <Link
         key={label}
-        href={`/games${params.size ? `?${params}` : ""}`}
+        href={href({ category: key })}
         aria-current={active ? "true" : undefined}
         className={cn(
           "rounded-full border px-4 py-2 text-sm font-semibold transition",
@@ -47,10 +74,15 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <h1 className="font-display text-4xl font-extrabold tracking-tight">All games</h1>
-      <p className="mt-2 text-ink-muted">Every game is free, runs in your browser and supports playing with friends.</p>
+      <p className="mt-2 text-ink-muted">Every game is free and runs in your browser — no downloads, no sign-up.</p>
+      <div className="mt-6">
+        <RecentlyPlayed title="Recently played" />
+      </div>
 
       <form method="get" role="search" className="mt-8 flex max-w-xl gap-2">
         {cat && <input type="hidden" name="category" value={cat} />}
+        {sortKey !== "popular" && <input type="hidden" name="sort" value={sortKey} />}
+        {typeKey !== "all" && <input type="hidden" name="type" value={typeKey} />}
         <label className="relative flex-1">
           <span className="sr-only">Search games</span>
           <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-ink-faint" aria-hidden />
@@ -69,6 +101,15 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
         {chip(null, "All")}
         {Object.entries(GAME_CATEGORIES).map(([key, label]) => chip(key, label))}
       </nav>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <nav aria-label="Play type" className="flex flex-wrap items-center gap-1 rounded-full border border-line bg-surface p-1">
+          {Object.entries(TYPES).map(([k, label]) => pill(k, label, k === typeKey, href({ type: k === "all" ? null : k })))}
+        </nav>
+        <nav aria-label="Sort" className="flex flex-wrap items-center gap-1 rounded-full border border-line bg-surface p-1">
+          {Object.entries(SORTS).map(([k, label]) => pill(k, label, k === sortKey, href({ sort: k === "popular" ? null : k })))}
+        </nav>
+      </div>
 
       <p className="mt-8 text-sm text-ink-muted" aria-live="polite">
         {results.length} {results.length === 1 ? "game" : "games"}

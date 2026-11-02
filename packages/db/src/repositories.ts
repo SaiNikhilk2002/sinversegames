@@ -32,6 +32,10 @@ export async function activeBan(db: PrismaClient, playerId: string): Promise<{ u
 // ---------------------------------------------------------------------------
 
 export interface RecordMatchInput {
+  /** Fixed match id. Single-player runs use their run token id, which makes each run recordable once. */
+  id?: string;
+  /** Single-player run: one entry is allowed. */
+  solo?: boolean;
   results: MatchResults;
   roomCode: string;
   visibility: string;
@@ -51,7 +55,7 @@ export interface RecordMatchOutput {
  */
 export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Promise<RecordMatchOutput | null> {
   const { results } = input;
-  if (results.reason === "aborted" || results.entries.length < 2) return null;
+  if (results.reason === "aborted" || results.entries.length < (input.solo ? 1 : 2)) return null;
   const grantRewards = rewardsEnabled();
 
   return db.$transaction(async (tx) => {
@@ -65,6 +69,7 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
 
     const match = await tx.match.create({
       data: {
+        ...(input.id ? { id: input.id } : {}),
         gameId: results.gameId,
         roomCode: input.roomCode,
         visibility: input.visibility,
@@ -132,7 +137,7 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
         (await tx.playerAchievement.findMany({ where: { playerId: e.playerId }, select: { achievementKey: true } })).map((a) => a.achievementKey),
       );
       const fresh = ACHIEVEMENTS.filter(
-        (a) => !have.has(a.key) && a.unlocked(stats, { gameId: results.gameId, score: e.score, isWinner: e.isWinner }),
+        (a) => !have.has(a.key) && a.unlocked(stats, { gameId: results.gameId, score: e.score, isWinner: e.isWinner, details: e.details ?? {} }),
       ).map((a) => a.key);
       if (fresh.length) {
         await tx.playerAchievement.createMany({
@@ -169,7 +174,7 @@ export async function getProfile(db: PrismaClient, playerId: string) {
   return { ...player, rewardBalance: balance._sum.amount ?? 0 };
 }
 
-export type LeaderboardMetric = "totalPoints" | "wins";
+export type LeaderboardMetric = "totalPoints" | "wins" | "bestScore";
 
 export async function getLeaderboard(db: PrismaClient, gameId: string, metric: LeaderboardMetric = "totalPoints", limit = 25) {
   const rows = await db.playerGameStats.findMany({
@@ -189,6 +194,38 @@ export async function getLeaderboard(db: PrismaClient, gameId: string, metric: L
     totalPoints: r.totalPoints,
     bestScore: r.bestScore,
   }));
+}
+
+/** Best single score per player today (UTC), for single-player daily leaderboards. */
+export async function getDailyBest(db: PrismaClient, gameId: string, limit = 25, now = new Date()) {
+  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const rows = await db.matchParticipant.findMany({
+    where: { match: { gameId, endedAt: { gte: since } }, player: { bannedUntil: null } },
+    orderBy: [{ score: "desc" }, { createdAt: "asc" }],
+    take: 500,
+    include: { player: { select: { displayName: true, avatarColor: true, level: true } } },
+  });
+  const seen = new Set<string>();
+  const best = rows.filter((r) => !seen.has(r.playerId) && seen.add(r.playerId)).slice(0, Math.min(100, limit));
+  return best.map((r, i) => ({
+    rank: i + 1,
+    playerId: r.playerId,
+    name: r.player.displayName,
+    color: r.player.avatarColor,
+    level: r.player.level,
+    score: r.score,
+    details: (r.details ?? {}) as Record<string, number | string>,
+  }));
+}
+
+/** Best score for one player in one game (all-time and today). */
+export async function getPersonalBest(db: PrismaClient, playerId: string, gameId: string, now = new Date()) {
+  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const [stats, today] = await Promise.all([
+    db.playerGameStats.findUnique({ where: { playerId_gameId: { playerId, gameId } }, select: { bestScore: true, gamesPlayed: true } }),
+    db.matchParticipant.findFirst({ where: { playerId, match: { gameId, endedAt: { gte: since } } }, orderBy: { score: "desc" }, select: { score: true } }),
+  ]);
+  return { best: stats?.bestScore ?? 0, played: stats?.gamesPlayed ?? 0, today: today?.score ?? 0 };
 }
 
 export async function toggleFavorite(db: PrismaClient, playerId: string, gameId: string): Promise<boolean> {

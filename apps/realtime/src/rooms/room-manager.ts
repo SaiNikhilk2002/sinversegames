@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import type { Socket } from "socket.io";
-import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, type Ack, type GameId, type RoomVisibility } from "@platform/shared";
+import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, type Ack, type MultiplayerGameId, type RoomVisibility } from "@platform/shared";
 import { getEngine, type Rng } from "@platform/engines";
 import type { RealtimeConfig } from "../config";
 import type { Logger } from "../logger";
@@ -49,7 +49,7 @@ export class RoomManager {
     return this.rooms.get(code);
   }
 
-  create(host: PlayerInfo, gameId: GameId, visibility: RoomVisibility, configPatch: Record<string, unknown> | undefined): Room | Ack {
+  create(host: PlayerInfo, gameId: MultiplayerGameId, visibility: RoomVisibility, configPatch: Record<string, unknown> | undefined): Room | Ack {
     if (this.rooms.size >= this.deps.config.MAX_ROOMS) return err("INTERNAL", "The server is at capacity — please try again shortly");
     const engine = getEngine(gameId);
     const parsed = engine.configSchema.safeParse({ ...engine.defaultConfig(), ...(configPatch ?? {}) });
@@ -126,7 +126,7 @@ export class RoomManager {
   }
 
   /** Public lobbies with space, oldest first — used by matchmaking. */
-  openPublicRooms(gameId: GameId): Room[] {
+  openPublicRooms(gameId: MultiplayerGameId): Room[] {
     return [...this.rooms.values()]
       .filter((r) => r.gameId === gameId && r.visibility === "public" && !r.closed && r.status !== "playing" && r.members.size < r.engine.maxPlayers && r.connectedCount > 0)
       .sort((a, b) => a.createdAt - b.createdAt);

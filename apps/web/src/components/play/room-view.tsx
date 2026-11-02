@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Maximize2, Minimize2, WifiOff } from "lucide-react";
 import { getGame, ROOM_CLOSE_REASONS, type RoomCloseReason, type RoomNoticePayload } from "@platform/shared";
 import { GAME_CLIENTS } from "@/games/registry";
+import { recordRecentlyPlayed } from "@/lib/recent";
 import { usePlayer } from "@/lib/player";
 import { realtime } from "@/lib/realtime/connection";
 import { useRoom, useRoomEvent } from "@/lib/realtime/use-room";
@@ -57,6 +58,11 @@ export function RoomView({ code }: { code: string }) {
   useEffect(() => {
     if (roomStatus === "playing") containerRef.current?.scrollIntoView({ block: "start" });
   }, [roomStatus]);
+
+  const roomGame = state.room?.gameId;
+  useEffect(() => {
+    if (roomGame) recordRecentlyPlayed(roomGame);
+  }, [roomGame]);
 
   useEffect(() => {
     const onChange = () => setFullscreen(!!document.fullscreenElement);

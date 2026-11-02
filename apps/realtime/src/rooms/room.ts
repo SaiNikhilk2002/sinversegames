@@ -4,7 +4,7 @@ import {
   getGame,
   type Ack,
   type ClientEnvelope,
-  type GameId,
+  type MultiplayerGameId,
   type MatchResults,
   type ProtocolError,
   type RoomCloseReason,
@@ -80,7 +80,7 @@ export class Room {
 
   constructor(
     readonly code: string,
-    readonly gameId: GameId,
+    readonly gameId: MultiplayerGameId,
     readonly engine: AnyGameEngine,
     readonly visibility: RoomVisibility,
     host: PlayerInfo,

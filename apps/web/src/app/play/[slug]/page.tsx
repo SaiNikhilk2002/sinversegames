@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { GAMES, getGameBySlug } from "@platform/shared";
+import { GAMES, getGameBySlug, isMultiplayerGameId, isSoloGameId } from "@platform/shared";
 import { NameGate } from "@/components/play/name-gate";
 import { PlayHub } from "@/components/play/play-hub";
+import { SoloRunner } from "@/components/play/solo-runner";
 
 type Params = Promise<{ slug: string }>;
 
@@ -20,7 +21,7 @@ export default async function PlayPage({ params }: { params: Params }) {
   if (!game) notFound();
   return (
     <NameGate title={`Play ${game.name}`}>
-      <PlayHub gameId={game.id} />
+      {isSoloGameId(game.id) ? <SoloRunner gameId={game.id} /> : isMultiplayerGameId(game.id) ? <PlayHub gameId={game.id} /> : null}
     </NameGate>
   );
 }
