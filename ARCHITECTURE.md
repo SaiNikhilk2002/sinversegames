@@ -21,7 +21,7 @@ Two independently deployable services share TypeScript packages:
 | Path | Purpose |
 | --- | --- |
 | `packages/shared` | Brand config, **game registry** (metadata), wire protocol (event names, envelopes, error codes, Zod payload schemas), name sanitising, JWT helpers. |
-| `packages/engines` | Pure, transport-free **game engines** and the `GameEngine` contract. No I/O; randomness and time are injected. Browser-safe subpath exports (`/color-clash/client`, `/doodle-duel/client`) expose card and stroke definitions without engine internals or the word bank. |
+| `packages/engines` | Pure, transport-free **game engines** and the `GameEngine` contract. No I/O; randomness and time are injected. Browser-safe subpath exports (`/color-clash/client`, `/doodle-duel/client`, `/token-trail`, `/bumper-blitz`) expose views and constants without engine internals or the word bank. `/solo` (plus `/kitchen-rush`, `/cascade-solitaire`, `/mahjong-garden`) holds the deterministic single-player rules, which run both in the browser and in the score-verifying Worker. |
 | `packages/db` | Prisma schema and migrations, client factory (`getDb()` returns `null` without `DATABASE_URL`), repositories, progression rules (XP, achievements, rewards). |
 | `apps/web` | Next.js App Router: discovery and SEO pages, play hub, room UI, game clients, profile, leaderboard, legal pages, admin, API routes. |
 | `apps/realtime` | Socket.IO server: authentication, rooms, matchmaking, rate limits, timers, persistence of results, admin/metrics HTTP. |
@@ -42,7 +42,36 @@ Every game implements two halves.
 
 **Client: `GameClient`** (`apps/web/src/games/types.ts`): a lazily loaded `Game` component that receives the room snapshot, the player's view and a `send()` function, plus a `Settings` component and a `summarize()` function for the lobby.
 
-**Adding a game:** add metadata to `GAMES` in `packages/shared/src/games/registry.ts`, implement and register its engine in `packages/engines/src/index.ts`, add its client to `apps/web/src/games/registry.tsx`, and add its action event names to `GAME_ACTION_EVENTS`. Discovery pages, SEO, the sitemap, the play hub, lobby, matchmaking, results, persistence and leaderboards then work without further changes.
+**Adding a multiplayer game:** add metadata to `GAMES` in `packages/shared/src/games/registry.ts` with `kind: "multiplayer"`, and list its id in `MULTIPLAYER_GAME_IDS`. Then:
+
+- implement and register its engine in `packages/engines/src/index.ts`
+- add its client to `apps/web/src/games/registry.tsx`
+- add its action event names to `GAME_ACTION_EVENTS` (and a rate-limit category in `apps/realtime/src/rate-limit.ts` if it's chattier than turn-based play)
+
+Discovery pages, SEO, the sitemap, the play hub, lobby, matchmaking, results, persistence and leaderboards then work without further changes.
+
+**Realtime (tick) games** use the same contract. Bumper Blitz returns `nextDeadline = lastTick + 50 ms`, so the room's single timer drives a 20 Hz fixed-step simulation. `handleAction` only stores steering input (`stateChanged: false`, no broadcast). Every tick publishes positions through `viewFor`, and clients render about 100 ms behind the server clock, interpolating between snapshots. Arena input has its own rate-limit bucket (30/s, burst 45).
+
+## Single-player games: verified runs
+
+Single-player games (Kitchen Rush, Cascade Solitaire, Mahjong Garden) run entirely in the browser: no game server and no per-move network traffic. A browser can't be trusted to report its own score, so the score is never sent. Instead:
+
+1. **Start:** `POST /api/solo/start` picks a random seed on the server and returns a **run token**: an HS256 JWT binding player, game, seed, config and a run id (`jti`).
+2. **Play:** the browser deals from that seed with the game's deterministic rules (`packages/engines`, `@platform/engines/solo`) and records a timestamped move log.
+3. **Submit:** `POST /api/solo/submit` sends the token and log. The Worker replays the log through the same rules (`SoloGameDefinition.verify`) and computes the score itself. It rejects:
+   - illegal moves
+   - timestamps out of order
+   - logs claiming more game time than has passed since the token was issued
+   - another player's token
+4. **Record:** the run is stored with `recordMatch` (`solo: true`) using the run id as the match id, so each run counts **once**. A resubmission conflicts on the primary key and returns 409. Stats, XP, rewards and achievements use the same code path as multiplayer matches.
+
+Kitchen Rush is a real-time game, so its engine is an **event simulation**. Cooking progress, burning and customer patience are all computed from timestamps (`advance(state, t)`), so a replay reproduces exactly what the player saw without frame-rate drift. Unfinished work is played out to the end of the shift on the server, so quitting early can't avoid penalties. Hands are keyed by cook id, so a co-op mode can reuse the engine.
+
+**Limits:** replay verification proves a score was *achievable* with that deal at that pace. It can't prove a human made the moves (a bot that knows the seed could). The timing check rules out impossible speeds. For stronger guarantees, competitive modes can move to the realtime server like the multiplayer games.
+
+`GET /api/solo/best` serves personal bests and the daily board: the best score per player since 00:00 UTC, read from existing tables with no extra writes.
+
+**Adding a solo game:** add metadata with `kind: "solo"` and its id in `SOLO_GAME_IDS`. Implement a `SoloGameDefinition` (config schema, log schema, `verify`) and register it in `packages/engines/src/solo.ts`. Then add a `Setup` and a `Game` component to `apps/web/src/games/solo-registry.tsx`. The shared `SoloRunner` handles starting runs, submitting, results, personal bests and the daily board.
 
 ## Real-time protocol
 
