@@ -147,6 +147,25 @@ function Joystick({ onChange }: { onChange: (v: { x: number; y: number } | null)
 
 type FeedTone = "ko" | "info" | "self";
 
+const POD_PALETTE = ["#ff5d73", "#3d8bff", "#ffcf3d", "#2fc28a", "#c04dff", "#ff8f3d"];
+
+/**
+ * Pods use each player's profile colour, but two players can pick the same
+ * one. Later seats that clash get the next free palette colour; the pod list
+ * is in the same order for everyone, so every screen agrees.
+ */
+function distinctColors(pods: BBPodView[]): Map<string, string> {
+  const used = new Set<string>();
+  const out = new Map<string, string>();
+  for (const p of pods) {
+    let c = p.color.toLowerCase();
+    if (used.has(c)) c = POD_PALETTE.find((x) => !used.has(x)) ?? c;
+    used.add(c);
+    out.set(p.id, c);
+  }
+  return out;
+}
+
 export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BBView>) {
   const view = game.view;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -260,7 +279,13 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
         return { ...pb, x: pa.x + (pb.x - pa.x) * f, y: pa.y + (pb.y - pa.y) * f, vx: pa.vx + (pb.vx - pa.vx) * f, vy: pa.vy + (pb.vy - pa.vy) * f };
       };
       posRef.current = posOf;
-      const pods = v.pods.filter((p) => !p.left).map((p) => posOf(p.id));
+      const colors = distinctColors(v.pods);
+      const pods = v.pods
+        .filter((p) => !p.left)
+        .map((p) => {
+          const q = posOf(p.id);
+          return q && { ...q, color: colors.get(p.id) ?? q.color };
+        });
       const out = r.frame(ctx, px, v, pods, serverNow);
       if (out.boosted.includes(selfId)) sfx.whoosh();
       if (out.fell.some((x) => x.id === selfId)) sfx.fall();
@@ -277,6 +302,7 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
   const timeLeft = Math.max(0, Math.ceil((view.endsAt - now) / 1000));
   const boostReadyIn = me ? Math.max(0, me.boostReadyAt - now) : 0;
   const boostReady = !!me && boostReadyIn === 0;
+  const podColors = distinctColors(view.pods);
   const board = [...view.pods].filter((p) => !p.left).sort((a, b) => b.knockouts - a.knockouts || a.falls - b.falls);
   const respawnLeft = koBy ? Math.max(0, 2000 - (now - koBy.at)) : 0;
 
@@ -337,7 +363,7 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
           </AnimatePresence>
         </div>
         {/* Touch controls (shown on coarse pointers) */}
-        <div className="pointer-coarse:flex absolute inset-x-4 bottom-4 hidden items-end justify-between">
+        <div className="pointer-coarse:flex mt-3 hidden items-center justify-between px-2 select-none">
           <Joystick onChange={input.setStick} />
           <button
             type="button"
@@ -357,7 +383,7 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
             {board.map((p, i) => (
               <motion.li layout key={p.id} className={cn("flex items-center gap-3 rounded-xl px-2 py-1.5", p.id === selfId && "bg-[#ff4f8b]/15 ring-1 ring-[#ff4f8b]/50")}>
                 <span className="w-4 font-mono text-sm font-bold text-[#a49ccc]">{i + 1}</span>
-                <Avatar name={p.name} color={p.color} size={26} />
+                <Avatar name={p.name} color={podColors.get(p.id) ?? p.color} size={26} />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.id === selfId ? "You" : p.name}</span>
                 <span className="font-mono text-base font-black tabular-nums">{p.knockouts}</span>
                 <span className="font-mono text-xs text-[#a49ccc] tabular-nums" title="Falls">

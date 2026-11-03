@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { Check, Copy, Crown, Flag, LogOut, Share2, UserX, WifiOff } from "lucide-react";
 import { brand, getGame, type Ack, type RoomSnapshot } from "@platform/shared";
 import { GAME_CLIENTS } from "@/games/registry";
+import { GameArt } from "../brand";
+import { GAME_THEME } from "../game-theme";
 import { Avatar, Badge, Button, Card, cn, Tooltip } from "../ui/primitives";
 import { useToast } from "../ui/toast";
 import { ReportDialog } from "./report-dialog";
@@ -23,6 +26,7 @@ export function Lobby({
   const game = getGame(room.gameId);
   const client = GAME_CLIENTS[room.gameId];
   const isHost = room.hostId === selfId;
+  const theme = GAME_THEME[room.gameId];
   const me = room.players.find((p) => p.id === selfId);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [starting, setStarting] = useState(false);
@@ -51,13 +55,17 @@ export function Lobby({
     <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
       <div className="space-y-6">
         <Card className="overflow-hidden">
-          <div className="bg-brand-gradient p-6 text-white">
-            <p className="text-sm font-semibold text-white/80">{room.visibility === "public" ? "Public room" : "Private room"} · {game.name}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-4">
-              <p className="font-mono text-4xl font-extrabold tracking-[0.2em] sm:text-5xl" data-testid="room-code">
+          <div className="relative overflow-hidden p-6" style={{ background: theme.deep, color: theme.ink }}>
+            <div className="pointer-events-none absolute inset-0 opacity-30" aria-hidden>
+              <GameArt gameId={room.gameId} className="size-full scale-125 blur-xl" />
+            </div>
+            <span className="absolute inset-x-0 bottom-0 h-1" style={{ background: theme.accent }} aria-hidden />
+            <p className="relative text-xs font-black tracking-[0.25em] uppercase opacity-75">{room.visibility === "public" ? "Public room" : "Private room"} · {game.name}</p>
+            <div className="relative mt-2 flex flex-wrap items-center gap-4">
+              <p className="font-mono text-4xl font-black tracking-[0.2em] sm:text-5xl" style={{ color: theme.accent, textShadow: "0 3px 0 rgb(0 0 0 / 0.4)" }} data-testid="room-code">
                 {room.code}
               </p>
-              <Button variant="secondary" size="sm" className="border-0 bg-white/20 text-white hover:bg-white/30" onClick={() => copy("code")} icon={copied === "code" ? <Check className="size-4" /> : <Copy className="size-4" />}>
+              <Button variant="secondary" size="sm" className="border-0 bg-white/15 text-inherit hover:bg-white/25" onClick={() => copy("code")} icon={copied === "code" ? <Check className="size-4" /> : <Copy className="size-4" />}>
                 {copied === "code" ? "Copied" : "Copy code"}
               </Button>
             </div>
@@ -84,7 +92,15 @@ export function Lobby({
           </div>
           <ul className="space-y-2" data-testid="player-list">
             {room.players.map((p) => (
-              <li key={p.id} className={cn("flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3", !p.connected && "opacity-60")}>
+              <motion.li
+                layout
+                key={p.id}
+                initial={{ opacity: 0, x: -24, scale: 0.96 }}
+                animate={{ opacity: !p.connected ? 0.6 : 1, x: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                className="flex items-center gap-3 rounded-2xl border-2 bg-surface-2 p-3 transition-colors"
+                style={{ borderColor: p.ready || p.isHost ? theme.accent : "var(--line)", boxShadow: p.ready ? `0 0 0 3px ${theme.accent}22` : undefined }}
+              >
                 <Avatar name={p.name} color={p.color} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">
@@ -127,7 +143,7 @@ export function Lobby({
                     )}
                   </div>
                 )}
-              </li>
+              </motion.li>
             ))}
             {Array.from({ length: Math.max(0, Math.min(room.maxPlayers, 6) - room.players.length) }, (_, i) => (
               <li key={`empty-${i}`} className="flex items-center gap-3 rounded-2xl border border-dashed border-line p-3 text-sm text-ink-faint">

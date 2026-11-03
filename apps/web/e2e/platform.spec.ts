@@ -3,7 +3,7 @@ import { createPrivateRoom, enterName, expectNoHorizontalOverflow, joinByInvite,
 
 test("homepage → game detail → guest entry → play hub", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Play together");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Pick a game");
   await expect(page.getByRole("link", { name: /Color Clash/ }).first()).toBeVisible();
   await page.getByRole("link", { name: "Browse games" }).first().click();
   await expect(page).toHaveURL(/\/games$/);
@@ -30,6 +30,7 @@ test("names are validated server-side", async ({ page }) => {
 test("invalid and unknown rooms show helpful errors", async ({ page }) => {
   await page.goto("/play/color-clash");
   await enterName(page, "Lost");
+  await expect(page.getByText("Connected", { exact: true })).toBeVisible();
   await page.goto("/room/ZZZZZZ");
   await expect(page.getByRole("heading", { name: "Room not found" })).toBeVisible();
   const res = await page.goto("/room/bad");

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Maximize2, Minimize2, WifiOff } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { Maximize2, Minimize2, Wifi, WifiOff } from "lucide-react";
 import { getGame, ROOM_CLOSE_REASONS, type RoomCloseReason, type RoomNoticePayload } from "@platform/shared";
 import { GAME_CLIENTS } from "@/games/registry";
 import { recordRecentlyPlayed } from "@/lib/recent";
@@ -49,6 +50,18 @@ export function RoomView({ code }: { code: string }) {
   const toast = useToast();
   const { state, status, send, retry } = useRoom(code, !!player);
   const [fullscreen, setFullscreen] = useState(false);
+  // Flash "back online" after a reconnect.
+  const [backOnline, setBackOnline] = useState(false);
+  const wasReconnecting = useRef(false);
+  useEffect(() => {
+    if (status === "reconnecting") wasReconnecting.current = true;
+    else if (status === "connected" && wasReconnecting.current) {
+      wasReconnecting.current = false;
+      setBackOnline(true);
+      const id = setTimeout(() => setBackOnline(false), 2500);
+      return () => clearTimeout(id);
+    }
+  }, [status]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useRoomEvent<RoomNoticePayload>(code, "room:notice", (n) => toast(n.message, n.kind === "error" ? "error" : n.kind === "warning" ? "warning" : "success"));
@@ -139,18 +152,34 @@ export function RoomView({ code }: { code: string }) {
         </div>
       </div>
 
-      {status === "reconnecting" && (
-        <div role="alert" className="mb-4 flex items-center gap-2 rounded-2xl border border-sun/40 bg-sun/15 px-4 py-3 text-sm font-semibold">
-          <WifiOff className="size-4" /> Connection lost — reconnecting. Your seat is saved.
-        </div>
-      )}
+      <AnimatePresence>
+        {status === "reconnecting" && (
+          <motion.div key="lost" role="alert" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-sun/50 bg-sun/15 px-4 py-3 text-sm font-semibold">
+            <span className="relative grid size-8 place-items-center">
+              <span className="absolute inset-0 animate-ping rounded-full bg-sun/40" />
+              <WifiOff className="relative size-4" />
+            </span>
+            <span>
+              Connection lost — reconnecting…
+              <span className="block text-xs font-normal opacity-80">Your seat is saved. The game continues where you left off.</span>
+            </span>
+          </motion.div>
+        )}
+        {backOnline && status === "connected" && (
+          <motion.div key="back" role="status" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-4 flex items-center gap-2 rounded-2xl border-2 border-mint/50 bg-mint/15 px-4 py-3 text-sm font-semibold">
+            <Wifi className="size-4" /> Back online — you&apos;re in sync.
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {playing ? (
         <client.Game code={code} room={room} game={state.game!} selfId={player.id} send={send} />
       ) : (
         <>
-          {room.status === "finished" && (state.results ?? room.lastResults) && <ResultsPanel results={(state.results ?? room.lastResults)!} selfId={player.id} />}
-          <Lobby room={room} selfId={player.id} send={send} onLeave={leave} />
+          {room.status === "finished" && (state.results ?? room.lastResults) && <ResultsPanel results={(state.results ?? room.lastResults)!} selfId={player.id} room={room} send={send} />}
+          <div id="room-lobby" className="scroll-mt-4">
+            <Lobby room={room} selfId={player.id} send={send} onLeave={leave} />
+          </div>
         </>
       )}
     </div>

@@ -264,3 +264,17 @@ svg .tt-glow { animation: tt-glow 1.8s ease-in-out infinite; }
 @keyframes cc-spin-rev { to { transform: rotate(-360deg); } }
 .cc-spin { animation: cc-spin 14s linear infinite; }
 .cc-spin-rev { animation: cc-spin-rev 14s linear infinite; }
+
+/* Homepage stage: two spotlights over a faint arcade-carpet pattern */
+.home-stage {
+  background-image:
+    radial-gradient(ellipse 40% 60% at 72% 0%, rgb(255 79 139 / 0.16), transparent 70%),
+    radial-gradient(ellipse 30% 50% at 20% 10%, rgb(47 214 168 / 0.10), transparent 70%),
+    radial-gradient(circle at 12px 12px, rgb(255 178 61 / 0.10) 1.5px, transparent 2px),
+    radial-gradient(circle at 36px 36px, rgb(61 139 255 / 0.10) 1.5px, transparent 2px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+  mask-image: linear-gradient(to bottom, black 60%, transparent);
+}
+@keyframes spot { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.hub-radar { animation: hub-radar 1.8s ease-out infinite; }
+@keyframes hub-radar { from { transform: scale(0.5); opacity: 0.9; } to { transform: scale(1.6); opacity: 0; } }

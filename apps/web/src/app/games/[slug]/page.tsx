@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, Clock, Gamepad2, Users } from "lucide-react";
+import { ChevronLeft, Clock, Gamepad2, Play, Users } from "lucide-react";
 import { brand, GAME_CATEGORIES, GAME_MODE_LABELS, GAMES, getGameBySlug } from "@platform/shared";
 import { GameArt } from "@/components/brand";
+import { GAME_THEME } from "@/components/game-theme";
 import { durationRange, GameCard, playerRange } from "@/components/games/game-card";
 import { FavoriteButton } from "@/components/games/favorite-button";
-import { Badge, ButtonLink, Card } from "@/components/ui/primitives";
+import { Card } from "@/components/ui/primitives";
 
 type Params = Promise<{ slug: string }>;
 
@@ -54,59 +55,70 @@ export default async function GamePage({ params }: { params: Params }) {
     publisher: { "@type": "Organization", name: brand.name },
   };
 
+  const theme = GAME_THEME[game.id];
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <Link href="/games" className="inline-flex items-center gap-1 text-sm font-semibold text-ink-muted hover:text-ink">
-        <ChevronLeft className="size-4" /> All games
-      </Link>
-
-      <div className="mt-6 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
-        <div className="overflow-hidden rounded-3xl border border-line shadow-card">
-          <GameArt gameId={game.id} className="block w-full" />
+      {/* Hero band in the game's own colours */}
+      <section className="relative overflow-hidden border-b-[3px]" style={{ background: theme.deep, borderColor: theme.accent, color: theme.ink }}>
+        <div className="pointer-events-none absolute inset-0 opacity-25" aria-hidden>
+          <GameArt gameId={game.id} className="size-full scale-125 blur-2xl" />
         </div>
-        <div className="flex flex-col">
-          <div className="flex flex-wrap gap-2">
-            {game.categories.map((c) => (
-              <Badge key={c} tone="brand">
-                {GAME_CATEGORIES[c]}
-              </Badge>
-            ))}
-            {game.popular && <Badge tone="hot">Popular</Badge>}
-          </div>
-          <h1 className="mt-4 font-display text-4xl font-extrabold tracking-tight sm:text-5xl">{game.name}</h1>
-          <p className="mt-3 text-lg text-ink-muted">{game.tagline}</p>
-
-          <dl className="mt-6 grid grid-cols-3 gap-3">
-            {[
-              { icon: Users, label: "Players", value: playerRange(game) },
-              { icon: Clock, label: "Game length", value: durationRange(game) },
-              { icon: Gamepad2, label: "Modes", value: `${game.modes.length} modes` },
-            ].map((s) => (
-              <div key={s.label} className="rounded-2xl border border-line bg-surface p-3">
-                <s.icon className="size-5 text-brand-500" aria-hidden />
-                <dt className="mt-2 text-xs text-ink-faint">{s.label}</dt>
-                <dd className="text-sm font-bold">{s.value}</dd>
+        <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
+          <Link href="/games" className="inline-flex items-center gap-1 text-sm font-bold opacity-75 hover:opacity-100">
+            <ChevronLeft className="size-4" /> All games
+          </Link>
+          <div className="mt-5 grid items-center gap-8 lg:grid-cols-[1.15fr_1fr]">
+            <div className="overflow-hidden rounded-[24px] border-[3px] shadow-[0_30px_60px_-30px_rgb(0_0_0/0.9)]" style={{ borderColor: theme.accent }}>
+              <GameArt gameId={game.id} className="block aspect-[16/10] w-full" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex flex-wrap gap-2">
+                {game.categories.map((c) => (
+                  <span key={c} className="rounded-md px-2 py-0.5 text-xs font-black tracking-wider uppercase" style={{ background: `${theme.accent}26`, color: theme.accent }}>
+                    {GAME_CATEGORIES[c]}
+                  </span>
+                ))}
               </div>
-            ))}
-          </dl>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <ButtonLink href={`/play/${game.slug}`} size="lg" className="flex-1 sm:flex-none">
-              Play now
-            </ButtonLink>
-            <FavoriteButton gameId={game.id} />
+              <h1 className="mt-3 font-display text-4xl font-black tracking-tight sm:text-6xl">{game.name}</h1>
+              <p className="mt-3 text-lg opacity-85">{game.tagline}</p>
+              <dl className="mt-6 grid grid-cols-3 gap-2.5">
+                {[
+                  { icon: Users, label: "Players", value: playerRange(game) },
+                  { icon: Clock, label: "Game length", value: durationRange(game) },
+                  { icon: Gamepad2, label: "Modes", value: `${game.modes.length} modes` },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-2xl border-2 border-white/10 bg-black/25 p-3">
+                    <s.icon className="size-5" style={{ color: theme.accent }} aria-hidden />
+                    <dt className="mt-1.5 text-xs opacity-60">{s.label}</dt>
+                    <dd className="text-sm font-bold">{s.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/play/${game.slug}`}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full px-8 py-3.5 font-display text-lg font-black text-[#17142b] shadow-[0_5px_0_rgb(0_0_0/0.4)] transition hover:-translate-y-0.5 active:translate-y-0.5 sm:flex-none"
+                  style={{ background: theme.accent }}
+                  data-testid="play-now"
+                >
+                  <Play className="size-5 fill-current" /> Play now
+                </Link>
+                <FavoriteButton gameId={game.id} />
+              </div>
+              <ul className="mt-5 flex flex-wrap gap-2" aria-label="Supported modes">
+                {game.modes.map((m) => (
+                  <li key={m} className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold opacity-80">
+                    {GAME_MODE_LABELS[m]}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <ul className="mt-5 flex flex-wrap gap-2" aria-label="Supported modes">
-            {game.modes.map((m) => (
-              <li key={m}>
-                <Badge>{GAME_MODE_LABELS[m]}</Badge>
-              </li>
-            ))}
-          </ul>
         </div>
-      </div>
+      </section>
 
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <div className="mt-14 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
         <section aria-labelledby="about-game">
           <h2 id="about-game" className="font-display text-2xl font-bold">About {game.name}</h2>
@@ -121,7 +133,9 @@ export default async function GamePage({ params }: { params: Params }) {
           <ol className="mt-4 space-y-3">
             {game.howToPlay.map((step, i) => (
               <Card key={step.title} className="flex gap-4 p-4">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-gradient font-display font-bold text-white">{i + 1}</span>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border-2 border-[#17142b] font-display font-black text-[#17142b] shadow-[0_3px_0_#17142b]" style={{ background: theme.accent }}>
+                  {i + 1}
+                </span>
                 <div>
                   <h3 className="font-bold">{step.title}</h3>
                   <p className="text-sm text-ink-muted">{step.body}</p>
@@ -142,6 +156,7 @@ export default async function GamePage({ params }: { params: Params }) {
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 }

@@ -1,176 +1,146 @@
 import Link from "next/link";
-import { Gamepad2, Link2, Sparkles, Trophy, UserPlus, Zap } from "lucide-react";
+import { Gamepad2, Link2, Trophy, UserPlus } from "lucide-react";
 import { brand, GAME_CATEGORIES, GAMES, type GameCategory } from "@platform/shared";
 import { GameArt } from "@/components/brand";
+import { GAME_THEME } from "@/components/game-theme";
 import { GameCard } from "@/components/games/game-card";
+import { HeroSpotlight } from "@/components/games/hero-spotlight";
 import { JoinCodeForm } from "@/components/games/join-code-form";
 import { RecentlyPlayed } from "@/components/games/recently-played";
-import { ButtonLink, SectionHeading } from "@/components/ui/primitives";
 
-const featured = GAMES.filter((g) => g.featured).slice(0, 4);
-const popular = GAMES.filter((g) => g.popular).slice(0, 4);
-const recent = [...GAMES].sort((a, b) => b.addedAt.localeCompare(a.addedAt)).slice(0, 4);
+// Kitchen Rush leads the spotlight; then the rest by popularity.
+const spotlight = [...GAMES].sort((a, b) => (a.id === "kitchen-rush" ? -1 : b.id === "kitchen-rush" ? 1 : Number(b.popular) - Number(a.popular)));
 const multiplayer = GAMES.filter((g) => g.kind === "multiplayer");
 const solo = GAMES.filter((g) => g.kind === "solo");
 const usedCategories = Object.entries(GAME_CATEGORIES).filter(([key]) => GAMES.some((g) => g.categories.includes(key as GameCategory)));
 
+function Shelf({ id, title, subtitle, children }: { id: string; title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={id}>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id={id} className="font-display text-3xl font-black tracking-tight">
+            {title}
+          </h2>
+          <p className="mt-1 text-ink-muted">{subtitle}</p>
+        </div>
+        <Link href="/games" className="text-sm font-bold text-brand-400 hover:underline">
+          All games →
+        </Link>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function HomePage() {
   return (
     <>
-      {/* Hero */}
+      {/* Marquee */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pt-12 pb-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:pt-20 lg:pb-24">
+        <div className="home-stage absolute inset-0 -z-10" aria-hidden />
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pt-10 pb-14 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:pt-16 lg:pb-20">
           <div>
-            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand-500/30 bg-brand-500/10 px-3 py-1 text-sm font-semibold text-brand-600 dark:text-brand-300">
-              <Sparkles className="size-4" /> No downloads · No sign-up · Free
+            <p className="mb-5 inline-flex items-center gap-2 font-display text-sm font-black tracking-[0.25em] text-[#ffb23d] uppercase">
+              <span className="size-2 rounded-full bg-[#2fd6a8] shadow-[0_0_10px_#2fd6a8]" /> {GAMES.length} original games · free
             </p>
-            <h1 className="font-display text-5xl leading-[1.02] font-extrabold tracking-tight sm:text-6xl lg:text-7xl">
-              Play together, <span className="text-gradient">instantly.</span>
+            <h1 className="font-display text-5xl leading-[0.98] font-black tracking-tight sm:text-6xl lg:text-7xl">
+              Pick a game.
+              <br />
+              <span className="text-[#ff4f8b]">Send the link.</span>
+              <br />
+              Play.
             </h1>
-            <p className="mt-6 max-w-xl text-lg text-ink-muted">
-              {brand.name} is home to fast, social browser games. Start a private room, send the link to your friends and be playing in seconds — on any device.
+            <p className="mt-6 max-w-lg text-lg text-ink-muted">
+              {brand.name} is a little arcade of original games that run in your browser. No downloads, no accounts — choose a name and you&apos;re in.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <ButtonLink href="/games" size="lg">
-                <Gamepad2 className="size-5" /> Browse games
-              </ButtonLink>
-              <ButtonLink href="/play/kitchen-rush" size="lg" variant="secondary">
-                Quick play Kitchen Rush
-              </ButtonLink>
-            </div>
-            <div className="mt-8 max-w-md">
-              <p className="mb-2 text-sm font-semibold text-ink-muted">Got an invite code?</p>
+            <Link href="/games" className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#ff4f8b] px-6 py-3 font-display font-black text-white shadow-[0_4px_0_#a3194f] transition hover:-translate-y-0.5 active:translate-y-0.5">
+              <Gamepad2 className="size-5" /> Browse games
+            </Link>
+            <div className="mt-6 max-w-md rounded-2xl border-2 border-dashed border-line p-4">
+              <p className="mb-2 text-sm font-bold">Got a room code from a friend?</p>
               <JoinCodeForm />
             </div>
           </div>
-          <div className="relative mx-auto w-full max-w-xl lg:max-w-none" aria-hidden>
-            <div className="absolute -inset-10 -z-10 rounded-full bg-brand-500/25 blur-3xl" />
-            <div className="grid grid-cols-6 gap-4">
-              <div className="col-span-4 overflow-hidden rounded-3xl border border-white/10 shadow-2xl animate-float [--r:-3deg]">
-                <GameArt gameId="color-clash" className="block w-full" />
-              </div>
-              <div className="col-span-4 col-start-3 -mt-10 overflow-hidden rounded-3xl border border-white/10 shadow-2xl animate-float [--r:2deg] [animation-delay:-3s]">
-                <GameArt gameId="doodle-duel" className="block w-full" />
-              </div>
-            </div>
-          </div>
+          <HeroSpotlight games={spotlight} />
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl space-y-20 px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl space-y-16 px-4 pb-8 sm:px-6">
         <RecentlyPlayed />
 
-        <section aria-labelledby="featured">
-          <SectionHeading id="featured" title="Featured games" subtitle="Hand-picked favourites, solo and multiplayer." action={<Link href="/games" className="text-sm font-semibold text-brand-500 hover:underline">See all</Link>} />
-          <div className="grid gap-6 md:grid-cols-2">
-            {featured.map((g) => (
+        <Shelf id="friends" title="Play with friends" subtitle="Private rooms with an invite link, or jump into a public match.">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {multiplayer.map((g) => (
+              <GameCard key={g.id} game={g} />
+            ))}
+          </div>
+        </Shelf>
+
+        <Shelf id="solo" title="Play solo" subtitle="Levels, verified high scores and a fresh daily leaderboard.">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {solo.map((g) => (
               <GameCard key={g.id} game={g} size="lg" />
             ))}
           </div>
-        </section>
+        </Shelf>
 
         <section aria-labelledby="categories">
-          <SectionHeading id="categories" title="Browse by category" />
-          <div className="flex flex-wrap gap-3">
-            {usedCategories.map(([key, label]) => (
-              <Link
-                key={key}
-                href={`/games?category=${key}`}
-                className="rounded-2xl border border-line bg-surface px-5 py-3 font-semibold shadow-card transition hover:-translate-y-0.5 hover:border-brand-400/60"
-              >
-                {label}
-              </Link>
-            ))}
+          <h2 id="categories" className="mb-4 font-display text-2xl font-black tracking-tight">
+            Browse by kind
+          </h2>
+          <div className="flex flex-wrap gap-2.5">
+            {usedCategories.map(([key, label]) => {
+              const sample = GAMES.find((g) => g.categories.includes(key as GameCategory))!;
+              return (
+                <Link
+                  key={key}
+                  href={`/games?category=${key}`}
+                  className="group flex items-center gap-2.5 rounded-full border-2 border-line bg-surface py-1 pr-4 pl-1 font-bold transition hover:-translate-y-0.5"
+                  style={{ "--accent": GAME_THEME[sample.id].accent } as React.CSSProperties}
+                >
+                  <span className="block h-8 w-12 overflow-hidden rounded-full border-2 border-[var(--accent)]">
+                    <GameArt gameId={sample.id} className="size-full" />
+                  </span>
+                  <span className="group-hover:text-[var(--accent)]">{label}</span>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
-        <section aria-labelledby="popular" className="grid gap-12 lg:grid-cols-2">
+        <section aria-labelledby="how" className="grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:items-center">
           <div>
-            <SectionHeading id="popular" title="Popular right now" />
-            <div className="grid gap-6 sm:grid-cols-2">
-              {popular.map((g) => (
-                <GameCard key={g.id} game={g} />
-              ))}
-            </div>
-          </div>
-          <div>
-            <SectionHeading title="Recently added" />
-            <div className="grid gap-6 sm:grid-cols-2">
-              {recent.map((g) => (
-                <GameCard key={g.id} game={g} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section aria-labelledby="multiplayer">
-          <SectionHeading id="multiplayer" title="Multiplayer games" subtitle="Every game supports private rooms with invite links and public matchmaking." />
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {multiplayer.map((g) => (
-              <li key={g.id}>
-                <Link href={`/play/${g.slug}`} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-3 shadow-card transition hover:border-brand-400/60">
-                  <GameArt gameId={g.id} className="h-16 w-24 shrink-0 rounded-xl object-cover" />
-                  <div className="min-w-0">
-                    <p className="font-display text-lg font-bold">{g.name}</p>
-                    <p className="text-sm text-ink-muted">
-                      {g.minPlayers}–{g.maxPlayers} players · private rooms · matchmaking
+            <h2 id="how" className="font-display text-3xl font-black tracking-tight">
+              From link to first move in seconds
+            </h2>
+            <ol className="mt-6 space-y-4">
+              {[
+                { icon: Gamepad2, title: "Pick a game", body: "Solo or with friends — every game runs right here in the browser." },
+                { icon: UserPlus, title: "Choose a name", body: "No account. Your stats follow you on this device." },
+                { icon: Link2, title: "Share the room link", body: "Friends tap it and land in your lobby. Or find a public match." },
+                { icon: Trophy, title: "Climb the boards", body: "Achievements, profiles and daily leaderboards for every game." },
+              ].map((s, i) => (
+                <li key={s.title} className="flex gap-4">
+                  <span className="grid size-11 shrink-0 place-items-center rounded-xl border-2 border-[#17142b] font-display text-lg font-black text-[#17142b] shadow-[0_3px_0_#17142b]" style={{ background: ["#ffb23d", "#2fd6a8", "#ff4f8b", "#3d8bff"][i] }}>
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="flex items-center gap-2 font-display text-lg font-black">
+                      <s.icon className="size-4 text-ink-muted" /> {s.title}
                     </p>
+                    <p className="text-ink-muted">{s.body}</p>
                   </div>
-                </Link>
-              </li>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div className="relative grid grid-cols-2 gap-3" aria-hidden>
+            {multiplayer.map((g, i) => (
+              <div key={g.id} className="overflow-hidden rounded-2xl border-[3px] shadow-[0_18px_30px_-18px_rgb(0_0_0/0.9)]" style={{ borderColor: GAME_THEME[g.id].accent, rotate: `${[-3, 2, 2, -2][i]}deg` }}>
+                <GameArt gameId={g.id} className="block aspect-[16/10] w-full" />
+              </div>
             ))}
-          </ul>
-        </section>
-
-        <section aria-labelledby="solo">
-          <SectionHeading id="solo" title="Play solo" subtitle="Single-player games with levels, verified high scores and daily leaderboards." />
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {solo.map((g) => (
-              <li key={g.id}>
-                <Link href={`/play/${g.slug}`} className="flex items-center gap-4 rounded-2xl border border-line bg-surface p-3 shadow-card transition hover:border-brand-400/60">
-                  <GameArt gameId={g.id} className="h-16 w-24 shrink-0 rounded-xl object-cover" />
-                  <div className="min-w-0">
-                    <p className="font-display text-lg font-bold">{g.name}</p>
-                    <p className="line-clamp-2 text-sm text-ink-muted">{g.tagline}</p>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section aria-labelledby="how" className="rounded-3xl border border-line bg-surface p-6 shadow-card sm:p-10">
-          <h2 id="how" className="font-display text-3xl font-bold tracking-tight">How it works</h2>
-          <ol className="mt-8 grid gap-8 md:grid-cols-4">
-            {[
-              { icon: Gamepad2, title: "Pick a game", body: "Choose from our original games, solo or multiplayer." },
-              { icon: UserPlus, title: "Choose a name", body: "No account needed — just a display name." },
-              { icon: Link2, title: "Invite friends", body: "Share your room link or code, or find a public match." },
-              { icon: Trophy, title: "Play & climb", body: "Earn points, track stats and top the leaderboard." },
-            ].map((s, i) => (
-              <li key={s.title}>
-                <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-lg">
-                  <s.icon className="size-6" />
-                </span>
-                <p className="mt-4 text-sm font-bold text-brand-500">Step {i + 1}</p>
-                <h3 className="font-display text-xl font-bold">{s.title}</h3>
-                <p className="mt-1 text-ink-muted">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section className="relative overflow-hidden rounded-3xl bg-brand-gradient p-8 text-white sm:p-12">
-          <Zap className="absolute -right-6 -bottom-6 size-48 opacity-15" aria-hidden />
-          <h2 className="font-display text-3xl font-extrabold sm:text-4xl">Ready for a round?</h2>
-          <p className="mt-2 max-w-lg text-white/85">Rooms are free, games are quick, and everyone joins from a single link.</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <ButtonLink href="/play/color-clash" variant="secondary" size="lg" className="border-0 bg-white text-[#17142b] hover:bg-white/90">
-              Play Color Clash
-            </ButtonLink>
-            <ButtonLink href="/play/doodle-duel" variant="outline" size="lg" className="border-white/50 text-white hover:bg-white/10">
-              Play Doodle Duel
-            </ButtonLink>
           </div>
         </section>
       </div>
