@@ -134,3 +134,84 @@ body {
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
 }
+
+/* ---------------------------------------------------------------------------
+ * Kitchen Rush. Character, equipment and feedback animation. Everything is a
+ * transform or opacity change so it stays on the compositor.
+ * ------------------------------------------------------------------------- */
+.kr svg .kr-blink { transform-box: fill-box; transform-origin: center; animation: kr-blink 4.6s infinite; }
+@keyframes kr-blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+
+.kr .kr-coals { animation: kr-coals 1.1s ease-in-out infinite alternate; }
+@keyframes kr-coals { from { opacity: 0.65; } to { opacity: 0.95; } }
+
+.kr svg .kr-drop { transform-box: fill-box; transform-origin: 50% 100%; animation: kr-drop 320ms cubic-bezier(.2,.9,.3,1.3); }
+@keyframes kr-drop { 0% { transform: translateY(-18px) scale(1.08, 0.92); opacity: 0; } 60% { transform: translateY(1px) scale(1.06, 0.94); opacity: 1; } 100% { transform: none; } }
+
+.kr svg .kr-flip { transform-box: fill-box; transform-origin: center; animation: kr-flip 460ms cubic-bezier(.3,.7,.4,1); }
+@keyframes kr-flip { 0% { transform: translateY(0) scaleY(1); } 40% { transform: translateY(-30px) scaleY(-0.3) rotate(8deg); } 75% { transform: translateY(2px) scaleY(0.85); } 100% { transform: none; } }
+
+.kr svg .kr-bubbles circle { transform-box: fill-box; transform-origin: center; animation: kr-bubble 0.9s ease-out infinite; }
+@keyframes kr-bubble { 0% { transform: scale(0); opacity: 0; } 40% { opacity: 1; } 100% { transform: translateY(-4px) scale(1.2); opacity: 0; } }
+
+.kr svg .kr-flames path { transform-box: fill-box; transform-origin: 50% 100%; animation: kr-flame 0.22s ease-in-out infinite alternate; }
+@keyframes kr-flame { from { transform: scaleY(0.75) scaleX(1.1); } to { transform: scaleY(1.2) scaleX(0.9); } }
+
+.kr svg .kr-chop { animation: kr-chop 0.3s cubic-bezier(.5,0,.5,1) infinite; }
+@keyframes kr-chop { 0%, 100% { transform: rotate(0deg); } 45% { transform: rotate(-16deg); } }
+
+/* Customers */
+.kr svg .kr-body { transform-box: fill-box; transform-origin: 50% 100%; animation: kr-breathe 3.2s ease-in-out infinite; }
+@keyframes kr-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 0.985); } }
+.kr svg .kr-mood-excited { animation: kr-hop 0.55s ease-in-out infinite; }
+@keyframes kr-hop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px) scale(1.02, 0.98); } }
+.kr svg .kr-mood-impatient { animation: kr-fidget 0.5s ease-in-out infinite; }
+@keyframes kr-fidget { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-2deg) translateY(1px); } }
+.kr svg .kr-mood-angry .kr-head { transform-box: fill-box; transform-origin: center; animation: kr-shake-head 0.18s linear infinite; }
+@keyframes kr-shake-head { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.6px) rotate(-2deg); } 75% { transform: translateX(1.6px) rotate(2deg); } }
+.kr svg .kr-mood-delighted { animation: kr-jump 0.5s cubic-bezier(.3,.6,.4,1) 3; }
+@keyframes kr-jump { 0%, 100% { transform: translateY(0) scale(1); } 15% { transform: translateY(2px) scale(1.05, 0.92); } 55% { transform: translateY(-16px) scale(0.97, 1.04); } }
+.kr svg .kr-mood-sad { transform: translateY(5px) rotate(-3deg); transition: transform 400ms; animation: none; }
+.kr svg .kr-sweat { transform-box: fill-box; animation: kr-sweat 1.2s ease-in infinite; }
+@keyframes kr-sweat { 0% { transform: translateY(-2px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(8px); opacity: 0; } }
+.kr svg .kr-anger { transform-box: fill-box; transform-origin: center; animation: kr-anger 0.5s ease-in-out infinite alternate; }
+@keyframes kr-anger { from { transform: scale(0.85); } to { transform: scale(1.15); } }
+
+.kr .kr-arrive { animation: kr-arrive 760ms cubic-bezier(.25,.8,.35,1) both; }
+@keyframes kr-arrive {
+  0% { transform: translateX(-130%); }
+  20% { transform: translateX(-100%) translateY(-5px); }
+  40% { transform: translateX(-66%) translateY(0); }
+  60% { transform: translateX(-33%) translateY(-5px); }
+  80% { transform: translateX(-6%) translateY(0); }
+  100% { transform: none; }
+}
+.kr .kr-leave-happy { animation: kr-leave 700ms 950ms cubic-bezier(.5,0,.8,.4) both; }
+.kr .kr-leave-sad { animation: kr-leave 1100ms 700ms ease-in both; }
+.kr .kr-leave-angry { animation: kr-leave 520ms 250ms cubic-bezier(.6,0,.9,.5) both; }
+@keyframes kr-leave { 0% { transform: none; opacity: 1; } 30% { transform: translateX(25%) translateY(-4px); } 100% { transform: translateX(150%); opacity: 0; } }
+
+/* Feedback */
+.kr .kr-shake { animation: kr-shake 300ms linear; }
+@keyframes kr-shake { 0%, 100% { transform: none; } 20% { transform: translate(-4px, 2px); } 40% { transform: translate(4px, -2px); } 60% { transform: translate(-3px, 1px); } 80% { transform: translate(2px, -1px); } }
+.kr .kr-glow { position: relative; z-index: 5; }
+.kr .kr-glow::after { content: ""; position: absolute; inset: -5px; border-radius: 18px; border: 3px solid #ffcf3f; box-shadow: 0 0 0 4px rgb(255 207 63 / 0.25), 0 0 22px rgb(255 207 63 / 0.6); animation: kr-glow 1s ease-in-out infinite; pointer-events: none; }
+@keyframes kr-glow { 0%, 100% { opacity: 0.55; transform: scale(0.98); } 50% { opacity: 1; transform: scale(1.02); } }
+.kr .kr-ready { animation: kr-ready 0.8s ease-in-out infinite; }
+@keyframes kr-ready { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.kr .kr-press { transition: transform 90ms ease-out, filter 90ms; }
+.kr .kr-press:active { transform: translateY(2px) scale(0.97); filter: brightness(0.96); }
+.kr .kr-lifted { transform: translateY(-8px) rotate(-2deg); filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.3)); }
+.kr .kr-tile {
+  background-color: #eef1f5;
+  background-image: linear-gradient(#d4dae3 2px, transparent 2px), linear-gradient(90deg, #d4dae3 2px, transparent 2px);
+  background-size: 34px 18px, 34px 36px;
+}
+.kr .kr-wall {
+  background-color: #f4e3c6;
+  background-image: radial-gradient(circle at 12px 12px, #ecd3ab 2.2px, transparent 2.6px);
+  background-size: 24px 24px;
+}
+.kr .kr-wood { background-color: #a8693b; background-image: repeating-linear-gradient(90deg, transparent 0 46px, rgb(0 0 0 / 0.08) 46px 48px); }
+/* Lite mode (slow devices): keep one-shot feedback, drop decorative loops. */
+.kr-lite svg .kr-body, .kr-lite svg .kr-blink, .kr-lite .kr-coals, .kr-lite svg .kr-bubbles circle, .kr-lite svg .kr-flames path, .kr-lite svg .kr-mood-impatient, .kr-lite .kr-glow::after { animation: none; }

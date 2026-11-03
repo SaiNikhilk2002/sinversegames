@@ -137,3 +137,34 @@ test("single-player games fit a phone screen", async ({ browser }) => {
     await expectNoHorizontalOverflow(page);
   }
 });
+
+test("Kitchen Rush: keyboard play, pausing mid-cook and reduced motion all hold up", async ({ browser }) => {
+  const context = await browser.newContext({ reducedMotion: "reduce" });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await openSolo(page, "kitchen-rush", "Keys");
+  await page.getByTestId("start-run").click();
+  await expect(page.getByTestId("kitchen-rush")).toBeVisible();
+
+  // Keyboard only: pick up a patty and put it on the grill.
+  await page.getByTestId("crate-patty-raw").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("kr-hand")).toContainText("Raw patty");
+  await page.getByTestId("station-grill-0").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("station-grill-0")).toHaveAttribute("data-state", "working");
+
+  // Pausing freezes the shift: the patty is still cooking after longer than its cook time.
+  await page.getByTestId("kr-pause").click();
+  await page.waitForTimeout(4500);
+  await expect(page.getByTestId("station-grill-0")).toHaveAttribute("data-state", "working");
+  await page.getByRole("button", { name: "Back to the kitchen" }).click();
+  await expect(page.getByTestId("station-grill-0")).toHaveAttribute("data-state", "done", { timeout: 6000 });
+
+  // Quitting mid-animation leaves cleanly.
+  await page.getByRole("button", { name: "Quit level" }).click();
+  await expect(page.getByTestId("start-run")).toBeVisible();
+  expect(errors).toEqual([]);
+  await context.close();
+});
