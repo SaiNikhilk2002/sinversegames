@@ -215,3 +215,12 @@ body {
 .kr .kr-wood { background-color: #a8693b; background-image: repeating-linear-gradient(90deg, transparent 0 46px, rgb(0 0 0 / 0.08) 46px 48px); }
 /* Lite mode (slow devices): keep one-shot feedback, drop decorative loops. */
 .kr-lite svg .kr-body, .kr-lite svg .kr-blink, .kr-lite .kr-coals, .kr-lite svg .kr-bubbles circle, .kr-lite svg .kr-flames path, .kr-lite svg .kr-mood-impatient, .kr-lite .kr-glow::after { animation: none; }
+
+/* Token Trail */
+@keyframes tt-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+svg .tt-bob { animation: tt-bob 0.7s ease-in-out infinite; }
+@keyframes tt-spin { to { transform: rotate(360deg); } }
+svg .tt-spin { transform-box: fill-box; transform-origin: center; animation: tt-spin 3s linear infinite; }
+@keyframes tt-glow { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+svg .tt-glow { animation: tt-glow 1.8s ease-in-out infinite; }
+.tt-felt { background-color: #2f5d48; background-image: radial-gradient(circle at 1px 1px, #386b54 0.8px, transparent 1px); background-size: 6px 6px; }

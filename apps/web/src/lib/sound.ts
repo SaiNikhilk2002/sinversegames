@@ -187,6 +187,24 @@ export const sfx = {
   grumble: () => tone([[160, 0, 0.18], [130, 0.14, 0.22]], "sawtooth", 0.18),
   star: (i: number) => bell(880 * Math.pow(1.26, i), 0, 0.7, 0.9),
   fanfare: () => tone([[523, 0, 0.14], [659, 0.12, 0.14], [784, 0.24, 0.14], [1046, 0.38, 0.5], [784, 0.38, 0.5]], "triangle", 0.8),
+  // Tabletop.
+  clack: () => {
+    burst({ dur: 0.05, filter: "bandpass", freq: 1900, q: 3, gain: 0.35 });
+    tone([[620 + Math.random() * 80, 0, 0.05]], "triangle", 0.35);
+  },
+  diceRattle: () => {
+    for (let i = 0; i < 6; i++) burst({ at: i * 0.07 + Math.random() * 0.03, dur: 0.04, filter: "bandpass", freq: 2200 + Math.random() * 900, q: 2.5, gain: 0.3 - i * 0.03 });
+  },
+  knock: () => {
+    burst({ dur: 0.12, filter: "lowpass", freq: 900, gain: 0.5, sweepTo: 200 });
+    tone([[180, 0, 0.1], [120, 0.05, 0.16]], "square", 0.35);
+  },
+  homeChime: () => {
+    bell(1046, 0, 0.6, 0.8);
+    bell(1318, 0.12, 0.6, 0.8);
+    bell(1568, 0.24, 0.6, 1.1);
+  },
+
   // Arena.
   impact: (strength: number) => {
     const k = Math.max(0.25, Math.min(1, strength));
