@@ -84,6 +84,7 @@ export function useRoom(code: string, enabled: boolean) {
     offs.push(
       realtime.onConnect(() => {
         lastSeq.current = 0;
+        setState((s) => ({ ...s, phase: "joining", error: null }));
         void realtime.emit<{ code: string }>("room:join", { code }).then((ack) => {
           if (!ack.ok) setState((s) => ({ ...s, phase: "error", error: ack.error }));
         });
@@ -108,6 +109,10 @@ export function useRoom(code: string, enabled: boolean) {
   const retry = useCallback(() => {
     setState(initial);
     lastSeq.current = 0;
+    if (realtime.status !== "connected") {
+      realtime.reauthenticate();
+      return;
+    }
     void realtime.emit("room:join", { code }).then((ack) => {
       if (!ack.ok) setState((s) => ({ ...s, phase: "error", error: ack.error }));
     });

@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-04",
+  "websocket": [
+    {
+      "origin": "https://sinversegames.com",
+      "status": 101
+    },
+    {
+      "origin": "https://www.sinversegames.com",
+      "status": 101
+    },
+    {
+      "origin": "https://untrusted.example",
+      "status": 400
+    }
+  ],
+  "compiledClient": {
+    "status": 200,
+    "scriptsChecked": 14,
+    "matchingChunks": [
+      {
+        "url": "https://sinversegames.com/_next/static/chunks/36bzzvto5q18-.js",
+        "status": 200,
+        "origins": [
+          "https://rt.sinversegames.com"
+        ]
+      }
+    ]
+  }
+}

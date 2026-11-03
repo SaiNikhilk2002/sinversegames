@@ -9,20 +9,28 @@ async function botStep(page: Page): Promise<boolean> {
     await picker.getByRole("button").first().click();
     return true;
   }
+  // AnimatePresence briefly keeps a played card's old playable attribute in
+  // the DOM. Only act when this player's live turn controls are enabled.
+  if (!(await page.locator('[data-testid="draw-button"]:enabled, [data-testid="pass-button"]:enabled').isVisible().catch(() => false))) return false;
   const playable = page.locator('[data-testid^="hand-card-"][data-playable="true"]');
   if ((await playable.count()) > 0) {
-    await playable.first().click({ timeout: 2000 }).catch(() => {});
+    const id = await playable.first().getAttribute("data-testid");
+    const card = page.getByTestId(id!);
+    const wild = (await card.getAttribute("aria-label"))?.startsWith("Prism");
+    if (!(await card.click({ timeout: 2000 }).then(() => true, () => false))) return false;
+    if (wild) await picker.getByRole("button").first().click();
+    // Keep the mouse interaction and all gameplay assertions, but do not
+    // select the same exiting card again before its animation has finished.
+    await card.waitFor({ state: "detached", timeout: 5000 });
     return true;
   }
   const pass = page.getByTestId("pass-button");
   if (await pass.isVisible().catch(() => false)) {
-    await pass.click({ timeout: 2000 }).catch(() => {});
-    return true;
+    return pass.click({ timeout: 2000 }).then(() => true, () => false);
   }
   const draw = page.getByTestId("draw-button");
   if (await draw.isVisible().catch(() => false)) {
-    await draw.click({ timeout: 2000 }).catch(() => {});
-    return true;
+    return draw.click({ timeout: 2000 }).then(() => true, () => false);
   }
   return false;
 }

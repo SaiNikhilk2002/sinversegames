@@ -1,10 +1,10 @@
 /**
- * Central platform branding. The final brand name is undecided, so every
- * user-facing reference to the platform must go through this module.
+ * Central SinverseGames branding. Every user-facing platform reference
+ * must go through this module.
  * Override with NEXT_PUBLIC_BRAND_* environment variables (inlined at build time by Next.js).
  */
 export const brand = {
-  name: process.env.NEXT_PUBLIC_BRAND_NAME || "Playwave",
+  name: process.env.NEXT_PUBLIC_BRAND_NAME || "SinverseGames",
   tagline: process.env.NEXT_PUBLIC_BRAND_TAGLINE || "Instant multiplayer games with friends",
   description:
     process.env.NEXT_PUBLIC_BRAND_DESCRIPTION ||

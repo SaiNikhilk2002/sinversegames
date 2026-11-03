@@ -93,7 +93,7 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 
 Both commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Don't use a bare `npx wrangler deploy` at the repo root: it fails with "The Cloudflare application detection logic has been run in the root of a workspace".
 
-The Node version comes from `apps/web/.node-version` (24) and pnpm from `packageManager`. If the build image picks an older Node, add the build variable `NODE_VERSION=24`.
+The repository-root `.node-version` pins Node 24 for the configured repository-root build. `apps/web/.node-version` agrees with it; pnpm is pinned by `packageManager`. If an existing dashboard override selects an older Node, review the build variable `NODE_VERSION`. Wrangler 4.155.0 refuses Node 20. Version files do not switch an already running local shell.
 
 `NEXT_PUBLIC_*` values are **inlined at build time** (including the CSP `connect-src`), so set them as *build* variables and redeploy after changing them.
 
@@ -144,3 +144,13 @@ Then make `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL` and `ALLOWED_ORIGIN
 - [ ] `/admin` sign-in with `ADMIN_TOKEN` shows metrics.
 - [ ] Legal pages reviewed; `NEXT_PUBLIC_SUPPORT_EMAIL` is a monitored inbox.
 - [ ] Uptime monitoring on both health URLs.
+
+## Takeover audit and preview isolation
+
+The November 2026 takeover is local only. Historical deploy and migration instructions above are a reference, not approval to run them. See [CODEX_TAKEOVER_REPORT.md](docs/CODEX_TAKEOVER_REPORT.md) and [RELIABILITY_INVESTIGATION.md](docs/RELIABILITY_INVESTIGATION.md).
+
+The observed GitHub check is **Workers Builds: sinversegames**, but this checkout's Wrangler name is **sinversegames-web**. Confirm the intended existing Worker and the failed build's logs before reconciling these names; do not create or redirect a production Worker based on an assumption. Also verify that the dashboard uses the repository root and the workspace-aware build/deploy commands above.
+
+Keep preview data, signing secrets, and realtime rooms separate from production. A version preview URL alone does not isolate bindings or database writes. Before enabling a preview, select an isolated Worker/configuration, a non-production PostgreSQL database, an isolated realtime service, and matching preview-only signing secrets. Compile `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_REALTIME_URL` for that preview and allow only its exact browser origin on its realtime service. Do not add broad `*.workers.dev` access to the production origin list.
+
+`pnpm cloudflare:build` builds locally without publishing. Uploading a Worker version, populating a remote OpenNext cache, or changing dashboard settings is an external mutation and needs approval. Do not replace a non-production branch command with a production deploy command just to obtain a green check.

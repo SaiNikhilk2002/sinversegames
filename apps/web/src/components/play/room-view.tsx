@@ -95,6 +95,14 @@ export function RoomView({ code }: { code: string }) {
 
   if (!player) return null;
   if (status === "banned") return <StatusScreen title="Account suspended" body="Your account can't join games right now. Contact support if you think this is a mistake." />;
+  if (status === "unauthorized") {
+    return (
+      <StatusScreen title="Choose your name again" body="Your session has expired. Update your profile to connect again.">
+        <ButtonLink href="/profile">Update profile</ButtonLink>
+        <ButtonLink href="/games" variant="secondary">Browse games</ButtonLink>
+      </StatusScreen>
+    );
+  }
   if (state.phase === "replaced") {
     return (
       <StatusScreen title="Opened somewhere else" body="You joined this room from another tab or device, so this one was disconnected.">
@@ -118,6 +126,16 @@ export function RoomView({ code }: { code: string }) {
         <ButtonLink href="/games" variant="secondary">
           Browse games
         </ButtonLink>
+      </StatusScreen>
+    );
+  }
+  if (!state.room && (status === "offline" || status === "reconnecting")) {
+    return (
+      <StatusScreen title="Game server unreachable" body="We’re retrying the connection. You can try again now or browse games while you wait.">
+        <button type="button" onClick={retry} className="font-semibold text-brand-500 hover:underline">
+          Try again
+        </button>
+        <ButtonLink href="/games" variant="secondary">Browse games</ButtonLink>
       </StatusScreen>
     );
   }

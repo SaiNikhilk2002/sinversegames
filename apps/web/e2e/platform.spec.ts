@@ -65,6 +65,13 @@ test("mobile layouts have no horizontal overflow", async ({ browser }) => {
   for (const path of ["/", "/games", "/games/color-clash", "/games/doodle-duel", "/leaderboard", "/privacy"]) {
     await a.page.goto(path);
     await expectNoHorizontalOverflow(a.page);
+    if (path === "/") {
+      // A section can hide an oversized grid without growing document width.
+      const heading = await a.page.getByRole("heading", { level: 1 }).boundingBox();
+      expect(heading).not.toBeNull();
+      expect(heading!.x).toBeGreaterThanOrEqual(0);
+      expect(heading!.x + heading!.width).toBeLessThanOrEqual(mobile.width + 1);
+    }
   }
   const code = await createPrivateRoom(a.page, "color-clash", a.name);
   await expectNoHorizontalOverflow(a.page);

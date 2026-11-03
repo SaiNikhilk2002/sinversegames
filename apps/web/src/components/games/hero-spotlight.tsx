@@ -26,7 +26,7 @@ export function HeroSpotlight({ games }: { games: GameMeta[] }) {
   const g = games[i]!;
   const theme = GAME_THEME[g.id];
   return (
-    <div className="relative" onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocusCapture={() => setHold(true)} onBlurCapture={() => setHold(false)}>
+    <div className="relative min-w-0" onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocusCapture={() => setHold(true)} onBlurCapture={() => setHold(false)}>
       <div className="relative overflow-hidden rounded-[28px] border-[3px] shadow-[0_30px_80px_-30px_rgb(0_0_0/0.9)] transition-colors duration-500" style={{ borderColor: theme.accent, background: theme.deep }}>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div key={g.id} initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5, ease: [0.2, 0.8, 0.3, 1] }}>

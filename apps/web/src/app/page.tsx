@@ -39,7 +39,7 @@ export default function HomePage() {
       {/* Marquee */}
       <section className="relative overflow-hidden">
         <div className="home-stage absolute inset-0 -z-10" aria-hidden />
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pt-10 pb-14 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:pt-16 lg:pb-20">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 pt-10 pb-14 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:pt-16 lg:pb-20">
           <div>
             <p className="mb-5 inline-flex items-center gap-2 font-display text-sm font-black tracking-[0.25em] text-[#ffb23d] uppercase">
               <span className="size-2 rounded-full bg-[#2fd6a8] shadow-[0_0_10px_#2fd6a8]" /> {GAMES.length} original games · free

@@ -1,6 +1,6 @@
-# Playwave — multiplayer browser games platform
+# SinverseGames — browser games platform
 
-*"Playwave" is a placeholder brand; set `NEXT_PUBLIC_BRAND_NAME` to rename everything.*
+*Branding is centralized; `NEXT_PUBLIC_BRAND_NAME` overrides the SinverseGames default at build time.*
 
 A production-oriented platform for instant multiplayer browser games: guest play without sign-up, private rooms with invite links, public matchmaking, server-authoritative game engines, profiles, stats, achievements and leaderboards.
 
@@ -37,7 +37,7 @@ The web app and realtime server deploy independently: the web app works on serve
 
 ## Requirements
 
-- Node.js ≥ 20.11
+- Node.js 24 (pinned in `.node-version`; the Cloudflare toolchain requires at least Node 22)
 - pnpm 11 (`corepack enable`)
 - No Docker needed: `pnpm db:local` runs an embedded PostgreSQL.
 
