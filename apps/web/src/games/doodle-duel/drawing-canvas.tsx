@@ -70,9 +70,21 @@ export const DrawingCanvas = memo(
         ctx.fill();
         return;
       }
+      // Quadratic curves through the midpoints of successive points: smooth, ink-like lines
+      // instead of a polyline. Each chunk still starts and ends on its exact end points, so
+      // chunks drawn separately (or replayed later) join without gaps.
       ctx.beginPath();
       ctx.moveTo(pts[0]![0] * k, pts[0]![1] * k);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i]![0] * k, pts[i]![1] * k);
+      if (pts.length === 2) ctx.lineTo(pts[1]![0] * k, pts[1]![1] * k);
+      else {
+        for (let i = 1; i < pts.length - 1; i++) {
+          const [x, y] = pts[i]!;
+          const [nx, ny] = pts[i + 1]!;
+          ctx.quadraticCurveTo(x * k, y * k, ((x + nx) / 2) * k, ((y + ny) / 2) * k);
+        }
+        const last = pts[pts.length - 1]!;
+        ctx.lineTo(last[0] * k, last[1] * k);
+      }
       ctx.stroke();
     }, []);
 
@@ -262,7 +274,7 @@ export const DrawingCanvas = memo(
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        className="block aspect-[4/3] w-full touch-none rounded-2xl bg-white shadow-inner select-none"
+        className="block aspect-[4/3] w-full touch-none rounded-[4px] bg-white select-none"
         style={{ cursor: isDrawer ? (brush.tool === "eraser" ? "cell" : "crosshair") : "default" }}
       />
     );

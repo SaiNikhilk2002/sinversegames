@@ -6,12 +6,15 @@ import { useSyncExternalStore } from "react";
 export interface Settings {
   theme: "system" | "light" | "dark";
   sound: boolean;
+  /** Effects volume, 0–1. */
   volume: number;
+  music: boolean;
+  musicVolume: number;
   reducedMotion: boolean;
 }
 
 const KEY = "platform:settings";
-const DEFAULTS: Settings = { theme: "dark", sound: true, volume: 0.6, reducedMotion: false };
+const DEFAULTS: Settings = { theme: "dark", sound: true, volume: 0.6, music: true, musicVolume: 0.5, reducedMotion: false };
 
 let current: Settings = DEFAULTS;
 let loaded = false;
@@ -50,6 +53,14 @@ export function updateSettings(patch: Partial<Settings>) {
   }
   applySettingsToDocument(current);
   listeners.forEach((l) => l());
+}
+
+/** Runs `fn` whenever settings change; returns an unsubscribe function. */
+export function subscribeSettings(fn: () => void) {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
 }
 
 export function useSettings(): Settings {

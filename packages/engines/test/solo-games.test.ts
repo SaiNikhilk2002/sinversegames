@@ -21,6 +21,7 @@ import {
   mahjongGarden,
   matchKey,
   newBoard,
+  safeHint,
   type MahjongMove,
 } from "../src/mahjong-garden/engine";
 import {
@@ -219,6 +220,27 @@ describe("Mahjong Garden", () => {
     const v2 = mahjongGarden.verify(21, { layout: "pebble" }, cleanLog);
     if (v.ok && v2.ok) expect(v.result.score).toBeLessThan(v2.result.score);
     expect(mahjongGarden.verify(21, { layout: "pebble" }, [{ k: "match", a: 0, b: 1, t: 5 }])).toMatchObject({ ok: false });
+  });
+
+  it("hints never lead into a dead end: following them clears every board", () => {
+    for (let seed = 1; seed <= 25; seed++) {
+      const game = new MahjongGame(seed, { layout: "pebble" });
+      let t = 0;
+      for (let step = 0; step < 40 && !game.state.won; step++) {
+        const pair = safeHint(game.state);
+        expect(pair, `seed ${seed}: a hint exists until the board is clear`).not.toBeNull();
+        t += 500;
+        expect(game.apply({ k: "match", a: pair![0], b: pair![1], t })).toBe(true);
+      }
+      expect(game.state.won, `seed ${seed}`).toBe(true);
+    }
+  });
+
+  it("hints stay quick on the largest layout", () => {
+    const s = newBoard(7, { layout: "pagoda" });
+    const start = performance.now();
+    expect(safeHint(s)).not.toBeNull();
+    expect(performance.now() - start).toBeLessThan(1500);
   });
 });
 

@@ -25,8 +25,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         </div>
         <div className="divide-y divide-line">
           <Switch
-            label="Sound effects"
-            description="Short sounds for your turn, plays and correct guesses. Never plays on page load."
+            label="Sound"
+            description="Game sounds and music. Nothing plays until you interact with the page."
             checked={s.sound}
             onChange={(sound) => {
               unlockAudio();
@@ -34,21 +34,9 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
               if (sound) sfx.join();
             }}
           />
-          <label className="flex items-center justify-between gap-4 py-3">
-            <span className="text-sm font-semibold">Volume</span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.1}
-              value={s.volume}
-              disabled={!s.sound}
-              aria-label="Volume"
-              onChange={(e) => updateSettings({ volume: Number(e.target.value) })}
-              onPointerUp={() => sfx.card()}
-              className="w-40 accent-brand-500"
-            />
-          </label>
+          <VolumeRow label="Effects volume" value={s.volume} disabled={!s.sound} onChange={(volume) => updateSettings({ volume })} onRelease={() => sfx.card()} />
+          <Switch label="Music" description="Background music in games that have it." checked={s.music} disabled={!s.sound} onChange={(music) => updateSettings({ music })} />
+          <VolumeRow label="Music volume" value={s.musicVolume} disabled={!s.sound || !s.music} onChange={(musicVolume) => updateSettings({ musicVolume })} />
           <Switch
             label="Reduce motion"
             description="Turns off animations. Your system setting is always respected."
@@ -59,5 +47,25 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         <p className="text-xs text-ink-faint">Settings are saved on this device only.</p>
       </div>
     </Modal>
+  );
+}
+
+function VolumeRow({ label, value, disabled, onChange, onRelease }: { label: string; value: number; disabled: boolean; onChange: (v: number) => void; onRelease?: () => void }) {
+  return (
+    <label className="flex items-center justify-between gap-4 py-3">
+      <span className="text-sm font-semibold">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.1}
+        value={value}
+        disabled={disabled}
+        aria-label={label}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={onRelease}
+        className="w-40 accent-brand-500"
+      />
+    </label>
   );
 }

@@ -45,6 +45,8 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
   const [pendingWild, setPendingWild] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<{ id: number; text: string }[]>([]);
+  const [effect, setEffect] = useState<{ id: number; kind: "block" | "flip" | "plus2" | "prism" | "prism4"; color: string } | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
   const logId = useRef(0);
   const remaining = useCountdown(view.turnDeadline);
   const playable = useMemo(() => new Set(me?.playableIds ?? []), [me?.playableIds]);
@@ -61,10 +63,28 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
   useEffect(() => {
     if (isMyTurn) sfx.yourTurn();
   }, [isMyTurn, view.turnNumber]);
+  useEffect(() => {
+    if (!effect) return;
+    const id = setTimeout(() => setEffect(null), 1100);
+    return () => clearTimeout(id);
+  }, [effect]);
 
   useRoomEvent<{ actions: CCPublicAction[] }>(code, "game:action", ({ actions }) => {
-    if (actions.some((a) => a.kind === "play")) sfx.card();
-    else if (actions.some((a) => a.kind === "draw")) sfx.draw();
+    const play = actions.find((a) => a.kind === "play");
+    if (play && play.kind === "play") {
+      const k = play.card.kind;
+      const color = COLOR_META[play.chosenColor ?? play.card.color ?? "ember"].hex;
+      if (k === "number") sfx.cardPlace();
+      else {
+        setEffect({ id: Date.now(), kind: k, color });
+        if (k === "block") sfx.knock();
+        else if (k === "flip") sfx.whoosh();
+        else if (k === "plus2" || k === "prism4") {
+          sfx.impact(k === "prism4" ? 0.9 : 0.6);
+          tableRef.current?.animate([{ transform: "none" }, { transform: "translate(-4px,2px)" }, { transform: "translate(4px,-2px)" }, { transform: "none" }], { duration: 260 });
+        } else sfx.powerup();
+      }
+    } else if (actions.some((a) => a.kind === "draw")) sfx.draw();
     const lines = actions.map((a) => describeAction(a, nameOf)).filter((x): x is string => !!x);
     setLog((l) => [...l, ...lines.map((text) => ({ id: ++logId.current, text }))].slice(-4));
   });
@@ -94,8 +114,9 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
     <div className="flex flex-col gap-4" data-testid="color-clash">
       {/* Table */}
       <div
-        className="relative grid min-h-[300px] grid-cols-[auto_1fr_auto] grid-rows-[auto_1fr] gap-3 overflow-hidden rounded-[2rem] border border-line p-3 sm:min-h-[340px] sm:p-5"
-        style={{ background: `radial-gradient(ellipse at center, ${activeHex}33 0%, transparent 60%), linear-gradient(160deg, #1c1640, #0f0c24)` }}
+        ref={tableRef}
+        className="cc-table relative grid min-h-[300px] grid-cols-[auto_1fr_auto] grid-rows-[auto_1fr] gap-3 overflow-hidden rounded-[2.25rem] border-[7px] border-[#3a2216] p-3 shadow-[inset_0_0_0_2px_#5a3a24,inset_0_0_60px_rgb(0_0_0/0.55),0_14px_30px_-12px_rgb(0_0_0/0.7)] sm:min-h-[360px] sm:p-5"
+        style={{ "--cc-glow": `${activeHex}55` } as React.CSSProperties}
       >
         {/* Opponents */}
         <div className="col-span-3 flex flex-wrap justify-center gap-2 sm:hidden">
@@ -130,7 +151,13 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
               <CardBack size="lg" count={view.drawPileCount} />
             </button>
             <div className="relative">
-              <span className="absolute -inset-3 rounded-[22px] opacity-70 blur-md" style={{ background: activeHex }} aria-hidden />
+              <svg viewBox="0 0 200 200" className={cn("pointer-events-none absolute top-1/2 left-1/2 size-[230%] -translate-x-1/2 -translate-y-1/2 opacity-60", view.direction === 1 ? "cc-spin" : "cc-spin-rev")} aria-hidden>
+                <circle cx="100" cy="100" r="88" fill="none" stroke={activeHex} strokeWidth="2" strokeDasharray="10 14" />
+                {[0, 120, 240].map((a) => (
+                  <path key={a} transform={`rotate(${a} 100 100)`} d={view.direction === 1 ? "M100 6 l9 6 l-9 6" : "M100 6 l-9 6 l9 6"} fill="none" stroke={activeHex} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                ))}
+              </svg>
+              <span className="absolute -inset-3 rounded-[22px] opacity-70 blur-md transition-colors duration-500" style={{ background: activeHex }} aria-hidden />
               <AnimatePresence mode="popLayout">
                 <motion.div
                   key={view.topCard.id}
@@ -142,6 +169,7 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
                   <PlayingCard card={view.topCard} size="lg" testId="top-card" />
                 </motion.div>
               </AnimatePresence>
+              <AnimatePresence>{effect && <CardEffect key={effect.id} kind={effect.kind} color={effect.color} />}</AnimatePresence>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-2 text-sm font-semibold text-white">
@@ -195,8 +223,21 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
           </p>
           <div className="scrollbar-none -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pt-5 pb-2 sm:flex-wrap sm:justify-center sm:overflow-visible" data-testid="hand">
             <AnimatePresence initial={false}>
-              {me.hand.map((card) => (
-                <motion.div key={card.id} layout initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -60, opacity: 0 }} className="snap-start">
+              {me.hand.map((card, i) => {
+                const n = me.hand.length;
+                const mid = (n - 1) / 2;
+                const spread = Math.min(5, 36 / Math.max(1, n));
+                const lift = isMyTurn && playable.has(card.id) ? -12 : 0;
+                return (
+                // Layout (sliding along the hand) and the fan (tilt and lift) live on separate
+                // elements: measuring layout on a rotated element never settles.
+                <motion.div key={card.id} layout exit={{ y: -140, opacity: 0, scale: 0.8 }} transition={{ type: "spring", stiffness: 600, damping: 40 }} className="snap-start sm:-ml-3 sm:first:ml-0">
+                  <motion.div
+                    initial={{ y: -160, x: -60, opacity: 0, rotate: -20 }}
+                    animate={{ y: Math.abs(i - mid) * Math.abs(i - mid) * 0.9 + lift, x: 0, opacity: 1, rotate: (i - mid) * spread }}
+                    transition={{ type: "spring", stiffness: 600, damping: 36 }}
+                    className="origin-bottom"
+                  >
                   <PlayingCard
                     card={card}
                     size="md"
@@ -206,8 +247,10 @@ export function ColorClashGame({ code, game, send, selfId }: GameClientProps<CCV
                     onClick={() => playCard(card.id)}
                     testId={`hand-card-${card.id}`}
                   />
+                  </motion.div>
                 </motion.div>
-              ))}
+                );
+              })}
             </AnimatePresence>
           </div>
         </section>
@@ -270,5 +313,51 @@ function Opponent({ p, active, compact }: { p: CCView["players"][number]; active
       )}
       {compact && <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-bold">{p.cardCount}</span>}
     </div>
+  );
+}
+
+/** A short burst over the discard pile for action cards. */
+function CardEffect({ kind, color }: { kind: "block" | "flip" | "plus2" | "prism" | "prism4"; color: string }) {
+  return (
+    <motion.div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} aria-hidden>
+      <motion.span className="absolute size-40 rounded-full border-[6px]" style={{ borderColor: color }} initial={{ scale: 0.3, opacity: 1 }} animate={{ scale: 1.6, opacity: 0 }} transition={{ duration: 0.7, ease: "easeOut" }} />
+      {kind === "block" && (
+        <motion.svg viewBox="0 0 100 100" className="size-28 drop-shadow-[0_4px_0_rgb(0_0_0/0.4)]" initial={{ scale: 2.4, rotate: -30, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
+          <circle cx="50" cy="50" r="40" fill="#fff" stroke="#17142b" strokeWidth="6" />
+          <circle cx="50" cy="50" r="28" fill="none" stroke={color} strokeWidth="10" />
+          <path d="M30 70 L70 30" stroke={color} strokeWidth="10" strokeLinecap="round" />
+        </motion.svg>
+      )}
+      {kind === "flip" && (
+        <motion.svg viewBox="0 0 100 100" className="size-28" initial={{ rotate: 0, scale: 0.6 }} animate={{ rotate: 360, scale: 1 }} transition={{ duration: 0.8, ease: [0.3, 0.7, 0.3, 1] }}>
+          <path d="M50 14 A36 36 0 0 1 86 50" fill="none" stroke="#fff" strokeWidth="10" strokeLinecap="round" />
+          <path d="M80 36 L88 52 L72 50 Z" fill="#fff" />
+          <path d="M50 86 A36 36 0 0 1 14 50" fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" />
+          <path d="M20 64 L12 48 L28 50 Z" fill={color} />
+        </motion.svg>
+      )}
+      {(kind === "plus2" || kind === "prism4") && (
+        <motion.span
+          className="font-display text-7xl font-black text-white"
+          style={{ WebkitTextStroke: "3px #17142b", textShadow: `0 6px 0 #17142b, 0 0 30px ${color}` }}
+          initial={{ scale: 3, rotate: -12, opacity: 0 }}
+          animate={{ scale: 1, rotate: -6, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 460, damping: 16 }}
+        >
+          {kind === "plus2" ? "+2" : "+4"}
+        </motion.span>
+      )}
+      {(kind === "prism" || kind === "prism4") &&
+        ["#ff4f5e", "#3d8bff", "#2fbf6f", "#ffc23d"].map((c, i) => (
+          <motion.span
+            key={c}
+            className="absolute size-6 rounded-full"
+            style={{ background: c }}
+            initial={{ x: 0, y: 0, scale: 0.5 }}
+            animate={{ x: Math.cos((i / 4) * Math.PI * 2 + 0.6) * 110, y: Math.sin((i / 4) * Math.PI * 2 + 0.6) * 80, scale: 1.2, opacity: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          />
+        ))}
+    </motion.div>
   );
 }

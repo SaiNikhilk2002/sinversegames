@@ -214,6 +214,52 @@ export function isDeadEnd(s: MahjongState): boolean {
   return !reshuffle(probe, 1);
 }
 
+/**
+ * The pair to suggest as a hint: one after which the board can still be
+ * cleared with the current tiles, found by a bounded depth-first search over
+ * which tiles remain (the layout and tiles are fixed, so that set is the whole
+ * state). If the search runs out of budget it falls back to a pair that at
+ * least avoids an immediate dead end, then to any available pair.
+ */
+export function safeHint(s: MahjongState, budget = 2500): [number, number] | null {
+  const pairs = availablePairs(s);
+  if (!pairs.length) return null;
+  const tiles = [...s.tiles];
+  const probe: MahjongState = { ...s, tiles };
+  const failed = new Set<string>();
+  let nodes = 0;
+  const clearable = (): boolean | null => {
+    if (tiles.every((t) => t === null)) return true;
+    if (++nodes > budget) return null;
+    const key = tiles.map((t) => (t === null ? "0" : "1")).join("");
+    if (failed.has(key)) return false;
+    for (const [a, b] of availablePairs(probe)) {
+      const ka = tiles[a]!;
+      const kb = tiles[b]!;
+      tiles[a] = tiles[b] = null;
+      const r = clearable();
+      tiles[a] = ka;
+      tiles[b] = kb;
+      if (r !== false) return r;
+    }
+    failed.add(key);
+    return false;
+  };
+  let fallback: [number, number] | null = null;
+  for (const [a, b] of pairs) {
+    const ka = tiles[a]!;
+    const kb = tiles[b]!;
+    tiles[a] = tiles[b] = null;
+    const r = clearable();
+    const notStuck = !fallback && (tiles.every((t) => t === null) || availablePairs(probe).length > 0);
+    tiles[a] = ka;
+    tiles[b] = kb;
+    if (r === true) return [a, b];
+    if (notStuck) fallback = [a, b];
+  }
+  return fallback ?? pairs[0]!;
+}
+
 // ---------------------------------------------------------------------------
 // Play
 // ---------------------------------------------------------------------------

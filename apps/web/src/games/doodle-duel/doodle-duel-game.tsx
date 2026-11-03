@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { Check, Eraser, Lightbulb, Pencil, Send, Trash2, Undo2, WifiOff } from "lucide-react";
 import { BRUSH_SIZES, PALETTE, type DoodleChatMessage, type DoodleView } from "@platform/engines/doodle-duel/client";
 import { Avatar, Button, cn, Tooltip } from "@/components/ui/primitives";
@@ -24,14 +24,26 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
   const [brush, setBrush] = useState<Brush>({ tool: "pen", color: PALETTE[0], size: BRUSH_SIZES[1] });
   const canvas = useRef<CanvasHandle>(null);
   const [chat, setChat] = useState<DoodleChatMessage[]>([]);
+  const [cheer, setCheer] = useState<{ id: number; text: string; mine: boolean } | null>(null);
 
   useRoomEvent<DoodleChatMessage>(code, "doodle:guess", (m) => {
     setChat((c) => [...c.slice(-80), m]);
     if (m.kind === "correct") {
       sfx.correct();
-      if (m.playerId === selfId) toast(`You guessed it! +${m.points} points`, "success");
-    }
+      const mine = m.playerId === selfId;
+      if (mine) toast(`You guessed it! +${m.points} points`, "success");
+      setCheer({ id: Date.now(), text: mine ? `You got it! +${m.points}` : `${m.name} got it!`, mine });
+    } else if (m.kind === "close") sfx.pop();
   });
+  useEffect(() => {
+    if (!cheer) return;
+    const id = setTimeout(() => setCheer(null), 1600);
+    return () => clearTimeout(id);
+  }, [cheer]);
+  // A page turn whenever a new drawing starts.
+  useEffect(() => {
+    if (view.phase === "drawing") sfx.draw();
+  }, [view.phase, view.turnNumber]);
   useRoomEvent<{ kind: "letter" | "text" }>(code, "doodle:hint", (h) => {
     if (!isDrawer && h.kind === "letter") sfx.tick();
   });
@@ -64,8 +76,24 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
             view.word ? (
               <p className="font-display text-xl font-extrabold text-mint">You got it: {view.word}</p>
             ) : (
-              <p className="font-mono text-xl font-bold tracking-[0.35em] sm:text-2xl" aria-label={`Word with ${view.mask?.filter((c) => c === "_").length} hidden letters`} data-testid="word-mask">
-                {view.mask?.map((c, i) => (c === " " ? "  " : c)).join("")}
+              <p className="flex flex-wrap justify-center gap-1" aria-label={`Word with ${view.mask?.filter((c) => c === "_").length} hidden letters`} data-testid="word-mask">
+                <span className="sr-only">{view.mask?.map((c) => (c === "_" ? "_ " : c)).join("")}</span>
+                {view.mask?.map((c, i) =>
+                  c === " " ? (
+                    <span key={i} className="w-3" aria-hidden />
+                  ) : (
+                    <motion.span
+                      key={`${i}-${c}`}
+                      aria-hidden
+                      initial={c === "_" ? false : { rotateX: 90, scale: 1.3 }}
+                      animate={{ rotateX: 0, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                      className={cn("grid h-8 w-6 place-items-center rounded-md border-b-[3px] font-mono text-lg font-black uppercase sm:h-9 sm:w-7", c === "_" ? "border-ink/40 bg-surface-2 text-transparent" : "border-sun bg-sun/20 text-ink")}
+                    >
+                      {c === "_" ? "·" : c}
+                    </motion.span>
+                  ),
+                )}
               </p>
             )
           )}
@@ -81,13 +109,7 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
             )}
           </div>
         </div>
-        <span
-          className={cn("min-w-16 rounded-full px-3 py-1 text-center font-mono text-lg font-bold", timeLow ? "bg-danger text-white" : "bg-surface-2")}
-          role="timer"
-          aria-label={`${seconds ?? 0} seconds left`}
-        >
-          {seconds ?? "–"}s
-        </span>
+        <RingTimer seconds={seconds} total={view.phase === "drawing" ? view.config.drawSeconds : view.phase === "choosing" ? 15 : 6} low={timeLow} />
         {timeLow && !isDrawer && !view.you?.hasGuessed && <p className="w-full text-center text-sm font-semibold text-danger">Time is running out!</p>}
       </div>
 
@@ -110,7 +132,9 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
                   {p.name}
                   {p.id === selfId && " (you)"}
                 </p>
-                <p className="text-xs text-ink-muted" data-testid={`doodle-score-${p.id}`}>{p.score} pts</p>
+                <motion.p key={p.score} initial={{ scale: p.score ? 1.4 : 1, color: p.score ? "#2fd6a8" : undefined }} animate={{ scale: 1 }} className="origin-left text-xs text-ink-muted" data-testid={`doodle-score-${p.id}`}>
+                  {p.score} pts
+                </motion.p>
               </div>
               {p.id === view.drawerId && <Pencil className="size-4 text-brand-500" aria-label="Drawing" />}
               {p.guessed && <Check className="size-4 text-mint" aria-label="Guessed" />}
@@ -122,8 +146,37 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
 
       {/* Canvas + tools */}
       <div className="relative min-w-0 space-y-3">
-        <div className="relative overflow-hidden rounded-2xl border border-line bg-white p-1 shadow-card">
-          <DrawingCanvas ref={canvas} code={code} turn={view.turnNumber} isDrawer={isDrawer && view.phase === "drawing"} brush={brush} />
+        <div className="dd-desk relative rounded-[22px] p-3 pt-6 sm:p-5 sm:pt-8">
+          <div className="pointer-events-none absolute inset-x-8 top-1.5 z-10 flex justify-between sm:top-2.5" aria-hidden>
+            {Array.from({ length: 14 }, (_, i) => (
+              <span key={i} className="block h-6 w-2.5 rounded-full border-2 border-[#8d8a99] bg-gradient-to-b from-[#f1f0f5] to-[#b7b4c3] shadow-[0_2px_2px_rgb(0_0_0/0.35)] sm:h-8 sm:w-3" />
+            ))}
+          </div>
+          <div className="relative overflow-hidden rounded-[6px] bg-white shadow-[0_1px_0_#e2ddd0,0_2px_0_#f7f3ea,0_3px_0_#e2ddd0,0_4px_0_#f7f3ea,0_12px_24px_-6px_rgb(0_0_0/0.45)]">
+            <DrawingCanvas ref={canvas} code={code} turn={view.turnNumber} isDrawer={isDrawer && view.phase === "drawing"} brush={brush} />
+            <div className="dd-paper pointer-events-none absolute inset-0" aria-hidden />
+            <AnimatePresence>
+              {cheer && (
+                <motion.div key={cheer.id} className="pointer-events-none absolute inset-x-0 top-[8%] z-20 flex justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  {Array.from({ length: 22 }, (_, k) => {
+                    const a = (k / 22) * Math.PI * 2;
+                    return (
+                      <motion.span
+                        key={k}
+                        className="absolute block h-3 w-2 rounded-[2px]"
+                        style={{ background: ["#ff4f8b", "#ffb23d", "#2fd6a8", "#5b8cff", "#c04dff"][k % 5] }}
+                        initial={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
+                        animate={{ x: Math.cos(a) * (140 + (k % 4) * 30), y: Math.sin(a) * (100 + (k % 3) * 30) + 60, rotate: 360 + k * 20, opacity: 0 }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                      />
+                    );
+                  })}
+                  <motion.span initial={{ scale: 0.4, rotate: -10 }} animate={{ scale: 1, rotate: -3 }} transition={{ type: "spring", stiffness: 380, damping: 14 }} className={cn("rounded-2xl border-[3px] border-[#17142b] px-5 py-2 font-display text-2xl font-black shadow-[0_5px_0_#17142b]", cheer.mine ? "bg-[#2fd6a8] text-[#17142b]" : "bg-white text-[#17142b]")}>
+                    {cheer.text}
+                  </motion.span>
+                </motion.div>
+              )}
+            </AnimatePresence>
             {view.phase === "choosing" && (
               <Overlay key="choose">
                 {isDrawer && view.wordOptions ? (
@@ -139,7 +192,8 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
                             const ack = await send("doodle:select-word", { index: i });
                             if (!ack.ok) toast(ack.error.message, "warning");
                           }}
-                          className="rounded-2xl bg-white px-4 py-3 text-center text-[#17142b] shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+                          style={{ rotate: `${(i - 1) * 3}deg`, background: ["#fff27a", "#ffc4d6", "#b8f0d8"][i % 3] }}
+                          className="rounded-[4px] px-4 py-4 text-center text-[#17142b] shadow-[0_8px_14px_-4px_rgb(0_0_0/0.5)] transition hover:-translate-y-1 hover:rotate-0"
                         >
                           <span className="block font-display text-lg font-bold capitalize">{w.text}</span>
                           <span className="text-xs text-[#5b5775]">
@@ -158,7 +212,13 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
               <Overlay key="reveal">
                 <div className="w-full max-w-sm text-center text-white" data-testid="turn-results">
                   <p className="text-sm font-semibold text-white/75">{REASON_COPY[view.lastTurn.reason]}</p>
-                  <p className="font-display text-3xl font-extrabold capitalize">{view.lastTurn.word}</p>
+                  <p className="flex flex-wrap justify-center gap-1 font-display text-3xl font-extrabold capitalize" aria-label={view.lastTurn.word}>
+                    {view.lastTurn.word.split("").map((ch, i) => (
+                      <motion.span key={i} aria-hidden initial={{ y: 20, opacity: 0, rotate: -12 }} animate={{ y: 0, opacity: 1, rotate: 0 }} transition={{ delay: 0.15 + i * 0.05, type: "spring", stiffness: 420, damping: 16 }}>
+                        {ch === " " ? "\u00a0" : ch}
+                      </motion.span>
+                    ))}
+                  </p>
                   <ul className="mt-4 space-y-1 text-left">
                     {view.players
                       .filter((p) => !p.left)
@@ -176,6 +236,7 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
                 </div>
               </Overlay>
             )}
+          </div>
         </div>
         {isDrawer && view.phase === "drawing" && <Toolbar brush={brush} setBrush={setBrush} onUndo={() => canvas.current?.undo()} onClear={() => canvas.current?.clear()} />}
       </div>
@@ -318,5 +379,21 @@ function GuessPanel({ chat, view, selfId, isDrawer, send }: { chat: DoodleChatMe
         <Button type="submit" aria-label="Send guess" disabled={drawingLocked || !text.trim()} icon={<Send className="size-4" />} />
       </form>
     </section>
+  );
+}
+
+/** A clock ring that drains, turning red and pulsing near the end. */
+function RingTimer({ seconds, total, low }: { seconds: number | null; total: number; low: boolean }) {
+  const r = 18;
+  const c = 2 * Math.PI * r;
+  const frac = seconds === null ? 0 : Math.max(0, Math.min(1, seconds / Math.max(1, total)));
+  return (
+    <span role="timer" aria-label={`${seconds ?? 0} seconds left`} className={cn("relative grid size-12 shrink-0 place-items-center", low && "animate-pulse")}>
+      <svg viewBox="0 0 44 44" className="absolute inset-0 -rotate-90" aria-hidden>
+        <circle cx="22" cy="22" r={r} fill="none" strokeWidth="5" className="stroke-surface-3" />
+        <circle cx="22" cy="22" r={r} fill="none" strokeWidth="5" strokeLinecap="round" stroke={low ? "#ff4d5e" : "#7c5cff"} strokeDasharray={c} strokeDashoffset={c * (1 - frac)} style={{ transition: "stroke-dashoffset 1s linear, stroke 300ms" }} />
+      </svg>
+      <span className={cn("font-mono text-sm font-black tabular-nums", low && "text-danger")}>{seconds ?? "–"}</span>
+    </span>
   );
 }

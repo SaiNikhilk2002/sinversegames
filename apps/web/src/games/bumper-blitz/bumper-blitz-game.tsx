@@ -1,18 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Shield, Weight, Zap } from "lucide-react";
-import { POD_RADIUS, type BBEvent, type BBPodView, type BBView } from "@platform/engines/bumper-blitz";
+import type { BBEvent, BBPodView, BBView } from "@platform/engines/bumper-blitz";
 import { Avatar, cn } from "@/components/ui/primitives";
 import { realtime } from "@/lib/realtime/connection";
 import { useRoomEvent } from "@/lib/realtime/use-room";
-import { sfx } from "@/lib/sound";
+import { useSettings } from "@/lib/settings";
+import { createMotor, sfx } from "@/lib/sound";
 import type { GameClientProps } from "../types";
+import { ArenaRenderer } from "./arena-renderer";
 
 /** Render this far behind the newest snapshot so there are always two to interpolate between. */
 const INTERP_DELAY_MS = 100;
 const SEND_INTERVAL_MS = 66;
-const WORLD = 560;
 
 interface Snapshot {
   t: number;
@@ -126,7 +128,7 @@ function Joystick({ onChange }: { onChange: (v: { x: number; y: number } | null)
   return (
     <div
       ref={ref}
-      className="relative size-32 touch-none rounded-full border-2 border-white/30 bg-white/10 backdrop-blur"
+      className="relative size-32 touch-none rounded-full border-2 border-[#7a6cff]/60 bg-[#0b0620]/50 shadow-[0_0_20px_-4px_#7a6cff] backdrop-blur"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
         move(e);
@@ -138,10 +140,12 @@ function Joystick({ onChange }: { onChange: (v: { x: number; y: number } | null)
       role="slider"
       aria-valuetext="Drag to steer"
     >
-      <div className="absolute size-12 rounded-full bg-white/80 shadow-lg" style={{ left: `calc(50% - 24px + ${knob.x * 40}px)`, top: `calc(50% - 24px + ${knob.y * 40}px)` }} />
+      <div className="absolute size-12 rounded-full border-2 border-white bg-[#ff4f8b] shadow-[0_0_14px_#ff4f8b]" style={{ left: `calc(50% - 24px + ${knob.x * 40}px)`, top: `calc(50% - 24px + ${knob.y * 40}px)` }} />
     </div>
   );
 }
+
+type FeedTone = "ko" | "info" | "self";
 
 export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BBView>) {
   const view = game.view;
@@ -150,10 +154,14 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
   const snaps = useRef<Snapshot[]>([]);
   const viewRef = useRef(view);
   viewRef.current = view;
-  const [feed, setFeed] = useState<{ id: number; text: string }[]>([]);
+  const rendererRef = useRef<ArenaRenderer | null>(null);
+  const posRef = useRef<(id: string) => BBPodView | undefined>(() => undefined);
+  const [feed, setFeed] = useState<{ id: number; text: string; tone: FeedTone }[]>([]);
   const [now, setNow] = useState(() => realtime.serverNow());
+  const [koBy, setKoBy] = useState<{ by: string | null; at: number } | null>(null);
   const me = view.pods.find((p) => p.id === selfId);
   const input = usePodInput(send, view.status !== "finished" && !!me && !me.left);
+  const reduced = useSettings().reducedMotion;
 
   // Keep a short history of snapshots for interpolation.
   useEffect(() => {
@@ -163,36 +171,63 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
     if (list.length > 20) list.shift();
   }, [view]);
 
+  const nameOf = useCallback((id: string | null) => (id === selfId ? "You" : (viewRef.current.pods.find((p) => p.id === id)?.name ?? "Someone")), [selfId]);
+  const pushFeed = useCallback((text: string, tone: FeedTone) => {
+    const id = Math.random();
+    setFeed((f) => [{ id, text, tone }, ...f].slice(0, 4));
+    setTimeout(() => setFeed((f) => f.filter((x) => x.id !== id)), 4500);
+  }, []);
+
   useRoomEvent<{ events: BBEvent[] }>(code, "game:action", ({ events }) => {
-    const name = (id: string | null) => (id === selfId ? "You" : (viewRef.current.pods.find((p) => p.id === id)?.name ?? "Someone"));
+    const r = rendererRef.current;
     for (const e of events) {
-      if (e.kind === "bump" && (e.a === selfId || e.b === selfId)) sfx.bump();
+      r?.onEvent(e, posRef.current, realtime.serverNow());
+      if (e.kind === "bump") {
+        if (e.a === selfId || e.b === selfId) sfx.impact(e.strength / 700);
+        else if (e.strength > 450) sfx.impact(0.2);
+      }
       if (e.kind === "powerup") {
-        if (e.playerId === selfId) sfx.pop();
-        setFeed((f) => [{ id: Math.random(), text: `${name(e.playerId)} grabbed ${POWERUP_STYLE[e.powerup].label}` }, ...f].slice(0, 4));
+        if (e.playerId === selfId) sfx.powerup();
+        pushFeed(`${nameOf(e.playerId)} grabbed ${POWERUP_STYLE[e.powerup].label}`, e.playerId === selfId ? "self" : "info");
       }
       if (e.kind === "ko") {
-        if (e.playerId === selfId) sfx.error();
-        else if (e.by === selfId) sfx.correct();
-        setFeed((f) => [{ id: Math.random(), text: e.by ? `${name(e.by)} knocked out ${name(e.playerId)}!` : `${name(e.playerId)} fell off` }, ...f].slice(0, 4));
+        if (e.playerId === selfId) setKoBy({ by: e.by, at: realtime.serverNow() });
+        else if (e.by === selfId) {
+          sfx.cheer();
+          sfx.correct();
+        }
+        pushFeed(e.by ? `${nameOf(e.by)} knocked out ${nameOf(e.playerId)}` : `${nameOf(e.playerId)} fell off`, e.by === selfId ? "self" : "ko");
       }
     }
   });
 
+  // Countdown beeps and the start horn.
+  const countdown = view.status === "countdown" ? Math.max(1, Math.ceil((view.playAt - now) / 1000)) : null;
+  const lastCount = useRef<number | null>(null);
+  useEffect(() => {
+    if (countdown !== null && countdown !== lastCount.current) sfx.beep();
+    if (countdown === null && lastCount.current !== null && view.status === "playing") sfx.go();
+    lastCount.current = countdown;
+  }, [countdown, view.status]);
+
   // Render loop.
   useEffect(() => {
+    rendererRef.current = new ArenaRenderer(selfId, reduced);
+    const motor = createMotor();
     let frame = 0;
     let lastHud = 0;
     const draw = () => {
       frame = requestAnimationFrame(draw);
       const canvas = canvasRef.current;
       const wrap = wrapRef.current;
-      if (!canvas || !wrap) return;
+      const r = rendererRef.current;
+      if (!canvas || !wrap || !r) return;
       const size = Math.min(wrap.clientWidth, 720);
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      if (canvas.width !== Math.round(size * dpr)) {
-        canvas.width = Math.round(size * dpr);
-        canvas.height = Math.round(size * dpr);
+      const px = Math.round(size * dpr);
+      if (canvas.width !== px) {
+        canvas.width = px;
+        canvas.height = px;
         canvas.style.width = `${size}px`;
         canvas.style.height = `${size}px`;
       }
@@ -222,155 +257,84 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
         const pa = a?.pods.get(id);
         const pb = b?.pods.get(id);
         if (!pa || !pb || pa.out !== pb.out) return pb ?? pa;
-        return { ...pb, x: pa.x + (pb.x - pa.x) * f, y: pa.y + (pb.y - pa.y) * f };
+        return { ...pb, x: pa.x + (pb.x - pa.x) * f, y: pa.y + (pb.y - pa.y) * f, vx: pa.vx + (pb.vx - pa.vx) * f, vy: pa.vy + (pb.vy - pa.vy) * f };
       };
-
-      const scale = (size * dpr) / (WORLD * 2);
-      ctx.setTransform(scale, 0, 0, scale, (size * dpr) / 2, (size * dpr) / 2);
-      ctx.clearRect(-WORLD, -WORLD, WORLD * 2, WORLD * 2);
-
-      // Void and arena.
-      const grad = ctx.createRadialGradient(0, 0, 50, 0, 0, WORLD);
-      grad.addColorStop(0, "#2a1452");
-      grad.addColorStop(1, "#0b0620");
-      ctx.fillStyle = grad;
-      ctx.fillRect(-WORLD, -WORLD, WORLD * 2, WORLD * 2);
-      ctx.beginPath();
-      ctx.arc(0, 0, v.arenaRadius, 0, Math.PI * 2);
-      const floor = ctx.createRadialGradient(0, 0, 40, 0, 0, v.arenaRadius);
-      floor.addColorStop(0, "#5b2bd8");
-      floor.addColorStop(1, "#3a1690");
-      ctx.fillStyle = floor;
-      ctx.fill();
-      ctx.lineWidth = 10;
-      ctx.strokeStyle = v.arenaRadius < 500 ? "#ff4f8b" : "#f107a3";
-      ctx.stroke();
-      ctx.strokeStyle = "rgba(255,255,255,0.08)";
-      ctx.lineWidth = 2;
-      for (let r = 100; r < v.arenaRadius; r += 100) {
-        ctx.beginPath();
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Hazards: dashed while warning, glowing while active.
-      for (const h of v.hazards) {
-        const active = serverNow >= h.activeAt;
-        ctx.beginPath();
-        ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
-        ctx.fillStyle = active ? "rgba(255,90,60,0.45)" : "rgba(255,200,60,0.15)";
-        ctx.fill();
-        ctx.setLineDash(active ? [] : [14, 10]);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = active ? "#ff5a3c" : "#ffc83d";
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      for (const bm of v.bumpers) {
-        ctx.beginPath();
-        ctx.arc(bm.x, bm.y, bm.r, 0, Math.PI * 2);
-        ctx.fillStyle = "#1b1333";
-        ctx.fill();
-        ctx.lineWidth = 8;
-        ctx.strokeStyle = "#e6e1ff";
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(bm.x, bm.y, bm.r * 0.45, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff4f8b";
-        ctx.fill();
-      }
-
-      for (const u of v.powerups) {
-        const pulse = 16 + Math.sin(serverNow / 180) * 2;
-        ctx.beginPath();
-        ctx.arc(u.x, u.y, pulse, 0, Math.PI * 2);
-        ctx.fillStyle = POWERUP_STYLE[u.kind].color;
-        ctx.fill();
-        ctx.fillStyle = "#17142b";
-        ctx.font = "bold 18px system-ui";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(u.kind === "turbo" ? "⚡" : u.kind === "heavy" ? "W" : "◆", u.x, u.y + 1);
-      }
-
-      for (const pod of v.pods) {
-        if (pod.left) continue;
-        const p = posOf(pod.id);
-        if (!p || p.out) continue;
-        ctx.globalAlpha = p.ghost ? 0.45 : 1;
-        if (p.shield) {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, POD_RADIUS + 9, 0, Math.PI * 2);
-          ctx.strokeStyle = "#2fd6c2";
-          ctx.lineWidth = 5;
-          ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, POD_RADIUS * (p.heavy ? 1.12 : 1), 0, Math.PI * 2);
-        ctx.fillStyle = pod.color;
-        ctx.fill();
-        ctx.lineWidth = pod.id === selfId ? 7 : 4;
-        ctx.strokeStyle = pod.id === selfId ? "#ffffff" : "rgba(255,255,255,0.6)";
-        ctx.stroke();
-        // Facing indicator from velocity.
-        const sp = Math.hypot(p.vx, p.vy);
-        if (sp > 20) {
-          ctx.beginPath();
-          ctx.arc(p.x + (p.vx / sp) * 14, p.y + (p.vy / sp) * 14, 6, 0, Math.PI * 2);
-          ctx.fillStyle = "#fff";
-          ctx.fill();
-        }
-        if (p.turbo) {
-          ctx.beginPath();
-          ctx.arc(p.x - (p.vx / (sp || 1)) * 30, p.y - (p.vy / (sp || 1)) * 30, 9, 0, Math.PI * 2);
-          ctx.fillStyle = "#ffcf3d";
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "#fff";
-        ctx.font = "600 20px system-ui";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(pod.id === selfId ? "You" : pod.name.slice(0, 12), p.x, p.y - POD_RADIUS - 8);
-      }
+      posRef.current = posOf;
+      const pods = v.pods.filter((p) => !p.left).map((p) => posOf(p.id));
+      const out = r.frame(ctx, px, v, pods, serverNow);
+      if (out.boosted.includes(selfId)) sfx.whoosh();
+      if (out.fell.some((x) => x.id === selfId)) sfx.fall();
+      const mine = pods.find((p) => p?.id === selfId);
+      motor.set(v.status === "playing" && mine && !mine.out ? 1 : 0, mine ? Math.hypot(mine.vx, mine.vy) / 430 : 0);
     };
     frame = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frame);
-  }, [selfId]);
+    return () => {
+      cancelAnimationFrame(frame);
+      motor.stop();
+    };
+  }, [selfId, reduced]);
 
-  const countdown = view.status === "countdown" ? Math.max(1, Math.ceil((view.playAt - now) / 1000)) : null;
   const timeLeft = Math.max(0, Math.ceil((view.endsAt - now) / 1000));
-  const boostReady = me ? now >= me.boostReadyAt : false;
+  const boostReadyIn = me ? Math.max(0, me.boostReadyAt - now) : 0;
+  const boostReady = !!me && boostReadyIn === 0;
   const board = [...view.pods].filter((p) => !p.left).sort((a, b) => b.knockouts - a.knockouts || a.falls - b.falls);
+  const respawnLeft = koBy ? Math.max(0, 2000 - (now - koBy.at)) : 0;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]" data-testid="bumper-blitz">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_270px]" data-testid="bumper-blitz">
       <div ref={wrapRef} className="relative mx-auto w-full max-w-[720px] select-none">
-        <canvas ref={canvasRef} className="block w-full rounded-3xl shadow-card" aria-label="Bumper Blitz arena" role="img" data-testid="arena-canvas" />
+        <canvas ref={canvasRef} className="block w-full rounded-[28px] border-2 border-[#ff4f8b]/40 shadow-[0_0_40px_-8px_rgb(255_79_139/0.55)]" aria-label="Bumper Blitz arena" role="img" data-testid="arena-canvas" />
         <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
-          <span className="rounded-full bg-black/55 px-4 py-1.5 font-display text-lg font-bold text-white tabular-nums" data-testid="arena-timer">
+          <span
+            className={cn(
+              "rounded-xl border-2 bg-[#0b0620]/80 px-4 py-1 font-mono text-2xl font-black tracking-wider tabular-nums",
+              timeLeft <= 10 && view.status === "playing" ? "animate-pulse border-[#ff4f8b] text-[#ff4f8b]" : "border-[#7a6cff] text-[#e9e4ff]",
+            )}
+            style={{ textShadow: "0 0 12px currentColor" }}
+            data-testid="arena-timer"
+          >
             {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}
           </span>
         </div>
+        {/* Each number pops in; no exit animation, so the count never lingers past "GO". */}
         {countdown !== null && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="font-display text-8xl font-black text-white drop-shadow-[0_6px_0_rgb(0_0_0/0.4)]" data-testid="arena-countdown">
-              {countdown}
-            </span>
+            <motion.div key={countdown} initial={{ scale: 2.2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 300, damping: 18 }}>
+              <span className="font-display text-9xl font-black text-white" style={{ textShadow: "0 0 30px #ff4f8b, 0 6px 0 rgb(0 0 0 / 0.5)" }} data-testid="arena-countdown">
+                {countdown}
+              </span>
+            </motion.div>
           </div>
         )}
         {me?.out && view.status === "playing" && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="rounded-2xl bg-black/60 px-5 py-3 font-display text-2xl font-bold text-white">Knocked out — respawning…</span>
+            <motion.div initial={{ scale: 0.5, rotate: -8, opacity: 0 }} animate={{ scale: 1, rotate: -3, opacity: 1 }} transition={{ type: "spring", stiffness: 380, damping: 14 }} className="flex items-center gap-3 rounded-2xl border-2 border-[#ff4f8b] bg-[#0b0620]/85 px-5 py-3 text-white shadow-[0_0_30px_rgb(255_79_139/0.5)]">
+              <svg viewBox="0 0 36 36" className="size-10 -rotate-90" aria-hidden>
+                <circle cx="18" cy="18" r="15" fill="none" stroke="rgb(255 255 255 / 0.15)" strokeWidth="4" />
+                <circle cx="18" cy="18" r="15" fill="none" stroke="#ff4f8b" strokeWidth="4" strokeDasharray={94.2} strokeDashoffset={94.2 * (respawnLeft / 2000)} strokeLinecap="round" />
+              </svg>
+              <div>
+                <p className="font-display text-2xl leading-none font-black">KNOCKED OUT</p>
+                <p className="text-sm text-[#e9e4ff]/80">{koBy?.by ? `by ${nameOf(koBy.by)} · ` : ""}respawning…</p>
+              </div>
+            </motion.div>
           </div>
         )}
-        <div className="pointer-events-none absolute inset-x-3 bottom-3 space-y-1" aria-live="polite">
-          {feed.map((f) => (
-            <p key={f.id} className="w-fit rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white">
-              {f.text}
-            </p>
-          ))}
+        <div className="pointer-events-none absolute top-14 right-3 space-y-1 text-right" aria-live="polite">
+          <AnimatePresence>
+            {feed.map((f) => (
+              <motion.p
+                key={f.id}
+                layout
+                initial={{ x: 40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className={cn("ml-auto w-fit rounded-lg px-2.5 py-1 text-xs font-bold text-white backdrop-blur", f.tone === "self" ? "bg-[#ff4f8b]/85" : f.tone === "ko" ? "bg-[#0b0620]/80 ring-1 ring-[#ff4f8b]/60" : "bg-[#0b0620]/70")}
+              >
+                {f.text}
+              </motion.p>
+            ))}
+          </AnimatePresence>
         </div>
         {/* Touch controls (shown on coarse pointers) */}
         <div className="pointer-coarse:flex absolute inset-x-4 bottom-4 hidden items-end justify-between">
@@ -378,7 +342,7 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
           <button
             type="button"
             onPointerDown={input.boost}
-            className={cn("size-24 rounded-full font-display text-lg font-black text-white shadow-lg", boostReady ? "bg-hot" : "bg-white/20")}
+            className={cn("relative grid size-24 place-items-center rounded-full border-4 font-display text-lg font-black text-white transition active:scale-90", boostReady ? "border-white bg-[#ff4f8b] shadow-[0_0_24px_#ff4f8b]" : "border-white/30 bg-white/10")}
             aria-label="Boost"
           >
             BOOST
@@ -387,31 +351,46 @@ export function BumperBlitzGame({ code, game, selfId, send }: GameClientProps<BB
       </div>
 
       <aside className="space-y-4">
-        <div className="rounded-3xl border border-line bg-surface p-4 shadow-card">
-          <p className="mb-3 font-display text-lg font-bold">Knockouts</p>
+        <div className="rounded-[22px] border-2 border-[#7a6cff]/40 bg-[#0d0822] p-4 text-[#e9e4ff] shadow-[0_0_30px_-12px_#7a6cff]">
+          <p className="mb-3 font-display text-lg font-black tracking-wide">KNOCKOUTS</p>
           <ol className="space-y-2" data-testid="arena-scores">
             {board.map((p, i) => (
-              <li key={p.id} className={cn("flex items-center gap-3 rounded-xl px-2 py-1.5", p.id === selfId && "bg-brand-500/10")}>
-                <span className="w-4 text-sm font-bold text-ink-muted">{i + 1}</span>
-                <Avatar name={p.name} color={p.color} size={28} />
+              <motion.li layout key={p.id} className={cn("flex items-center gap-3 rounded-xl px-2 py-1.5", p.id === selfId && "bg-[#ff4f8b]/15 ring-1 ring-[#ff4f8b]/50")}>
+                <span className="w-4 font-mono text-sm font-bold text-[#a49ccc]">{i + 1}</span>
+                <Avatar name={p.name} color={p.color} size={26} />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.id === selfId ? "You" : p.name}</span>
-                <span className="text-sm font-bold tabular-nums">{p.knockouts}</span>
-                <span className="text-xs text-ink-faint tabular-nums" title="Falls">
+                <span className="font-mono text-base font-black tabular-nums">{p.knockouts}</span>
+                <span className="font-mono text-xs text-[#a49ccc] tabular-nums" title="Falls">
                   ↓{p.falls}
                 </span>
-              </li>
+              </motion.li>
             ))}
           </ol>
         </div>
-        <div className="rounded-3xl border border-line bg-surface p-4 text-sm">
-          <p className="font-semibold">Controls</p>
-          <p className="mt-1 text-ink-muted">WASD or arrow keys to steer, Space to boost. On a phone, use the stick and the boost button.</p>
+        <div className="rounded-[22px] border border-[#7a6cff]/25 bg-[#0d0822] p-4 text-sm text-[#e9e4ff]">
+          {me && (
+            <div className="mb-3">
+              <div className="mb-1 flex justify-between text-xs font-bold">
+                <span>BOOST</span>
+                <span className={boostReady ? "text-[#2fd6c2]" : "text-[#a49ccc]"}>{boostReady ? "READY" : `${(boostReadyIn / 1000).toFixed(1)}s`}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                <div className={cn("h-full rounded-full transition-[width] duration-200", boostReady ? "bg-[#2fd6c2] shadow-[0_0_10px_#2fd6c2]" : "bg-[#ff4f8b]")} style={{ width: `${Math.max(0, 1 - boostReadyIn / 2500) * 100}%` }} />
+              </div>
+            </div>
+          )}
+          <p className="text-[#a49ccc]">WASD or arrow keys to steer, Space to boost. On a phone, use the stick and the boost button.</p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-            <span className="inline-flex items-center gap-1 rounded-full bg-sun/20 px-2 py-1"><Zap className="size-3.5" /> Turbo</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-500/15 px-2 py-1"><Weight className="size-3.5" /> Heavy</span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-mint/20 px-2 py-1"><Shield className="size-3.5" /> Shield</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#ffcf3d]/15 px-2 py-1 text-[#ffcf3d]">
+              <Zap className="size-3.5" /> Turbo
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#a393ff]/15 px-2 py-1 text-[#a393ff]">
+              <Weight className="size-3.5" /> Heavy
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#2fd6c2]/15 px-2 py-1 text-[#2fd6c2]">
+              <Shield className="size-3.5" /> Shield
+            </span>
           </div>
-          {me && <p className={cn("mt-3 text-xs font-semibold", boostReady ? "text-mint" : "text-ink-faint")}>{boostReady ? "Boost ready" : "Boost recharging…"}</p>}
         </div>
       </aside>
     </div>
