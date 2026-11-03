@@ -172,7 +172,8 @@ const Token = memo(function Token({ seat, index, progress, offset, canMove, onMo
     <motion.g
       initial={false}
       animate={{ x: anim.x, y: anim.y, rotate: anim.captured ? [0, 540, 720] : 0 }}
-      transition={{ duration: anim.dur, times: anim.times, ease: "easeInOut" }}
+      // A captured pawn waits for the capturer's hops (about three squares) before it is knocked home.
+      transition={{ duration: anim.dur, times: anim.times, ease: "easeInOut", delay: anim.captured ? 0.45 : 0 }}
       onClick={canMove ? () => onMove(index) : undefined}
       style={{ cursor: canMove ? "pointer" : "default" }}
       role={canMove ? "button" : undefined}

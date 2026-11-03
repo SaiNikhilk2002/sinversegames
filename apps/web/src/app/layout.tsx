@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import { brand } from "@platform/shared";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { MotionSettings } from "@/components/motion-settings";
 import { ToastProvider } from "@/components/ui/toast";
 import { themeBootScript } from "@/lib/settings";
 import "./globals.css";
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main" className="sr-only z-50 rounded-lg bg-surface px-4 py-2 focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
           Skip to content
         </a>
+        <MotionSettings>
         <ToastProvider>
           <SiteHeader />
           <main id="main" className="flex-1">
@@ -47,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
           <SiteFooter />
         </ToastProvider>
+        </MotionSettings>
       </body>
     </html>
   );
