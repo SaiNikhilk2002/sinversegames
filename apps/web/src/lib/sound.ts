@@ -187,6 +187,18 @@ export const sfx = {
   grumble: () => tone([[160, 0, 0.18], [130, 0.14, 0.22]], "sawtooth", 0.18),
   star: (i: number) => bell(880 * Math.pow(1.26, i), 0, 0.7, 0.9),
   fanfare: () => tone([[523, 0, 0.14], [659, 0.12, 0.14], [784, 0.24, 0.14], [1046, 0.38, 0.5], [784, 0.38, 0.5]], "triangle", 0.8),
+  // Garden.
+  stoneTap: () => {
+    burst({ dur: 0.04, filter: "bandpass", freq: 2800, q: 2.2, gain: 0.3 });
+    tone([[1100 + Math.random() * 120, 0, 0.05]], "sine", 0.25);
+  },
+  /** A pentatonic chime that climbs with the combo count. */
+  gardenChime: (step: number) => {
+    const scale = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51];
+    bell(scale[Math.min(step, scale.length - 1)]!, 0, 0.55, 1.2);
+  },
+  gardenFanfare: () => [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((f, i) => bell(f, i * 0.12, 0.6, 1.4)),
+
   // Cards.
   flipCard: () => burst({ dur: 0.06, filter: "bandpass", freq: 3200, q: 1.2, gain: 0.22, sweepTo: 1800 }),
   cardPlace: () => {
@@ -268,9 +280,9 @@ export interface Loop {
   stop(): void;
 }
 
-type LoopKind = "sizzle" | "fry" | "simmer" | "room";
+type LoopKind = "sizzle" | "fry" | "simmer" | "room" | "wind";
 
-const LOOP_GAIN: Record<LoopKind, number> = { sizzle: 0.18, fry: 0.14, simmer: 0.1, room: 0.05 };
+const LOOP_GAIN: Record<LoopKind, number> = { sizzle: 0.18, fry: 0.14, simmer: 0.1, room: 0.05, wind: 0.06 };
 
 /**
  * Creates a looping noise texture on the effects bus. Silent (and cheap)
@@ -298,6 +310,9 @@ export function createLoop(kind: LoopKind): Loop {
     } else if (kind === "simmer") {
       f.type = "lowpass";
       f.frequency.value = 600;
+    } else if (kind === "wind") {
+      f.type = "lowpass";
+      f.frequency.value = 380;
     } else {
       f.type = "bandpass";
       f.frequency.value = 450;
@@ -305,12 +320,13 @@ export function createLoop(kind: LoopKind): Loop {
     }
     // Crackle: a fast random-ish tremolo makes noise read as oil and fat rather than hiss.
     const trem = ac.createGain();
-    trem.gain.value = kind === "room" ? 0.8 : 0.55;
+    const smooth = kind === "room" || kind === "wind";
+    trem.gain.value = smooth ? 0.8 : 0.55;
     const lfo = ac.createOscillator();
-    lfo.type = kind === "room" ? "sine" : "square";
-    lfo.frequency.value = kind === "sizzle" ? 23 : kind === "fry" ? 11 : kind === "simmer" ? 4 : 0.15;
+    lfo.type = smooth ? "sine" : "square";
+    lfo.frequency.value = kind === "sizzle" ? 23 : kind === "fry" ? 11 : kind === "simmer" ? 4 : kind === "wind" ? 0.09 : 0.15;
     const depth = ac.createGain();
-    depth.gain.value = kind === "room" ? 0.2 : 0.45;
+    depth.gain.value = kind === "wind" ? 0.55 : kind === "room" ? 0.2 : 0.45;
     lfo.connect(depth).connect(trem.gain);
     src.connect(f).connect(trem).connect(gain);
     src.start(0, Math.random() * 1.5);
