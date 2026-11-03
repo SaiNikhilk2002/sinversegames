@@ -187,6 +187,18 @@ export const sfx = {
   grumble: () => tone([[160, 0, 0.18], [130, 0.14, 0.22]], "sawtooth", 0.18),
   star: (i: number) => bell(880 * Math.pow(1.26, i), 0, 0.7, 0.9),
   fanfare: () => tone([[523, 0, 0.14], [659, 0.12, 0.14], [784, 0.24, 0.14], [1046, 0.38, 0.5], [784, 0.38, 0.5]], "triangle", 0.8),
+  // Cards.
+  flipCard: () => burst({ dur: 0.06, filter: "bandpass", freq: 3200, q: 1.2, gain: 0.22, sweepTo: 1800 }),
+  cardPlace: () => {
+    burst({ dur: 0.05, filter: "lowpass", freq: 1600, gain: 0.3 });
+    burst({ at: 0.01, dur: 0.08, filter: "bandpass", freq: 2400, q: 0.8, gain: 0.12 });
+  },
+  foundation: (rank: number) => tone([[523 * Math.pow(2, (rank - 1) / 12), 0, 0.18], [784 * Math.pow(2, (rank - 1) / 12), 0.04, 0.22]], "sine", 0.4),
+  shuffle: () => {
+    for (let i = 0; i < 14; i++) burst({ at: i * 0.035, dur: 0.04, filter: "bandpass", freq: 2600 + Math.random() * 800, q: 1, gain: 0.12 });
+  },
+  pickupCard: () => burst({ dur: 0.05, filter: "highpass", freq: 3000, gain: 0.12 }),
+
   // Tabletop.
   clack: () => {
     burst({ dur: 0.05, filter: "bandpass", freq: 1900, q: 3, gain: 0.35 });

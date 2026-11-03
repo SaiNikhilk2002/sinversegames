@@ -224,3 +224,12 @@ svg .tt-spin { transform-box: fill-box; transform-origin: center; animation: tt-
 @keyframes tt-glow { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 svg .tt-glow { animation: tt-glow 1.8s ease-in-out infinite; }
 .tt-felt { background-color: #2f5d48; background-image: radial-gradient(circle at 1px 1px, #386b54 0.8px, transparent 1px); background-size: 6px 6px; }
+
+/* Cascade Solitaire: felt with a soft lamp falloff */
+.sol-table {
+  background-color: #1f6b4a;
+  background-image: radial-gradient(ellipse at 50% 30%, rgb(255 255 255 / 0.10), transparent 60%), radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.12) 0.7px, transparent 1px), radial-gradient(ellipse at 50% 50%, transparent 55%, rgb(0 0 0 / 0.35) 100%);
+  background-size: 100% 100%, 4px 4px, 100% 100%;
+}
+.sol-hint { animation: sol-hint 0.9s ease-in-out infinite; }
+@keyframes sol-hint { 0%, 100% { opacity: 0.4; box-shadow: 0 0 0 0 rgb(125 255 207 / 0.5); } 50% { opacity: 1; box-shadow: 0 0 14px 2px rgb(125 255 207 / 0.7); } }
