@@ -12,6 +12,7 @@ import { WalletPanel } from "@/components/profile/wallet-panel";
 import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
 import { cosmeticTextColor } from "@platform/shared";
 import { AchievementEmblem, achievementTier } from "@/components/profile/achievement-emblem";
+import { CuisinePassport } from "@/components/profile/cuisine-passport";
 
 export const metadata: Metadata = { title: "Your profile", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -90,6 +91,7 @@ export default async function ProfilePage() {
         {brand.rewardCurrencyName} are a just-for-fun reward for playing. They can't be bought, sold, transferred or exchanged, and have no monetary value.
       </p>
       <div className="mt-8"><WalletPanel /></div>
+      {profile && <CuisinePassport rows={profile.cuisineProgress} runs={profile.cuisineRuns} achievementKeys={[...unlocked]} />}
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <section aria-labelledby="per-game">

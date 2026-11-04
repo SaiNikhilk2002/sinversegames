@@ -313,6 +313,8 @@ function ColorClashCover({ className }: CoverProps) {
 
 export function GameCover({ gameId, className }: { gameId: GameId; className?: string }) {
   switch (gameId) {
+    case "cuisine-quest":
+      return <Frame label="Cuisine Quest cover: a chef's passport and a world of kitchens" className={className} bg="#254841"><image href="/cuisine-quest/cover.svg" width="320" height="200" /></Frame>;
     case "kitchen-rush":
       return <KitchenRushCover className={className} />;
     case "bumper-blitz":

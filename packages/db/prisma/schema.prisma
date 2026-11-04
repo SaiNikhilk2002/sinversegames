@@ -46,6 +46,7 @@ model Player {
   rewards           RewardLedgerEntry[]
   inventory         CosmeticInventory[]
   equipment         CosmeticEquipment[]
+  cuisineProgress   CuisineProgress[]
   favorites         FavoriteGame[]
   reportsFiled      AbuseReport[]       @relation("reporter")
   reportsAgainst    AbuseReport[]       @relation("target")
@@ -156,6 +157,21 @@ model CosmeticEquipment {
   owned    CosmeticInventory @relation(fields: [playerId, itemId], references: [playerId, itemId], onDelete: Cascade)
 
   @@id([playerId, category])
+}
+
+/// Verified, per-cuisine campaign records; never hydrated from browser storage.
+model CuisineProgress {
+  playerId      String   @db.VarChar(64)
+  level         Int
+  stars         Int      @default(0)
+  bestScore     Int      @default(0)
+  completedRuns Int      @default(0)
+  perfectRuns   Int      @default(0)
+  lastPlayedAt  DateTime @default(now())
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, level])
+  @@index([level, bestScore(sort: Desc), playerId])
 }
 
 model FavoriteGame {

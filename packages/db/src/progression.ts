@@ -3,6 +3,8 @@
  * are versioned and testable; the database only stores outcomes.
  */
 
+import { CUISINE_IDS } from "@platform/shared";
+
 export const XP_RULES = { matchPlayed: 20, matchWon: 30 } as const;
 
 /** Level n requires 50·(n−1)² XP: 1 → 0, 2 → 50, 3 → 200, 4 → 450 … */
@@ -81,6 +83,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     description: "Clear the Pagoda layout in Mahjong Garden.",
     unlocked: (_s, m) => m.gameId === "mahjong-garden" && m.isWinner && m.details.layout === "pagoda",
   },
+  ...CUISINE_IDS.map((cuisine, i): AchievementDef => ({ key: `cq-master-chef-${cuisine}`, title: `${cuisine[0]!.toUpperCase()}${cuisine.slice(1)} mastery`, description: `Earn three stars in Cuisine Quest's ${cuisine} kitchen.`, unlocked: (_s, m) => m.gameId === "cuisine-quest" && m.isWinner && Number(m.details.level) === i + 1 && Number(m.details.stars) === 3 })),
+  { key: "cq-perfect-plate", title: "A plate to remember", description: "Complete a Cuisine Quest shift with at least one perfect dish.", unlocked: (_s, m) => m.gameId === "cuisine-quest" && m.isWinner && Number(m.details.perfect) > 0 },
+  { key: "cq-three-star-chef", title: "Three-star traveller", description: "Earn three stars in any Cuisine Quest kitchen.", unlocked: (_s, m) => m.gameId === "cuisine-quest" && m.isWinner && Number(m.details.stars) === 3 },
+  { key: "cq-perfect-shift", title: "Service, perfected", description: "Serve every Cuisine Quest plate with no mistakes or burns and at least 95% cooking precision.", unlocked: (_s, m) => m.gameId === "cuisine-quest" && m.isWinner && Number(m.details.served) === Number(m.details.wanted) && Number(m.details.mistakes) === 0 && Number(m.details.burnt) === 0 && Number(m.details.precision) >= 95 },
+  { key: "cq-no-burn-chef", title: "A steady flame", description: "Complete a Cuisine Quest shift without burning a batch.", unlocked: (_s, m) => m.gameId === "cuisine-quest" && m.isWinner && Number(m.details.burnt) === 0 },
+  { key: "cq-speed-chef", title: "Swift service", description: "Serve all seven Cuisine Quest plates in two minutes of active play.", unlocked: (_s, m) => m.gameId === "cuisine-quest" && m.isWinner && Number(m.details.served) === 7 && Number(m.details.durationMs) <= 120000 },
+  { key: "cq-world-chef", title: "Seven kitchens, one chef", description: "Complete all seven Cuisine Quest cuisines with a saved star.", unlocked: (_s, m) => m.gameId === "cuisine-quest" && m.isWinner && Number(m.details.cuisinesCompleted) === 7 },
 ];
 
 export const achievementByKey = new Map(ACHIEVEMENTS.map((a) => [a.key, a]));

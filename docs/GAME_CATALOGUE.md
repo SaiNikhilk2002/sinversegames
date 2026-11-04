@@ -1,10 +1,10 @@
 # Expansion game catalogue
 
-Design baseline 2026-11-04. **All ten entries below are designed, not implemented or published.** The existing seven games remain the active catalogue. Titles describe original proposed mechanics; no affiliation with another game's publisher is claimed. Add runtime registry entries only after complete gameplay gates pass.
+Updated 2026-11-04. Cuisine Quest is implemented locally with all seven cuisines and 28 recipes; final acceptance results are tracked in [its QA report](CUISINE_QUEST_QA_REPORT.md). The nine other entries remain designs. The original seven games are preserved; no expansion game has been deployed. Titles describe original proposed mechanics; no affiliation with another game's publisher is claimed. Add runtime registry entries only after complete gameplay gates pass.
 
 | Game | Category | Players/session | Primary mechanic | Art and audio |
 | --- | --- | --- | --- | --- |
-| Cuisine Quest | Signature cooking solo | 1 / 4–7 minutes per lesson | Hands-on preparation, heat control, technique and plated order management across cuisines | Illustrated travel kitchen; cuisine-specific materials, original instrument motifs and kitchen ambience |
+| Cuisine Quest | Signature cooking solo | 1 / 2–5 minutes; 9-minute maximum | Hands-on preparation, heat control, technique and plated order management across cuisines | Illustrated travel kitchen; cuisine-specific materials, original instrument motifs and kitchen ambience |
 | Comet Courier | Arcade/reflex solo | 1 / 2–4 minutes | Orbit a moving cargo pod, release it into gravitational lanes, catch deliveries without losing momentum | Screen-printed space-post office, amber thrusters, elastic paths; shortwave clicks/synth bass |
 | Circuit Grove | Puzzle/strategy solo | 1 / 3–8 minutes | Route finite water pulses through rotatable branching pipes; keep different plants within hydration bands | Ceramic channels, moss, copper valves; water/mallet tones |
 | Lantern Ascent | Skill/progression adventure solo | 1 / 5–10 minutes per chapter | Place limited rope anchors and swing a lantern carrier through wind corridors; choose safe rest ledges | Cut-paper mountain theatre, indigo and warm light; wind/flute/percussion motifs |
@@ -15,25 +15,25 @@ Design baseline 2026-11-04. **All ten entries below are designed, not implemente
 | Beacon Brigade | Cooperative multiplayer | 2–4 / 6–9 minutes | Route shared power and dispatch repair drones to keep storm beacons online; roles exchange limited resources | Weather station diorama, teal lamps and storm glass; rain/radio/chord resolution |
 | Arcforge Rally | Competitive skill/tournament | 2–4 / 4–6 minutes | Alternate aiming/charging ricochet shots through moving target rings; identical seeded rounds and limited ammunition | Workshop arena, polished steel and burnt orange; forge pings/charge hum |
 
-## Cuisine Quest: signature design
+## Cuisine Quest: implemented campaign
 
-This is a new technique-driven game, not another Kitchen Rush timer layout. A player traces knife strokes, stirs along a gesture path, sets heat with a dial, times flips, folds/assembles items in sequence, and plates for simultaneous customers. Every action has a keyboard equivalent (select, arrow adjustment, space pulse, confirm) and pointer/touch interaction. A replay records bounded logical actions/timestamps, not claimed accuracy or score. The shared engine derives temperature, doneness, cut consistency, recipe state, customer patience and score.
+[Implementation contract](CUISINE_QUEST_DESIGN.md) · [Rules and all recipes](../GAME_RULES.md#cuisine-quest) · [QA and limitations](CUISINE_QUEST_QA_REPORT.md). The complete flagship brief replaces the earlier two-dish-per-cuisine concept. There are seven full kitchens and four authored recipes each, with original local scenes, dish/preparation art and separate music motifs.
 
-Food states: raw → prepared → cooking → ideal → overcooked → burnt. Mixing and folding change the depicted ingredient layers; heat changes color and steam; burning adds smoke plus a text/icon warning. Technique cues are readable without sound or motion. OS/in-app motion preferences remove camera travel/particles; heat/doneness remain visible.
+| Kitchen | Recipes | Distinct technique/combined challenge |
+| --- | --- | --- |
+| Indian | Masala dosa, paneer tikka, butter naan, vegetable biryani | Batter, spiral spreading/tawa flip, paneer marinade/grill, dough stretch/bake, layered rice |
+| Italian | Margherita pizza, Pasta Alfredo, bruschetta, lasagna | Knead/stretch/toppings, boiling/sauce, slicing, oven layers |
+| Japanese | Sushi rolls, ramen, tempura, onigiri | Slicing/rolling, rice/broth, frying, shaping and precise plating |
+| Mexican | Tacos, quesadillas, burritos, nachos | Fillings, tortilla grilling, folding/wrapping, layered assembly |
+| Thai | Pad Thai, green curry, Tom Yum, mango sticky rice | Measured portions, wok stirring, curry paste, soup heat and steaming |
+| Chinese | Fried rice, dumplings, chow mein, kung pao chicken | Wok sequencing, fold/seal/steam, chopping and marinating |
+| Mediterranean | Hummus platter, falafel, Greek salad, shakshuka | Blend/shape/fry, fresh mixing, pan finishing and multi-station service |
 
-| Level/cuisine | Taught technique → combined challenge | Dishes/ingredients/stations | Customer mastery |
-| --- | --- | --- | --- |
-| 1 Indian | Chop tomato/onion, temper cumin, control pan heat → assemble a balanced bowl | Vegetable pulao and chickpea masala; rice, chickpeas, cumin, onion, tomato; board/pan/rice pot | Warm spice balance, rice texture; two orders after guided practice |
-| 2 Italian | Mix and knead, boil to doneness → coordinate sauce finishing | Tomato pasta and herb flatbread; wheat, tomato, basil; prep slab/pasta pot/oven | Pasta texture and hot service; three overlapping orders |
-| 3 Japanese | Precise slicing, rinse rice, fold/roll → control portion consistency | Vegetable maki and miso vegetable bowl; cucumber, rice, nori, tofu; rice pot/rolling mat/soup pot | Even cuts and neat plating; freshness windows |
-| 4 Mexican | Press dough, flip on a griddle → manage hot/cold assembly | Bean tacos and roasted vegetable quesadillas; maize, beans, peppers; press/griddle/assembly board | Correct sequence and toasted surfaces |
-| 5 Thai | Stir-fry cadence and staged ingredient entry → balance sauce timing | Vegetable noodle stir-fry and coconut vegetable soup; noodles, lime, coconut, greens; wok/soup station | Texture contrast and finishing aroma |
-| 6 Chinese | Fold, seal, steam → coordinate batches and wok finish | Mushroom dumplings and ginger fried rice; dough, mushroom, ginger, rice; folding bench/steamer/wok | Intact folds and correctly timed batch removal |
-| 7 Mediterranean | Marinade/mix, skewer and grill → deliver multi-part platters | Vegetable skewers, herbed couscous and chickpea salad; lemon, herbs, grains; grill/mixing bench/steamer | Consistent grill marks, fresh garnish, simultaneous service |
+Every shift teaches techniques through visible recipes and preparation paths, combines four introductory orders, then finishes with a two-guest rush. Six customers request seven plates, including a two-plate large order and a special garnish. Two batches and exclusive stations make switching/prioritizing meaningful. Correct ingredient portions, geometry, integrated heat, flips/stirs and plate finishes determine precision. Tap, captured pointer gestures, native ingredient/plate drag and keyboard controls share deterministic intents. Queue patience begins only on seating; pause/backgrounding stop logical time.
 
-Ingredient/recipe names are broad culinary inspirations with specific techniques, not claims that one recipe represents an entire culture. Art/music will be original; avoid stereotypes and caricatures. Unlocks follow learning: complete a lesson with one star to progress; three-star targets reward preparation accuracy, waste reduction and service. Cuisine mastery aggregates best stars across its later recipe lessons. No coin purchase unlocks competitive skill or recipe advantage. One fixed daily challenge uses a server-selected UTC seed/config, separate from personal progression, with a once-per-day reward reference. Cosmetic kitchens are earned/purchased presentation only.
+A saved one-star completion opens the next kitchen; three stars marks mastery, up to 21 total. Server progress is authoritative. First successful completion per cuisine earns normal eligible completion coins; replay only earns eligible new record/achievement bonuses. One shared ledger and 80/UTC-day cap remain. Campaign stars, match/XP, achievements, ledger and private result receipts commit atomically. Duplicate saves return original awards; refresh resumes a replayed checkpoint paused. Cuisine-specific rankings and profile passport/history read saved outcomes. Daily challenges and purchasable kitchen themes remain future designs.
 
-**Implementation gate:** start with the complete Indian teaching lesson plus a mastery repeat, gesture/keyboard equivalence, replay validation and saved three-star results. Remaining six cuisine levels stay unavailable until each has authored art, techniques, recipes, balance and full tests. **Completed levels now: 0/7.**
+Food/cuisine names describe broad culinary inspirations, not complete real recipes or cultural authenticity claims. All scene, food and synthesized music assets are original and local. No commercial artwork or external runtime image URL is used.
 
 ## Other solo game rules and verification
 

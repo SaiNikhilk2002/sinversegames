@@ -8,6 +8,7 @@ import { GAME_THEME } from "@/components/game-theme";
 import { durationRange, GameCard, playerRange } from "@/components/games/game-card";
 import { FavoriteButton } from "@/components/games/favorite-button";
 import { Card } from "@/components/ui/primitives";
+import { CuisineJourney } from "@/components/cuisine-journey";
 
 type Params = Promise<{ slug: string }>;
 
@@ -119,6 +120,7 @@ export default async function GamePage({ params }: { params: Params }) {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      {game.id === "cuisine-quest" && <CuisineJourney />}
       <div className="mt-14 grid gap-10 lg:grid-cols-[1.2fr_1fr]">
         <section aria-labelledby="about-game">
           <h2 id="about-game" className="font-display text-2xl font-bold">About {game.name}</h2>

@@ -1,0 +1,40 @@
+{
+  "note": "Source bytes/gzip, not browser bundle transfer size. All artwork/music are authored locally; synthesized audio has no downloaded recordings.",
+  "files": [
+    {
+      "path": "apps/web/src/games/cuisine-quest/art.tsx",
+      "bytes": 27785,
+      "gzipBytes": 9523
+    },
+    {
+      "path": "apps/web/src/games/cuisine-quest/cuisine-quest-game.tsx",
+      "bytes": 30619,
+      "gzipBytes": 9935
+    },
+    {
+      "path": "apps/web/src/games/cuisine-quest/cuisine-quest.css",
+      "bytes": 22780,
+      "gzipBytes": 5776
+    },
+    {
+      "path": "apps/web/src/games/cuisine-quest/music.ts",
+      "bytes": 1340,
+      "gzipBytes": 600
+    },
+    {
+      "path": "apps/web/public/cuisine-quest/cover.svg",
+      "bytes": 2689,
+      "gzipBytes": 1186
+    },
+    {
+      "path": "packages/engines/src/cuisine-quest/content.ts",
+      "bytes": 13424,
+      "gzipBytes": 4737
+    },
+    {
+      "path": "packages/engines/src/cuisine-quest/engine.ts",
+      "bytes": 19431,
+      "gzipBytes": 5884
+    }
+  ]
+}

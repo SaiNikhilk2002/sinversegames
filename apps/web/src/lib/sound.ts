@@ -18,6 +18,7 @@ let master: GainNode | null = null;
 let fxBus: GainNode | null = null;
 let musicBus: GainNode | null = null;
 let noiseBuf: AudioBuffer | null = null;
+let audioUnavailable = false;
 
 function applyVolumes() {
   if (!ctx || !fxBus || !musicBus) return;
@@ -28,11 +29,11 @@ function applyVolumes() {
 }
 
 function graph(): AudioContext | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined" || audioUnavailable) return null;
   if (!ctx) {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
-    ctx = new AC();
+    try { ctx = new AC(); } catch { audioUnavailable = true; return null; }
     master = ctx.createGain();
     master.gain.value = 0.9;
     master.connect(ctx.destination);
@@ -293,6 +294,7 @@ const LOOP_GAIN: Record<LoopKind, number> = { sizzle: 0.18, fry: 0.14, simmer: 0
 export function createLoop(kind: LoopKind): Loop {
   let gain: GainNode | null = null;
   let nodes: AudioScheduledSourceNode[] = [];
+  let connections: AudioNode[] = [];
   let level = 0;
   const build = (ac: AudioContext) => {
     gain = ac.createGain();
@@ -334,6 +336,7 @@ export function createLoop(kind: LoopKind): Loop {
     src.start(0, Math.random() * 1.5);
     lfo.start();
     nodes = [src, lfo];
+    connections = [src, f, trem, lfo, depth, gain];
   };
   return {
     set(next) {
@@ -348,8 +351,9 @@ export function createLoop(kind: LoopKind): Loop {
       const ac = ctx;
       if (gain && ac) gain.gain.setTargetAtTime(0, ac.currentTime, 0.05);
       const dying = nodes;
+      const disconnect = connections; connections = [];
       nodes = [];
-      setTimeout(() => dying.forEach((n) => n.stop()), 300);
+      setTimeout(() => { dying.forEach(n => { try { n.stop(); } catch {} }); disconnect.forEach(n => n.disconnect()); }, 300);
       gain = null;
     },
   };
@@ -373,13 +377,16 @@ export interface Song {
 }
 
 let musicTimer: ReturnType<typeof setInterval> | null = null;
+let musicCleanup: (() => void) | null = null;
 
 /** Starts (or switches to) a looping song. Quiet if music is off; obeys the music volume live. */
 export function playMusic(song: Song) {
   stopMusic();
   const ac = audio();
   if (!ac || !musicBus) return;
-  const bus = musicBus;
+  const bus = ac.createGain(); bus.connect(musicBus);
+  const sources = new Set<AudioScheduledSourceNode>();
+  musicCleanup = () => { bus.gain.setTargetAtTime(0, ac.currentTime, .02); const dying = [...sources]; sources.clear(); setTimeout(() => { for (const source of dying) { try { source.stop(); } catch {} } bus.disconnect(); }, 100); };
   const stepDur = 60 / song.bpm / 2;
   let step = 0;
   let next = ac.currentTime + 0.1;
@@ -391,13 +398,16 @@ export function playMusic(song: Song) {
     g.gain.setValueAtTime(0.0001, at);
     g.gain.exponentialRampToValueAtTime(peak, at + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    let filter: BiquadFilterNode | null = null;
     if (cutoff) {
       const f = ac.createBiquadFilter();
+      filter = f;
       f.type = "lowpass";
       f.frequency.value = cutoff;
       o.connect(f).connect(g);
     } else o.connect(g);
     g.connect(bus);
+    sources.add(o); o.onended = () => { sources.delete(o); o.disconnect(); g.disconnect(); filter?.disconnect(); };
     o.start(at);
     o.stop(at + dur + 0.05);
   };
@@ -411,6 +421,7 @@ export function playMusic(song: Song) {
     g.gain.setValueAtTime(accent ? 0.05 : 0.025, at);
     g.gain.exponentialRampToValueAtTime(0.0001, at + (accent ? 0.12 : 0.05));
     src.connect(f).connect(g).connect(bus);
+    sources.add(src); src.onended = () => { sources.delete(src); src.disconnect(); f.disconnect(); g.disconnect(); };
     src.start(at, Math.random());
     src.stop(at + 0.15);
   };
@@ -418,6 +429,8 @@ export function playMusic(song: Song) {
     while (next < ac.currentTime + 0.25) {
       const i = step % song.bass.length;
       const at = next + (step % 2 ? (song.swing ?? 0) * stepDur : 0);
+      const settings = getSettings();
+      if (!settings.sound || !settings.music || settings.musicVolume <= 0) { next += stepDur; step++; continue; }
       if (song.bass[i]) voice(song.bass[i]!, at, stepDur * 1.7, "triangle", 0.22, 700);
       if (step % 8 === 0) {
         const chord = song.chords[Math.floor(step / 8) % song.chords.length]!;
@@ -439,6 +452,7 @@ export function playMusic(song: Song) {
 export function stopMusic() {
   if (musicTimer) clearInterval(musicTimer);
   musicTimer = null;
+  musicCleanup?.(); musicCleanup = null;
 }
 
 /** An electric-motor hum on the effects bus; `set(level, speed)` with both in 0–1. */

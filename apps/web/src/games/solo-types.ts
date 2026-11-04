@@ -17,6 +17,9 @@ export interface SoloGameProps<C = Record<string, unknown>> {
   onFinish: (log: unknown, summary: SoloSummary) => void;
   /** Leave the run without submitting. */
   onQuit: () => void;
+  /** Optional tab-scoped recovery; only clients declaring recoverable use it. */
+  initialLog?: unknown;
+  onCheckpoint?: (log: unknown[]) => void;
 }
 
 export interface SoloSetupProps {
@@ -28,4 +31,6 @@ export interface SoloSetupProps {
 export interface SoloClient {
   Setup: ComponentType<SoloSetupProps>;
   Game: ComponentType<SoloGameProps<any>>;
+  recoverable?: boolean;
+  ResultDetails?: ComponentType<{ details: Record<string, number | string>; saved: boolean }>;
 }

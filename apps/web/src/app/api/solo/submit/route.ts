@@ -3,7 +3,7 @@ import { z } from "zod";
 import { isSoloGameId } from "@platform/shared";
 import { InvalidTokenError, verifyRunToken } from "@platform/shared/identity";
 import { SOLO_GAMES } from "@platform/engines/solo";
-import { achievementByKey, getDb, getPersonalBest, recordMatch, upsertPlayer } from "@platform/db";
+import { activeBan, achievementByKey, getCuisineReceipt, getDb, getPersonalBest, recordMatch, upsertPlayer } from "@platform/db";
 import { authSecret, getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
 
@@ -28,8 +28,17 @@ export async function POST(req: Request) {
   const player = await getSession();
   if (!player) return NextResponse.json({ error: "Join with a name first" }, { status: 401 });
 
-  const raw = await req.text();
-  if (raw.length > MAX_BODY_BYTES) return NextResponse.json({ error: "That game log is too large" }, { status: 413 });
+  const reader = req.body?.getReader(); const chunks: Uint8Array[] = []; let bytes = 0;
+  try {
+    if (reader) while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      bytes += value.length; if (bytes > MAX_BODY_BYTES) { await reader.cancel(); return NextResponse.json({ error: "That game log is too large" }, { status: 413 }); }
+      chunks.push(value);
+    }
+  } finally { reader?.releaseLock(); }
+  const buffer = new Uint8Array(bytes); let offset = 0;
+  for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.length; }
+  const raw = new TextDecoder().decode(buffer);
   let json: unknown = null;
   try {
     json = JSON.parse(raw);
@@ -66,6 +75,7 @@ export async function POST(req: Request) {
   const db = getDb();
   if (!db) return NextResponse.json(response);
   try {
+    if ((run.gameId as string) === "cuisine-quest" && await activeBan(db, player.id)) return NextResponse.json({ error: "Your account is suspended." }, { status: 403 });
     await upsertPlayer(db, player);
     const recorded = await recordMatch(db, {
       id: run.jti,
@@ -87,9 +97,19 @@ export async function POST(req: Request) {
     response.saved = !!recorded;
     response.earnedCoins = recorded?.earned[player.id] ?? 0;
     response.unlocked = (recorded?.unlocked[player.id] ?? []).map((key) => ({ key, title: achievementByKey.get(key)?.title ?? key }));
+    if ((run.gameId as string) === "cuisine-quest") {
+      const receipt = await getCuisineReceipt(db, player.id, run.jti);
+      if (receipt) return NextResponse.json(receipt);
+    }
   } catch (e) {
     // A unique-id conflict means this run was already recorded.
-    if ((e as { code?: string }).code === "P2002") return NextResponse.json({ error: "This game was already submitted" }, { status: 409 });
+    if ((e as { code?: string }).code === "P2002") {
+      if ((run.gameId as string) === "cuisine-quest") {
+        const receipt = await getCuisineReceipt(db, player.id, run.jti).catch(() => null);
+        if (receipt) return NextResponse.json({ ...receipt, alreadySaved: true });
+      }
+      return NextResponse.json({ error: "This game was already submitted" }, { status: 409 });
+    }
     console.error("solo submit failed", e);
     return NextResponse.json({ ...response, error: "Your score couldn't be saved right now" }, { status: 503 });
   }

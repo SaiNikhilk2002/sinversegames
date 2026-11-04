@@ -21,7 +21,7 @@ Two independently deployable services share TypeScript packages:
 | Path | Purpose |
 | --- | --- |
 | `packages/shared` | Brand config, **game registry** (metadata), wire protocol (event names, envelopes, error codes, Zod payload schemas), name sanitising, JWT helpers. |
-| `packages/engines` | Pure, transport-free **game engines** and the `GameEngine` contract. No I/O; randomness and time are injected. Browser-safe subpath exports (`/color-clash/client`, `/doodle-duel/client`, `/token-trail`, `/bumper-blitz`) expose views and constants without engine internals or the word bank. `/solo` (plus `/kitchen-rush`, `/cascade-solitaire`, `/mahjong-garden`) holds the deterministic single-player rules, which run both in the browser and in the score-verifying Worker. |
+| `packages/engines` | Pure, transport-free **game engines** and the `GameEngine` contract. No I/O; randomness and time are injected. Browser-safe subpath exports (`/color-clash/client`, `/doodle-duel/client`, `/token-trail`, `/bumper-blitz`) expose views and constants without engine internals or the word bank. `/solo` (plus `/kitchen-rush`, `/cascade-solitaire`, `/mahjong-garden`, `/cuisine-quest`) holds the deterministic single-player rules, which run both in the browser and in the score-verifying Worker. |
 | `packages/db` | Prisma schema and migrations, client factory (`getDb()` returns `null` without `DATABASE_URL`), repositories, progression rules (XP, achievements, rewards). |
 | `apps/web` | Next.js App Router: discovery and SEO pages, play hub, room UI, game clients, profile, leaderboard, legal pages, admin, API routes. |
 | `apps/realtime` | Socket.IO server: authentication, rooms, matchmaking, rate limits, timers, persistence of results, admin/metrics HTTP. |
@@ -54,7 +54,7 @@ Discovery pages, SEO, the sitemap, the play hub, lobby, matchmaking, results, pe
 
 ## Single-player games: verified runs
 
-Single-player games (Kitchen Rush, Cascade Solitaire, Mahjong Garden) run entirely in the browser: no game server and no per-move network traffic. A browser can't be trusted to report its own score, so the score is never sent. Instead:
+Single-player games (Cuisine Quest, Kitchen Rush, Cascade Solitaire, Mahjong Garden) run entirely in the browser: no game server and no per-move network traffic. A browser can't be trusted to report its own score, so the score is never sent. Instead:
 
 1. **Start:** `POST /api/solo/start` picks a random seed on the server and returns a **run token**: an HS256 JWT binding player, game, seed, config and a run id (`jti`).
 2. **Play:** the browser deals from that seed with the game's deterministic rules (`packages/engines`, `@platform/engines/solo`) and records a timestamped move log.
@@ -63,7 +63,7 @@ Single-player games (Kitchen Rush, Cascade Solitaire, Mahjong Garden) run entire
    - timestamps out of order
    - logs claiming more game time than has passed since the token was issued
    - another player's token
-4. **Record:** the run is stored with `recordMatch` (`solo: true`) using the run id as the match id, so each run counts **once**. A resubmission conflicts on the primary key and returns 409. Stats, XP, rewards and achievements use the same code path as multiplayer matches.
+4. **Record:** the run is stored with `recordMatch` (`solo: true`) using the run id as the match id, so each run counts **once**. Original-game resubmissions conflict on the primary key and return 409. Cuisine Quest retries return the authenticated original receipt without writing or rewarding again. Stats, XP, rewards and achievements use the same code path as multiplayer matches.
 
 Kitchen Rush is a real-time game, so its engine is an **event simulation**. Cooking progress, burning and customer patience are all computed from timestamps (`advance(state, t)`), so a replay reproduces exactly what the player saw without frame-rate drift. Unfinished work is played out to the end of the shift on the server, so quitting early can't avoid penalties. Hands are keyed by cook id, so a co-op mode can reuse the engine.
 
@@ -72,6 +72,18 @@ Kitchen Rush is a real-time game, so its engine is an **event simulation**. Cook
 `GET /api/solo/best` serves personal bests and the daily board: the best score per player since 00:00 UTC, read from existing tables with no extra writes.
 
 **Adding a solo game:** add metadata with `kind: "solo"` and its id in `SOLO_GAME_IDS`. Implement a `SoloGameDefinition` (config schema, log schema, `verify`) and register it in `packages/engines/src/solo.ts`. Then add a `Setup` and a `Game` component to `apps/web/src/games/solo-registry.tsx`. The shared `SoloRunner` handles starting runs, submitting, results, personal bests and the daily board.
+
+## Cuisine Quest campaign and workflow engine
+
+The code-split client in `apps/web/src/games/cuisine-quest` shares `packages/engines/src/cuisine-quest` with server verification. Content defines seven cuisines, 28 ordered recipe workflows, 16 spatial preparation techniques and eight cooking methods. Timestamped intents drive ingredient portions, station exclusion/two active batches, integer heat work, flip/stir windows, doneness, plating and customer finishes. All four recipes occur each shift. Six customers request seven plates, with generous seated patience and a final two-guest rush. Frame intervals cannot alter replay results.
+
+`CuisineProgress` is an additive table, unique by player/level, with bounded stars/best score and completion/perfect counts. Migration `20261104020000_cuisine_quest_campaign` adds this table and indexes/checks without rewriting existing rows. Start checks all preceding saved levels. Result persistence locks the Player row, validates level eligibility, updates campaign/stats/XP, evaluates existing plus 13 new achievements and writes the shared ledger in one transaction. Only the first successful completion of each cuisine repeats base completion/victory rewards; later new per-cuisine records and achievements can earn bonuses within the same 80/UTC-day cap.
+
+Owner-only `GET /api/solo/result?runId=<uuid>` and Cuisine Quest idempotent submit recover the exact score and original awards. Receipt metadata stays in private participant details and is stripped from public rankings. `GET /api/cuisine-quest/campaign` serves server-owned stars/unlocks; `GET /api/cuisine-quest/leaderboard?level=1..7` serves public per-cuisine scores/stars with player-ID tie breaks and current-ban exclusion.
+
+The existing SoloRunner opts this game into bounded tab-scoped session storage. Signed run/log checkpoints are keyed by player/game, replayed on refresh and resumed paused. Pending/done results are checked against authenticated receipts, with an explicit retry of the original run after uncertain saves. Local snapshots never authorize scores/unlocks/rewards. Storage failures are visible. Pause/visibility freeze logical time; gameplay locks body scroll and hides the underlying footer from keyboard focus. Gesture, tap, keyboard and ingredient/plate drag alternatives share intents.
+
+Original local vector art, distinct technique preparation states, seven architectural scenes and seven original WebAudio motifs use the established art/music/settings pipeline. Decorative assets are memoized; no remote artwork or new rendering dependency. Music/ambient/cooking loops stop and release nodes on pause/unmount. Muting and unavailable audio leave visual controls usable. See [design](docs/CUISINE_QUEST_DESIGN.md) and [QA](docs/CUISINE_QUEST_QA_REPORT.md).
 
 ## Real-time protocol
 
@@ -111,6 +123,7 @@ PostgreSQL via Prisma 7 with the `pg` driver adapter. Tables:
 - `PlayerGameStats`: per-game aggregates; backs leaderboards.
 - `Match`, `MatchParticipant`: finished matches with placements and scores.
 - `PlayerAchievement`: unlocks; definitions live in code.
+- `CuisineProgress`: server-owned best stars/scores and completion/perfect counts for seven Cuisine Quest levels.
 - `RewardLedgerEntry`: append-only ledger for the non-purchasable reward currency, with uniqueness on (player, reason, ref) for idempotency.
 - `FavoriteGame`, `AbuseReport`, `ModerationAction` (audit trail).
 - `CosmeticInventory`, `CosmeticEquipment`: unique per-player item ownership and one equipped item per category. A composite foreign key prevents equipping someone else's inventory.
@@ -119,7 +132,7 @@ PostgreSQL via Prisma 7 with the `pg` driver adapter. Tables:
 
 **Completed rooms:** `FINISHED_ROOM_TTL_MS` defaults to five minutes from completion. Readiness, sync and other activity cannot extend it; a new authorized match clears the deadline. The periodic sweep removes expired rooms, and start/join reject at the exact deadline. New matches clear ready state, scores, drawings and old action caches. The room link/membership is preserved for an accepted rematch.
 
-**Expansion boundaries:** the ten new game concepts, persistent provider identity and secure uploads are designed in [GAME_EXPANSION_PLAN.md](docs/GAME_EXPANSION_PLAN.md); they are not implemented by these wallet/Doodle additions. Existing guest cookies still determine access to stored data. No R2/S3/OAuth provider is configured. Database connection/statement/query waits now have explicit budgets; result retry remains best-effort rather than a durable outbox.
+**Expansion boundaries:** Cuisine Quest is the first implemented expansion game. Nine further game concepts, persistent provider identity and secure uploads remain designed in [GAME_EXPANSION_PLAN.md](docs/GAME_EXPANSION_PLAN.md). Existing guest cookies still determine access to stored data. No R2/S3/OAuth provider is configured. Database connection/statement/query waits now have explicit budgets; result retry remains best-effort rather than a durable outbox.
 
 **Not stored:** strokes, individual moves, chat, hands and secret words. These live only in the realtime server's memory. Results are written once per match in a single transaction, retried up to 3 times.
 
@@ -132,7 +145,7 @@ Planned extensions: daily challenges can be added as a `DailyChallenge` table pl
 | Client network drop | Socket.IO reconnects with backoff, fetching a fresh token each time. The seat is held for 60 s and state is fully resynced. |
 | Player gone for good | Removed after the grace period; the engine skips them, ends the turn or ends the match. |
 | Missed messages | A sequence gap triggers `room:sync`. |
-| Database down | Gameplay continues. Results persistence retries, then logs. Profile and leaderboard pages show a friendly message. Ban checks fail open. |
+| Database down | Original games and first Cuisine Quest practice remain playable; later campaign starts require server progress. Results persistence retries, then logs. Profile and leaderboard pages show a friendly message. Ban checks fail open. |
 | Realtime server restart | **Active matches are lost** (state is in memory). On graceful shutdown clients receive `room:closed` (`shutdown`) and see a clear message; finished-match data already in Postgres is unaffected. Deploy during quiet periods, or see Scaling for snapshotting. |
 | Engine exception | Caught per action and tick, logged and counted; the player gets `INTERNAL` and the room continues. |
 

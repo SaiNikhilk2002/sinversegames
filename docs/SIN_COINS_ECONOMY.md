@@ -12,7 +12,7 @@ Eligible outcome: server-validated `completed` reason, at least 30 seconds of pl
 - Newly earned achievement: 5 coins, once per player/achievement, on an eligible outcome.
 - Maximum **80 total positive coins per player per UTC day** across these reward reasons, including achievements. Rewards may be capped partway and history shows the actual amount. A capped achievement reward is not deferred; document that behavior in the UI.
 
-These are initial conservative values, not a tuned final economy. Measure match duration/earn rates before adjusting. Minimum duration and daily limits bound farming per identity but do not prove human input or stop multiple guest identities. Daily/season/cuisine rewards remain disabled until dedicated server claim models exist.
+These are initial conservative values, not a tuned final economy. Measure match duration/earn rates before adjusting. Minimum duration and daily limits bound farming per identity but do not prove human input or stop multiple guest identities. Daily/season claim rewards remain disabled until dedicated server claim models exist. Cuisine Quest uses the existing result ledger with the first-completion policy below.
 
 ## Transactions and concurrency
 
@@ -35,3 +35,9 @@ Ledger history is cursor-paginated with deterministic createdAt/ID ordering. Ind
 Local database tests: eligible reward, cap and UTC rollover, duplicates/retries, concurrent XP/best updates, simultaneous purchases exceeding the combined balance, simultaneous same-item purchase, no partial debit/inventory on failure, equip ownership, another player's isolation, legacy ledger preservation, and disabled rewards. HTTP tests reject forged balance/price/player fields and missing/cross-origin sessions. Browser flow earns verified coins, checks history, buys/equips a cosmetic and sees it persist after reload.
 
 Implementation and test results are recorded separately in [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md).
+
+## Cuisine Quest first-completion policy
+
+Each cuisine awards the eligible completion/victory 2+10 only on its first successful saved completion. Replaying it can improve best stars/score but cannot repeat those base coins. A new per-cuisine best above an existing positive best can earn 3; a newly unlocked eligible badge can earn 5. The existing duration/completion/positive-score rules, disabled-rewards switch and shared 80/UTC-day cap apply. A failed shift never awards coins or advances campaign progress.
+
+The same locked result transaction updates CuisineProgress, match/stats/XP, achievements and append-only ledger. Receipt metadata records the original actual awards; authenticated retries/receipt reads recover those values without minting another result. Public rankings remove receipt coin/unlock metadata. Concurrent first completions can each count as play, but only one receives first-completion coins; duplicate UUIDs cannot repeat any persisted effect. Real database rollback/concurrency tests and a lost-response browser save are recorded in [Cuisine Quest QA](CUISINE_QUEST_QA_REPORT.md).

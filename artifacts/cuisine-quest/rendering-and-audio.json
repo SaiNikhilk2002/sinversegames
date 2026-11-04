@@ -1,0 +1,21 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "gameNodes": 261,
+  "totalNodes": 420,
+  "sampledFrames": 179,
+  "frameIntervalMedianMs": 16.699999999999818,
+  "frameIntervalP95Ms": 16.800000000000182,
+  "longTasks": [],
+  "resourceCount": 69,
+  "transferredBytes": 519166,
+  "externalImages": [],
+  "audio": {
+    "contexts": 1,
+    "active": 6,
+    "effects": 0.5990027189254761,
+    "music": 0.26996198296546936
+  }
+}

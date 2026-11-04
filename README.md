@@ -15,11 +15,12 @@ Multiplayer (realtime rooms, private invites, matchmaking):
 
 Single player (server-verified scores, daily leaderboards):
 
+- **Cuisine Quest**: seven illustrated world kitchens, 28 recipes, spatial preparation, heat control, a saved 21-star campaign and per-cuisine rankings.
 - **Kitchen Rush**: a time-management cooking game with 12 levels and a tutorial.
 - **Cascade Solitaire**: Klondike-rules patience with undo, hints and draw 1/3.
 - **Mahjong Garden**: tile matching on three always-solvable layouts.
 
-Earn **Sin Coins** from eligible server-verified play and spend them on profile frames and nameplates in the cosmetic studio at `/store`. Wallet history and owned styles persist in PostgreSQL; guest access still depends on this browser's cookie. Google sign-in, uploaded avatars and the ten planned expansion games are not implemented yet. See [the expansion plan](docs/GAME_EXPANSION_PLAN.md) and [current QA/status](docs/EXPANSION_QA_REPORT.md).
+Earn **Sin Coins** from eligible server-verified play and spend them on profile frames and nameplates in the cosmetic studio at `/store`. Wallet history and owned styles persist in PostgreSQL; guest access still depends on this browser's cookie. Google sign-in, uploaded avatars and nine further expansion games remain unimplemented. Cuisine Quest is the first implemented expansion game; see [its design](docs/CUISINE_QUEST_DESIGN.md) and [current validation](docs/CUISINE_QUEST_QA_REPORT.md). See [the expansion plan](docs/GAME_EXPANSION_PLAN.md) and [current QA/status](docs/EXPANSION_QA_REPORT.md).
 
 The plan for the first 50 games, with a status tracker: [docs/GAME_ROADMAP.md](docs/GAME_ROADMAP.md).
 
@@ -57,7 +58,7 @@ pnpm dev                     # terminal 2: web on http://localhost:3200, realtim
 
 Open http://localhost:3200, pick a game, choose a name, create a private room, and open the invite link in a second browser (or a private window) to play.
 
-Without `DATABASE_URL`, everything playable still works. Profiles, stats and leaderboards show "unavailable".
+Without `DATABASE_URL`, the original seven games remain playable and Cuisine Quest offers first-kitchen practice. Saving and later campaign kitchens require the database; profiles, stats and leaderboards show "unavailable".
 
 ### Ports
 
@@ -91,12 +92,13 @@ pnpm db:studio     # browse data
 pnpm test          # unit + integration (engines, shared, realtime over real sockets)
 pnpm build         # production build of web + realtime (required before e2e)
 pnpm test:e2e      # Playwright, multiple browser contexts (starts both servers if not running)
-pnpm test:db       # real economic/concurrency tests; requires migrated localhost *_test DB
+pnpm test:db       # real economy/campaign/concurrency tests; requires migrated localhost *_test DB
 ```
 
 First time only: `pnpm --filter @platform/web exec playwright install chromium`.
 
-- **Engine unit tests** (111). New games:
+- **Engine unit tests** (149). New games:
+  - **Cuisine Quest:** all 28 recipes in seven complete replay-verified shifts; heat/doneness boundaries, preparation geometry, portions, shared stations/two batches, wrong guest/finish, patience, stars and unlocks.
   - **Token Trail:** base exits, exact finish, captures and safe stars, three sixes, auto-move, timeouts, departures, and 60 random full games.
   - **Bumper Blitz:** countdown, steering and speed caps, input-only actions, collisions and hit credit, knockouts, self-falls, power-ups, the time limit, catch-up limits.
   - **Solitaire:** the deal, move legality, scoring and undo, replay verification, forged and out-of-order logs.
@@ -105,13 +107,14 @@ First time only: `pnpm --filter @platform/web exec playwright install chromium`.
 
   Original games (65): deck composition, unbiased seeded shuffling, dealing, legal and illegal moves, every card effect, stacking, draw-pile exhaustion, timeouts, departures, scoring, hand privacy, and 150 random full-game simulations with card-conservation checks. Doodle: word selection, word privacy, normalisation, alternatives, typo and close detection, hints, timers, scoring, rotation, duplicate and simultaneous guesses, stroke validation and ordering, disconnects.
 - **Shared tests** (8): name sanitising, token forgery, expiry and kind confusion, room codes.
-- **Realtime integration tests** (30). New games:
+- **Realtime integration tests** (32). New games:
   - **Token Trail:** a full race over sockets with server-rolled dice, out-of-turn, stale and forged moves, auto-play while disconnected, and restore on reconnect.
   - **Bumper Blitz:** a server-side simulation driven by input, tick rate, malformed input, input-flood rate limiting, and a timed finish with persistence.
   - Rooms can only be created for multiplayer games.
 
   Original games (23): auth and bans, identity spoofing, create/join/full/invalid rooms, host controls, kick, one-room-per-player, full Color Clash match over sockets with persistence, hand privacy on the wire, simultaneous, stale and duplicate actions, reconnect, grace expiry, session replacement, cross-room isolation, Doodle word privacy, stroke relay, canvas sync and server scoring, guess rate limiting, matchmaking, public auto-start, admin auth.
-- **E2E** (16). New games:
+- **E2E** (31). New games:
+  - **Cuisine Quest:** a complete real seven-cuisine campaign, score improvement, server-owned stars/coins/achievements/profile/rankings, lost-response receipt recovery, touch/keyboard/drag, seven viewport sizes, pause/refresh/audio/reduced motion and hostile logs.
   - **Kitchen Rush:** the tutorial level played to a verified, saved score that shows on the leaderboard and profile.
   - **Anti-cheat:** forged logs, impossible timing, replayed runs, stolen runs and client-sent scores are all rejected.
   - **Solitaire:** draw, undo and play, then bank the score.
@@ -121,6 +124,8 @@ First time only: `pnpm --filter @platform/web exec playwright install chromium`.
   - **Phone layouts** for all five games.
 
   Original games (8): homepage → discovery → guest entry, server-side name validation, invalid rooms, private room via invite link in a second browser, a complete 2-player Color Clash match, reconnect after reload, a complete 2-player Doodle Duel match (drawing sync verified by canvas pixels, correct-guess scoring), and no horizontal overflow on mobile.
+
+Counts describe the current suites; the older takeover/expansion reports retain their historical counts. Full command results and limitations are recorded in [Cuisine Quest QA](docs/CUISINE_QUEST_QA_REPORT.md).
 
 ## Build and run in production mode
 

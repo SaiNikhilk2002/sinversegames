@@ -1,5 +1,7 @@
 # Expansion implementation and QA status
 
+**Later implementation note:** this report preserves the accepted `4cadb91` expansion slice and its historical 0/10 new-game status. Cuisine Quest is implemented in the subsequent task; its seven-cuisine acceptance and remaining limits are recorded in [CUISINE_QUEST_QA_REPORT.md](CUISINE_QUEST_QA_REPORT.md). The other nine concepts and account/provider/upload features remain unfinished.
+
 2026-11-04. Branch `codex/takeover-and-reliability-audit`. Baseline checkpoint `4129552` preserves the completed audit and Phase 1/2 changes. No push, merge, deployment, production migration/data mutation, DNS edit or paid-service provisioning is authorized.
 
 ## Status by milestone

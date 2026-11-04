@@ -1,12 +1,12 @@
 # Player progression design
 
-2026-11-04. Existing XP/stats/history/achievement evaluation is reused for all seven live games. Expansion game integration remains gated on complete games.
+2026-11-04. Existing XP/stats/history/achievement evaluation is reused for eight implemented games. Cuisine Quest adds a server-owned seven-kitchen passport; nine further expansion games remain gated on complete games.
 
 ## Durable progress
 
 Player is the canonical identity. Per-game stats retain plays/wins/losses/best/total scores. Match and MatchParticipant retain validated outcomes and details; achievements store unique player/key unlocks. RewardLedgerEntry stores Sin Coins transactions. Add cosmetic inventory with one owned item per player/item and a server-validated equipped item per category.
 
-Later additive tables: provider Account (`provider`, immutable provider subject, player ID; unique provider/subject), profile username, deletion request, per-level/cuisine best/mastery, daily challenge participation/claim, season definitions. Never infer account ownership from an unverified email. Never overwrite balances when a guest signs in.
+Later additive tables: provider Account (`provider`, immutable provider subject, player ID; unique provider/subject), profile username, deletion request, daily challenge participation/claim, season definitions. Never infer account ownership from an unverified email. Never overwrite balances when a guest signs in.
 
 XP formula stays compatible: 20 per recorded match/run plus 30 for a verified winning/completed outcome; level n starts at `50*(n-1)^2`. XP is not spendable. Economy rules are stricter than play counts: short, abandoned, aborted, duplicate and nonpositive-score runs do not earn coins. Row serialization prevents concurrent result updates from losing XP or a personal best.
 
@@ -28,4 +28,10 @@ Optional challenges, clear session ends, replay choice, personal records and att
 
 ## Status
 
-Baseline XP, game history and achievements are preserved. This slice adds concurrency-safe Sin Coins, useful cosmetics, transaction history, badge distinctions and corrected per-game/daily ranking queries. Google identity, usernames/uploads, cuisine mastery, daily challenge claims, seasonal/weekly/monthly/global boards and break reminders remain unimplemented until their own tests/UI are complete. See [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md).
+Baseline XP, game history and achievements are preserved. This slice adds concurrency-safe Sin Coins, useful cosmetics, transaction history, badge distinctions and corrected per-game/daily ranking queries. Google identity, usernames/uploads, daily challenge claims, seasonal/weekly/monthly/global boards and break reminders remain unimplemented until their own tests/UI are complete. See [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md).
+
+## Cuisine Quest passport
+
+CuisineProgress is now implemented per player/level with best stars/score, completion and perfect-shift counts. All earlier kitchens need one saved star before a later start. Three stars marks mastery; the profile displays seven kitchens, up to 21 stars, best scores, earned badges and the six most recent cuisine runs. First-completion coins and per-cuisine PBs follow [the economy policy](SIN_COINS_ECONOMY.md#cuisine-quest-first-completion-policy).
+
+Thirteen new badges use the existing unique achievement framework: seven cuisine masteries, first perfect plate, three-star service, perfect shift, no burns, a seven-plate <=120-second shift and all-seven completion. They require a verified successful shift; accumulated completion/mastery comes from the transaction's server progress. Existing 13 badges/XP remain. Cuisine-specific public rankings sort best score, stars and player ID, exclude active bans and expose no receipt/ledger history. No account-provider, global/weekly/monthly/season ranking or claim model is implied.

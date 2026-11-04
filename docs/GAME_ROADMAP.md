@@ -1,6 +1,6 @@
 # SinverseGames: first 50 games
 
-The plan for the first 50 games. The seven games already built count toward the 50. Every game is original (names, rules presentation, art and code); genres are fair game, specific existing games are not.
+The plan for the first 50 games. The original seven games count toward the historical 50-game plan; Cuisine Quest adds an eighth implemented game through the separate expansion selection below. Every game is original (names, rules presentation, art and code); genres are fair game, specific existing games are not.
 
 Each game reuses one of four engine kinds that already exist, so most new games are content plus a UI on top of proven infrastructure:
 
@@ -113,7 +113,7 @@ No game on this list needs new infrastructure (no Redis, no new hosts). The few 
 
 ## Expansion phase (November 2026)
 
-The next ten-game selection and full implementation gates are now defined in [GAME_CATALOGUE.md](GAME_CATALOGUE.md) and [GAME_EXPANSION_PLAN.md](GAME_EXPANSION_PLAN.md). Cuisine Quest leads, followed by four distinct solo and five multiplayer designs. These concepts are **not implemented** and are not in the runtime registry. The existing seven games are retained. Shared Sin Coins/cosmetic and Doodle improvements are tracked in [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md); Google identity, secure avatars and the new games remain later complete slices. This selection refines the earlier catalogue proposals without claiming those earlier entries are finished.
+The next ten-game selection and full implementation gates are now defined in [GAME_CATALOGUE.md](GAME_CATALOGUE.md) and [GAME_EXPANSION_PLAN.md](GAME_EXPANSION_PLAN.md). Cuisine Quest leads, followed by four distinct solo and five multiplayer designs. Cuisine Quest now has all seven kitchens and 28 recipes implemented locally and is registered; [its QA report](CUISINE_QUEST_QA_REPORT.md) records acceptance. The other nine concepts remain designs outside the runtime registry. The original seven games are retained. Shared Sin Coins/cosmetic and Doodle improvements are tracked in [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md); Google identity, secure avatars and the other nine games remain later complete slices. This selection refines the earlier catalogue proposals without claiming those earlier entries are finished.
 
 ## Development tracker
 
@@ -127,14 +127,14 @@ Statuses:
 | Status | Games |
 | --- | --- |
 | Released | Color Clash, Doodle Duel |
-| Tested (awaiting release) | Kitchen Rush, Token Trail, Cascade Solitaire, Mahjong Garden, Bumper Blitz |
+| Tested (awaiting release) | Kitchen Rush, Token Trail, Cascade Solitaire, Mahjong Garden, Bumper Blitz; expansion: Cuisine Quest (7 cuisines / 28 recipes) |
 | Implemented | none |
 | In progress | none |
 | Planned: P1 (next batch) | Stack Tower, Bubble Burst, Snake Garden, Tile Twins, Word Weave, Sudoku Studio, Block Fit, Drop Four, FreeCell Fjord, Trivia Clash, Type Racer Rally, Brick Burst, Hoop Shot, Kitchen Rush Co-op, Café Barista |
 | Planned: P2 | Juice Jump, Slice Splash, Merge Garden, Pipe Flow, Mine Meadow, Crown Checkers, Trick Tide, Word Bluff, Hidden Agent, Emoji Charades, Battle Boats, Sketch Relay, Neon Serpents, Asteroid Drift, Sky Runner, Swarm Defender, Mini Golf Meadow, Penalty Pro, Air Hockey Duel, Bakery Bloom |
 | Planned: P3 | Orbit Dash, Paper Plane Glide, Balloon Rise, Ring Toss, Nonogram Nook, Royal Chess, Tank Tactics, Pixel Peaks |
 
-Totals: 2 released, 5 tested, 15 P1, 20 P2, 8 P3, for 50.
+Historical 50-game catalogue totals: 2 released, 5 tested, 15 P1, 20 P2, 8 P3. Cuisine Quest is the additional expansion implementation; it does not silently replace an original numbered entry.
 
 ### Suggested next batch (P1, about 6–8 weeks)
 

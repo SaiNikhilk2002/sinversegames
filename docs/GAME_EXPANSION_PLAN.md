@@ -1,6 +1,6 @@
 # Game expansion plan
 
-Milestone 1 design baseline, 2026-11-04. Implementation continues on `codex/takeover-and-reliability-audit`. Local checkpoint **4129552** preserves all 28 takeover files, including original Phase 2 changes and evidence. The pre-expansion Git inventory is retained in ignored `.data/expansion/`. Nothing has been pushed or deployed.
+Milestone 1 design baseline with Cuisine Quest implementation update, 2026-11-04. Implementation continues on `codex/takeover-and-reliability-audit`. Local checkpoint **4129552** preserves all 28 takeover files, including original Phase 2 changes and evidence. The pre-expansion Git inventory is retained in ignored `.data/expansion/`. Nothing has been pushed or deployed.
 
 ## Existing foundations and gaps
 
@@ -38,4 +38,4 @@ A tested engine plus its distinct production client, original cover/detail/tutor
 
 ## Current run
 
-Milestone 1 documented. Active complete slices: Sin Coins/inventory/store and existing Doodle/lobby/lifecycle improvements. Google sign-in, uploaded avatars, expanded rankings/challenges, and all ten new games remain scheduled work until implemented and validated. Current validation/status belongs in [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md).
+Milestone 1 documented. Active complete slices: Sin Coins/inventory/store and existing Doodle/lobby/lifecycle improvements. Google sign-in, uploaded avatars, expanded rankings/challenges, and nine further games remain scheduled work. Cuisine Quest now implements all seven cuisines and 28 recipes with a passing real campaign and full regression/build gates; acceptance is recorded in [CUISINE_QUEST_QA_REPORT.md](CUISINE_QUEST_QA_REPORT.md). Current validation/status belongs in [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md).

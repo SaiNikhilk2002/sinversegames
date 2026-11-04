@@ -9,7 +9,7 @@ import { JoinCodeForm } from "@/components/games/join-code-form";
 import { RecentlyPlayed } from "@/components/games/recently-played";
 
 // Kitchen Rush leads the spotlight; then the rest by popularity.
-const spotlight = [...GAMES].sort((a, b) => (a.id === "kitchen-rush" ? -1 : b.id === "kitchen-rush" ? 1 : Number(b.popular) - Number(a.popular)));
+const spotlight = [...GAMES].sort((a, b) => (a.id === "cuisine-quest" ? -1 : b.id === "cuisine-quest" ? 1 : a.id === "kitchen-rush" ? -1 : b.id === "kitchen-rush" ? 1 : Number(b.popular) - Number(a.popular)));
 const multiplayer = GAMES.filter((g) => g.kind === "multiplayer");
 const solo = GAMES.filter((g) => g.kind === "solo");
 const usedCategories = Object.entries(GAME_CATEGORIES).filter(([key]) => GAMES.some((g) => g.categories.includes(key as GameCategory)));

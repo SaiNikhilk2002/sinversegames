@@ -12,6 +12,7 @@ export const GAME_IDS = [
   "cascade-solitaire",
   "mahjong-garden",
   "bumper-blitz",
+  "cuisine-quest",
 ] as const;
 export type GameId = (typeof GAME_IDS)[number];
 
@@ -20,7 +21,7 @@ export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail"
 export type MultiplayerGameId = (typeof MULTIPLAYER_GAME_IDS)[number];
 
 /** Single-player games: played in the browser, scores verified by replaying the move log on the server. */
-export const SOLO_GAME_IDS = ["kitchen-rush", "cascade-solitaire", "mahjong-garden"] as const;
+export const SOLO_GAME_IDS = ["kitchen-rush", "cascade-solitaire", "mahjong-garden", "cuisine-quest"] as const;
 export type SoloGameId = (typeof SOLO_GAME_IDS)[number];
 
 export const GAME_CATEGORIES = {
@@ -74,6 +75,25 @@ export interface GameMeta {
 }
 
 export const GAMES: readonly GameMeta[] = [
+  {
+    id: "cuisine-quest", slug: "cuisine-quest", kind: "solo", name: "Cuisine Quest",
+    tagline: "Travel the world. Master the kitchen.",
+    description: "An illustrated seven-cuisine cooking journey. Prepare 28 recipes with hands-on techniques, manage heat and customers, and fill your chef's passport with stars.",
+    longDescription: [
+      "From a copper courtyard to an olive terrace, each kitchen introduces a new craft: spread a dosa, stretch pizza dough, roll sushi, fold tortillas, balance a curry, seal dumplings and blend a silky hummus.",
+      "Follow preparation markers with mouse, touch or keyboard. Choose ingredient portions, set the heat, time your flips and stirs, then arrange each dish and match the guest's requested finish. Two batches can share the kitchen, but stations can only do one job at a time.",
+      "Six guests request seven plates in each shift. Learn the four local recipes, serve a large order and finish with a service rush. One saved star opens the next cuisine; three stars mark mastery. Pause freely and recover an unfinished shift after refreshing this tab.",
+      "Scores, campaign unlocks, achievements and Sin Coins are verified on the server. Your first completed visit to each cuisine can earn completion coins; replays improve records without repeating the same completion reward. Guest progress stays linked to this browser cookie.",
+    ],
+    categories: ["cooking", "strategy", "arcade"], minPlayers: 1, maxPlayers: 1, avgDurationMinutes: [2,5], modes: ["solo", "daily"], featured: true, popular: false, addedAt: "2026-11-04",
+    theme: { from: "#254841", to: "#d6b478", ink: "#f4e8c8" },
+    howToPlay: [
+      { title: "Open your passport", body: "Start in the Indian kitchen. Earn one saved star to unlock the next of seven cuisines." },
+      { title: "Prepare by hand", body: "Choose ingredients in order, measure portions and follow numbered preparation markers by tapping, dragging or keyboard." },
+      { title: "Watch the flame", body: "Set recipe heat before cooking. Flip and stir in their windows; lift food while it is perfectly cooked." },
+      { title: "Serve with care", body: "Plate neatly and choose the guest's finish. Manage two batches and keep an eye on patience before the final service rush." },
+    ], keywords: ["cooking game", "cuisine quest", "world cooking game", "restaurant management", "dosa cooking", "pizza game", "sushi game", "cooking campaign"],
+  },
   {
     id: "color-clash",
     slug: "color-clash",

@@ -2,6 +2,7 @@ import { COIN_REWARD_REASONS, COIN_RULES, type MatchResults } from "@platform/sh
 import type { PrismaClient } from "./generated/prisma/client";
 import { ACHIEVEMENTS, levelForXp, REWARD_RULES, rewardsEnabled, XP_RULES } from "./progression";
 import { lockPlayer } from "./wallet";
+import { recordCuisineProgress } from "./cuisine";
 
 // ---------------------------------------------------------------------------
 // Players
@@ -98,6 +99,8 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
     const unlocked: Record<string, string[]> = {};
     const earnedCoins: Record<string, number> = {};
     for (const e of results.entries) {
+      const cuisine = (results.gameId as string) === "cuisine-quest" ? await recordCuisineProgress(tx, e.playerId, e.score, e.isWinner, e.details ?? {}) : null;
+      const details = cuisine?.summary ?? e.details ?? {};
       const prev = await tx.playerGameStats.findUnique({ where: { playerId_gameId: { playerId: e.playerId, gameId: results.gameId } } });
       await tx.playerGameStats.upsert({
         where: { playerId_gameId: { playerId: e.playerId, gameId: results.gameId } },
@@ -129,7 +132,7 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
         (await tx.playerAchievement.findMany({ where: { playerId: e.playerId }, select: { achievementKey: true } })).map((a) => a.achievementKey),
       );
       const fresh = ACHIEVEMENTS.filter(
-        (a) => !have.has(a.key) && a.unlocked(stats, { gameId: results.gameId, score: e.score, isWinner: e.isWinner, details: e.details ?? {} }),
+        (a) => !have.has(a.key) && a.unlocked(stats, { gameId: results.gameId, score: e.score, isWinner: e.isWinner, details }),
       ).map((a) => a.key);
       if (fresh.length) {
         await tx.playerAchievement.createMany({
@@ -147,10 +150,11 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
           where: { playerId: e.playerId, amount: { gt: 0 }, reason: { in: [...COIN_REWARD_REASONS] }, createdAt: { gte: since, lt: until } }, _sum: { amount: true },
         });
         let remaining = Math.max(0, COIN_RULES.dailyCap - (earned._sum.amount ?? 0));
+        const previousBest = cuisine?.previousBest ?? prev?.bestScore ?? 0;
         const grants = [
-          { amount: REWARD_RULES.matchPlayed, reason: "match_played", refType: "match", refId: match.id },
-          ...(e.isWinner ? [{ amount: REWARD_RULES.matchWon, reason: "match_won", refType: "match", refId: match.id }] : []),
-          ...(prev && prev.bestScore > 0 && e.score > prev.bestScore ? [{ amount: COIN_RULES.personalBest, reason: "personal_best", refType: "match", refId: match.id }] : []),
+          ...(!cuisine || cuisine.firstCompletion ? [{ amount: REWARD_RULES.matchPlayed, reason: "match_played", refType: "match", refId: match.id }] : []),
+          ...(e.isWinner && (!cuisine || cuisine.firstCompletion) ? [{ amount: REWARD_RULES.matchWon, reason: "match_won", refType: "match", refId: match.id }] : []),
+          ...(previousBest > 0 && e.score > previousBest ? [{ amount: COIN_RULES.personalBest, reason: "personal_best", refType: "match", refId: match.id }] : []),
           ...fresh.map((key) => ({ amount: COIN_RULES.achievement, reason: "achievement", refType: "achievement", refId: key })),
         ];
         for (const grant of grants) {
@@ -161,6 +165,7 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
           remaining -= amount;
         }
       }
+      if (cuisine) await tx.matchParticipant.update({ where: { matchId_playerId: { matchId: match.id, playerId: e.playerId } }, data: { details: { ...details, coinsEarned: earnedCoins[e.playerId] ?? 0, unlockedKeys: fresh.join(",") } } });
     }
     return { matchId: match.id, unlocked, earned: earnedCoins };
   }, { maxWait: 5_000, timeout: 15_000 });
@@ -179,6 +184,7 @@ export async function getProfile(db: PrismaClient, playerId: string) {
       favorites: true,
       inventory: true,
       equipment: true,
+      cuisineProgress: { orderBy: { level: "asc" } },
       participations: {
         orderBy: { createdAt: "desc" },
         take: 15,
@@ -187,11 +193,15 @@ export async function getProfile(db: PrismaClient, playerId: string) {
     },
   });
   if (!player) return null;
-  const balance = await db.rewardLedgerEntry.aggregate({ where: { playerId }, _sum: { amount: true } });
-  return { ...player, rewardBalance: balance._sum.amount ?? 0 };
+  const [balance, cuisineRuns] = await Promise.all([
+    db.rewardLedgerEntry.aggregate({ where: { playerId }, _sum: { amount: true } }),
+    player.cuisineProgress.length ? db.matchParticipant.findMany({ where: { playerId, match: { gameId: "cuisine-quest" } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 6, include: { match: { select: { endedAt: true } } } }) : Promise.resolve([]),
+  ]);
+  return { ...player, rewardBalance: balance._sum.amount ?? 0, cuisineRuns };
 }
 
 export type LeaderboardMetric = "totalPoints" | "wins" | "bestScore";
+const publicMatchDetails = (value: unknown): Record<string, number | string> => Object.fromEntries(Object.entries((value ?? {}) as Record<string, number | string>).filter(([key]) => key !== "coinsEarned" && key !== "unlockedKeys"));
 
 export async function getLeaderboard(db: PrismaClient, gameId: string, metric: LeaderboardMetric = "totalPoints", limit = 25) {
   const rows = await db.playerGameStats.findMany({
@@ -235,7 +245,7 @@ export async function getDailyBest(db: PrismaClient, gameId: string, limit = 25,
     color: r.avatarColor,
     level: r.level,
     score: r.score,
-    details: (r.details ?? {}) as Record<string, number | string>,
+    details: publicMatchDetails(r.details),
   }));
 }
 
