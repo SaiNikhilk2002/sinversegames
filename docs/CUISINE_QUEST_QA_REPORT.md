@@ -86,7 +86,7 @@ Final browser probe records game/total DOM nodes, resource count/transfer bytes,
 
 ## Exact changed files and Git status
 
-Exact 84-file path inventory: [changed-files.txt](../artifacts/cuisine-quest/changed-files.txt). Branch remains `codex/takeover-and-reliability-audit`; implementation starts from preserved `4cadb91`. The accepted implementation is ready for a local checkpoint; its resulting hash will be recorded in the final acceptance note. Root AGENTS.md and CLAUDE.md are updated together and compared byte-for-byte. The preservation check confirms 60 original engine/client/test files unchanged relative to that baseline. No push/deployment. Owned QA servers are stopped after verification.
+Exact 84-file path inventory: [changed-files.txt](../artifacts/cuisine-quest/changed-files.txt). Branch remains `codex/takeover-and-reliability-audit`; implementation starts from preserved `4cadb91`. Accepted implementation checkpoint: `14ac4ef34878d8d2b39849670d976975c09ea977` (`feat: implement Cuisine Quest seven-cuisine campaign`), 84 intended files. This acceptance note is committed separately; the final response supplies that documentation commit. The working tree was clean after the implementation checkpoint and is verified again after this note. Root AGENTS.md and CLAUDE.md are updated together and compared byte-for-byte. The preservation check confirms 60 original engine/client/test files unchanged relative to that baseline. No push/deployment. Owned QA servers are stopped after verification.
 
 ## Limits and future release requirements
 
