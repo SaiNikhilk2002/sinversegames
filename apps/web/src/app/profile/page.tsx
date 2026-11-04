@@ -40,15 +40,16 @@ export default async function ProfilePage() {
         </div>
         <div className="-mt-12 flex flex-col gap-4 px-6 pb-6 sm:flex-row sm:items-end">
           <div className="relative w-fit">
-            <CosmeticAvatar name={session.name} color={session.color} size={80} frameId={profile?.equipment.find((item) => item.category === "profile-frame")?.itemId} />
+            <CosmeticAvatar name={session.name} color={session.color} size={80} avatarKey={profile?.avatarKey} frameId={profile?.equipment.find((item) => item.category === "profile-frame")?.itemId} />
             <span className="absolute -right-2 -bottom-1 grid size-10 place-items-center rounded-xl border-[3px] border-surface bg-[#ffb23d] font-display text-lg font-black text-[#17142b]" aria-label={`Level ${level}`}>
               {level}
             </span>
           </div>
           <div className="flex-1">
             <h1 className="font-display text-3xl font-black" style={{ color: cosmeticTextColor(profile?.equipment.find((item) => item.category === "nameplate")?.itemId) }}>{session.name}</h1>
+            {profile?.username&&<p className="mt-1 text-sm font-semibold text-brand-400">@{profile.username}</p>}
             <p className="text-sm text-ink-muted">
-              {session.kind === "guest" ? "Guest player" : "Player"} · Level {level} · {unlocked.size}/{ACHIEVEMENTS.length} achievements
+              {session.kind === "guest" ? "Guest player" : "Google linked"} · Level {level} · {unlocked.size}/{ACHIEVEMENTS.length} achievements
             </p>
           </div>
           <div className="w-full sm:w-64">
@@ -64,6 +65,7 @@ export default async function ProfilePage() {
           </div>
         </div>
       </Card>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"><p className="max-w-xl text-sm text-ink-muted">{session.kind==="guest"?"Save your player with Google to recover coins, badges and your chef's passport on another device. Guests can keep playing freely.":"Your player is connected. Manage your username, picture and active sessions."}</p><Link href="/account" className="rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white">{session.kind==="guest"?"Save my player":"Account settings"}</Link></div>
 
       {!db && (
         <p className="mt-6 rounded-2xl border border-sun/40 bg-sun/10 p-4 text-sm">

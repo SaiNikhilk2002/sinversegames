@@ -7,12 +7,15 @@ export interface Player {
   name: string;
   color: string;
   kind: "guest" | "registered";
+  username?:string|null;
+  avatarKey?:string|null;
   cosmetics?: { frame: string | null; nameplate: string | null };
 }
 
 interface PlayerState {
   player: Player | null;
   loading: boolean;
+  error?: string;
 }
 
 // Keep hydration's snapshot identical to server HTML even if the header's
@@ -28,9 +31,9 @@ const set = (s: PlayerState) => {
 
 function load() {
   fetched ??= fetch("/api/session", { cache: "no-store" })
-    .then((r) => r.json())
+    .then((r) => {if(!r.ok)throw new Error("Your player couldn't be checked. Please retry; your cookie is preserved.");return r.json();})
     .then((d: { player: Player | null }) => set({ player: d.player, loading: false }))
-    .catch(() => set({ player: null, loading: false }));
+    .catch(() => set({ player:state.player, loading:false,error:"Your player couldn't be checked. Please retry; your cookie is preserved." }));
   return fetched;
 }
 

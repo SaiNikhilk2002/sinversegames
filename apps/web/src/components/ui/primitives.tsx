@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { forwardRef, type ButtonHTMLAttributes, type ComponentProps, type HTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
+export { PlayerAvatar as Avatar } from "../profile/player-avatar";
 
 export const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
 
@@ -182,24 +183,6 @@ export function Segmented<T extends string | number>({
 // ---------------------------------------------------------------------------
 // Avatars & tooltips
 // ---------------------------------------------------------------------------
-
-export function Avatar({ name, color, size = 40, className, ring }: { name: string; color: string; size?: number; className?: string; ring?: boolean }) {
-  const initials = name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  return (
-    <span
-      aria-hidden
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-full font-display font-bold text-[#17142b]", ring && "ring-4 ring-brand-400/70", className)}
-      style={{ width: size, height: size, background: color, fontSize: size * 0.38 }}
-    >
-      {initials}
-    </span>
-  );
-}
 
 /** CSS-only tooltip; the label is also exposed to assistive tech via aria-label on the trigger. */
 export function Tooltip({ label, children, side = "top" }: { label: string; children: ReactNode; side?: "top" | "bottom" }) {

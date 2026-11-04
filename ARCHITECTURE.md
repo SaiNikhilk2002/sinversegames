@@ -85,10 +85,16 @@ The existing SoloRunner opts this game into bounded tab-scoped session storage. 
 
 Original local vector art, distinct technique preparation states, seven architectural scenes and seven original WebAudio motifs use the established art/music/settings pipeline. Decorative assets are memoized; no remote artwork or new rendering dependency. Music/ambient/cooking loops stop and release nodes on pause/unmount. Muting and unavailable audio leave visual controls usable. See [design](docs/CUISINE_QUEST_DESIGN.md) and [QA](docs/CUISINE_QUEST_QA_REPORT.md).
 
+## Player accounts and avatar processing
+
+The same Player ID is upgraded in place by a transactionally unique Google subject link. State, PKCE S256, nonce, signed ID-token claims and one-use browser/session-bound attempts protect the flow. Registered login creates a 30-day opaque session; only its hash is stored, with at most 20 active sessions per player. Logout and other-browser revocation invalidate DB sessions. Public session responses omit hashes/provider subjects. Username claims use canonical lowercase uniqueness and locked rename cooldowns. Profile/leaderboards render saved usernames and same-origin avatar URLs without changing old match names.
+
+Uploads are bounded at the web proxy, normalized on the existing Node service with a short-lived purpose-bound job token, then stored through private Worker R2 binding AVATARS. Sharp native modules remain external to the realtime bundle; its Docker image now copies frozen production dependencies. Worker code never loads Sharp. Originals, arbitrary filenames and remote provider photos are not saved. Local fixture mode requires an explicit loopback origin plus isolated *_test DB and is not production auth/storage verification. See [setup](docs/PLAYER_IDENTITY_SETUP.md) and [QA](docs/PLAYER_IDENTITY_PERSISTENCE_QA_REPORT.md).
+
 ## Real-time protocol
 
 - **Transport:** Socket.IO establishes polling, probes a WebSocket upgrade and tries an alternative opening transport when necessary. Built-in ping/pong heartbeats every 15 s with a 20 s timeout. Token fetches and transport opening have deadlines; inactive authentication failures have capped backoff while terminal 401/403 responses stop retries.
-- **Authentication:** the web app holds a long-lived `session` JWT in an **httpOnly** cookie. Before each (re)connect the browser exchanges it at `POST /api/session/token` for a 15-minute `realtime` JWT, sent in the handshake. The realtime server verifies the signature, audience and expiry, and checks bans. The player id comes *only* from the token, so clients can't impersonate anyone.
+- **Authentication:** the web app holds the existing signed guest JWT or a registered opaque DB-backed session in the same **httpOnly** `pw_session` cookie. Before each (re)connect the browser exchanges it at `POST /api/session/token` for a 15-minute `realtime` JWT, sent in the handshake. The realtime server verifies the signature, audience and expiry, checks bans, and validates registered session hashes against the database at handshake and before packets. Legacy guest identities are rejected after Player.kind upgrades. The player id comes *only* from the token, so clients can't impersonate anyone.
 - **Client → server:** `{ id, roomId?, matchId?, v?, payload }` with an acknowledgement callback returning `{ ok, data } | { ok: false, error: { code, message } }`.
   - `id`: client action id; the last 64 per player are remembered for **idempotent retries**.
   - `v`: state version; turn-based actions are rejected with `STALE_STATE` if it's stale (double-click and race protection).
@@ -119,7 +125,8 @@ Original local vector art, distinct technique preparation states, seven architec
 
 PostgreSQL via Prisma 7 with the `pg` driver adapter. Tables:
 
-- `Player`: guest identity, display name, avatar colour, XP and level, ban fields; `kind` reserves room for registered accounts.
+- `Player`: permanent guest/registered identity, display name, avatar colour/key, canonical unique username/onboarding, XP/level and ban fields.
+- `ExternalIdentity`, `AccountSession`, `OAuthAttempt`, `IdentityRateLimit`: unique provider links, hashed revocable sessions, one-use browser/session-bound OAuth attempts and distributed sensitive-route counters.
 - `PlayerGameStats`: per-game aggregates; backs leaderboards.
 - `Match`, `MatchParticipant`: finished matches with placements and scores.
 - `PlayerAchievement`: unlocks; definitions live in code.
@@ -132,7 +139,7 @@ PostgreSQL via Prisma 7 with the `pg` driver adapter. Tables:
 
 **Completed rooms:** `FINISHED_ROOM_TTL_MS` defaults to five minutes from completion. Readiness, sync and other activity cannot extend it; a new authorized match clears the deadline. The periodic sweep removes expired rooms, and start/join reject at the exact deadline. New matches clear ready state, scores, drawings and old action caches. The room link/membership is preserved for an accepted rematch.
 
-**Expansion boundaries:** Cuisine Quest is the first implemented expansion game. Nine further game concepts, persistent provider identity and secure uploads remain designed in [GAME_EXPANSION_PLAN.md](docs/GAME_EXPANSION_PLAN.md). Existing guest cookies still determine access to stored data. No R2/S3/OAuth provider is configured. Database connection/statement/query waits now have explicit budgets; result retry remains best-effort rather than a durable outbox.
+**Expansion boundaries:** Cuisine Quest is the first implemented expansion game. Nine further game concepts remain designed in [GAME_EXPANSION_PLAN.md](docs/GAME_EXPANSION_PLAN.md). Optional provider identity and avatar upload are implemented as documented in [AUTHENTICATION.md](docs/AUTHENTICATION.md); external Google/R2 configuration and real-provider verification remain owner work. Database connection/statement/query waits now have explicit budgets; result retry remains best-effort rather than a durable outbox.
 
 **Not stored:** strokes, individual moves, chat, hands and secret words. These live only in the realtime server's memory. Results are written once per match in a single transaction, retried up to 3 times.
 

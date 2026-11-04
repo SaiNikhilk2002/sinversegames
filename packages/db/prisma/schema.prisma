@@ -26,7 +26,7 @@ enum PlayerKind {
   REGISTERED
 }
 
-/// A player identity. Guests are created on first visit; REGISTERED is reserved for future auth.
+/// Permanent identity shared by guest play and linked provider accounts.
 model Player {
   id           String     @id @db.VarChar(64)
   displayName  String     @db.VarChar(32)
@@ -39,6 +39,13 @@ model Player {
   bannedReason String?    @db.VarChar(500)
   createdAt    DateTime   @default(now())
   lastSeenAt   DateTime   @default(now())
+  username     String?    @unique @db.VarChar(20)
+  usernameChangedAt DateTime?
+  avatarKey    String?    @db.VarChar(128)
+  onboardingAt DateTime?
+  identities   ExternalIdentity[]
+  sessions     AccountSession[]
+  oauthAttempts OAuthAttempt[]
 
   stats             PlayerGameStats[]
   participations    MatchParticipant[]
@@ -51,6 +58,47 @@ model Player {
   reportsFiled      AbuseReport[]       @relation("reporter")
   reportsAgainst    AbuseReport[]       @relation("target")
   moderationActions ModerationAction[]
+}
+
+model ExternalIdentity {
+  provider String @db.VarChar(16)
+  subject String @db.VarChar(255)
+  playerId String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  @@id([provider, subject])
+  @@unique([playerId, provider])
+}
+
+/// Only hashes of opaque browser secrets are stored. No OAuth tokens are retained.
+model AccountSession {
+  tokenHash String @id @db.VarChar(64)
+  playerId String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  @@index([playerId, expiresAt])
+}
+
+model OAuthAttempt {
+  stateHash String @id @db.VarChar(64)
+  browserHash String @db.VarChar(64)
+  actorId String? @db.VarChar(64)
+  actorSessionHash String? @db.VarChar(64)
+  mode String @db.VarChar(8)
+  verifier String @db.VarChar(128)
+  nonce String @db.VarChar(128)
+  expiresAt DateTime
+  consumedAt DateTime?
+  actor Player? @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+}
+
+/// Distributed fixed-window counters for sensitive identity mutations.
+model IdentityRateLimit {
+  key String @id @db.VarChar(64)
+  count Int
+  resetAt DateTime
 }
 
 /// Aggregate per-game statistics; also backs the leaderboards.

@@ -22,6 +22,7 @@ interface Row {
   playerId: string;
   name: string;
   color: string;
+  username?:string|null;avatarKey?:string|null;
   level: number;
   cells: (string | number)[];
 }
@@ -111,8 +112,9 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                 <span className="grid size-8 place-items-center rounded-full border-2 border-[#17142b] font-display text-sm font-black text-[#17142b]" style={{ background: medal[r.rank - 1] }}>
                   {r.rank}
                 </span>
-                <Avatar name={r.name} color={r.color} size={r.rank === 1 ? 56 : 44} className="mt-2" />
+                <Avatar name={r.name} color={r.color} avatarKey={r.avatarKey} size={r.rank === 1 ? 56 : 44} className="mt-2" />
                 <p className="mt-1 max-w-full truncate text-sm font-bold">{r.name}</p>
+                {r.username&&<p className="max-w-full truncate text-xs text-ink-muted">@{r.username}</p>}
                 <p className="font-mono text-lg font-black tabular-nums">{r.cells[r.cells.length - 1]}</p>
               </li>
             ) : (
@@ -162,9 +164,10 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                   </td>
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-3">
-                      <Avatar name={r.name} color={r.color} size={32} />
+                      <Avatar name={r.name} color={r.color} avatarKey={r.avatarKey} size={32} />
                       <span className="min-w-0">
                         <span className="block truncate font-semibold">{r.name}</span>
+                        {r.username&&<span className="block truncate text-xs text-ink-muted">@{r.username}</span>}
                         <span className="text-xs text-ink-faint">Level {r.level}</span>
                       </span>
                     </span>

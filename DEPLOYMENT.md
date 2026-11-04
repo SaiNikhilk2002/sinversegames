@@ -163,6 +163,11 @@ The browser and realtime server now share a match-UUID protocol. An old open tab
 
 Platform and currency names are fixed as SinverseGames and Sin Coins. Older `NEXT_PUBLIC_BRAND_NAME`/`NEXT_PUBLIC_REWARD_CURRENCY_NAME` values are ignored by the new code; no production variable was edited. Continue compiling the correct site/realtime URLs and exact origin allow-list. Optional tagline/description remain build-time configuration.
 
-No Google/R2/Images provider is implemented/provisioned in this slice. [ACCOUNT_AND_PROFILE_DESIGN.md](docs/ACCOUNT_AND_PROFILE_DESIGN.md) lists the planned callback URLs, credential names, linking rules and storage approval prerequisites. Do not configure an unimplemented provider route or claim cross-device recovery. The current wallet/store works with existing guest identities and PostgreSQL.
+At the earlier expansion checkpoint, Google/R2/Images integration was design-only. The later identity milestone now implements Google linking/sign-in and a private R2 adapter with Node image normalization; [PLAYER_IDENTITY_SETUP.md](docs/PLAYER_IDENTITY_SETUP.md) lists exact owner configuration and [identity QA](docs/PLAYER_IDENTITY_PERSISTENCE_QA_REPORT.md) distinguishes controlled local tests from pending real Google/R2 verification. No external service has been configured or provisioned.
 
 For local economy tests, create/migrate `sinversegames_expansion_test` on localhost:5433 and run `pnpm test:db`; `ECONOMY_TEST_DATABASE_URL` accepts only a local database ending in `_test`. Set `E2E_DATABASE_URL` to the same local target for the complete browser suite. These commands create local test data. Do not use a Neon/production URL. The checked-in migration can be reviewed independently before any future production approval.
+
+
+## Player identity release prerequisite
+
+Before a separately approved release, follow [PLAYER_IDENTITY_SETUP.md](docs/PLAYER_IDENTITY_SETUP.md): apply additive migration `20261104030000_player_identity`, configure exact AUTH_ORIGIN and Google Web client secrets on the web service, bind a private R2 bucket as AVATARS, and verify REALTIME_INTERNAL_URL plus matching AUTH_SECRET. The Node image now retains frozen production dependencies for Sharp/libvips; image normalization does not run on Workers. No IDENTITY_TEST_MODE or filesystem avatar path belongs in a provider environment. Real Google consent, apex/www cookie behavior, R2 put/get/delete and registered socket revocation require deployment verification. No dashboard/deployment action was performed by this implementation.

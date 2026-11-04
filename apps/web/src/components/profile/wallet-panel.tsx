@@ -62,13 +62,13 @@ export function WalletPanel({ store = false }: { store?: boolean }) {
             <p className="mt-2 font-mono text-4xl font-black tabular-nums" data-testid="coin-balance">{wallet ? wallet.balance.toLocaleString() : "—"}</p>
           </div>
           <div className="flex items-center gap-3">
-            <CosmeticAvatar name={player?.name ?? "You"} color={player?.color ?? "#ff4f8b"} frameId={equipment.get("profile-frame")} size={52} />
+            <CosmeticAvatar name={player?.name ?? "You"} color={player?.color ?? "#ff4f8b"} avatarKey={player?.avatarKey} frameId={equipment.get("profile-frame")} size={52} />
             <p data-testid="cosmetic-name" data-nameplate={equipment.get("nameplate") ?? "default"} className="font-display text-xl font-black" style={{ color: cosmeticTextColor(equipment.get("nameplate")) }}>{player?.name ?? "Your profile"}</p>
           </div>
         </div>
         <p className="mt-4 max-w-2xl text-sm text-ink-muted">Earn coins from positive-score games completed normally after at least 30 seconds, with bonuses for wins, personal bests and new achievements. Solo runs must be completed. Up to {COIN_RULES.dailyCap} coins per UTC day. Cosmetics give no gameplay advantage.</p>
         <p className="mt-2 text-xs text-ink-faint">Sin Coins have no monetary value. No real-money purchases, transfers, random prizes or cash redemption.</p>
-        {player?.kind === "guest" && <p className="mt-3 text-sm text-[#8a4b00] dark:text-sun">Guest progress stays with this browser cookie. Account sign-in and recovery across devices are not available yet; keep your cookie to retain access.</p>}
+        {player?.kind === "guest" && <p className="mt-3 text-sm text-[#8a4b00] dark:text-sun">Guest progress stays with this browser cookie. Keep it to retain access, or <Link href="/account" className="font-bold underline">connect Google in account settings</Link> when available to recover this player on another device.</p>}
         {!store && <Link href="/store" className="mt-4 inline-flex items-center gap-2 font-bold text-brand-400 hover:underline"><Palette className="size-4" /> Visit the cosmetic studio</Link>}
       </Card>
       {notice && <p role="status" className="rounded-xl border border-mint/40 bg-mint/10 p-3 text-sm">{notice}</p>}

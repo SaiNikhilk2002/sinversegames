@@ -1,0 +1,54 @@
+{
+  "equal": true,
+  "note": "Explicitly selected loopback developer database; original 12-table counts/hashes around additive identity migration, excluding only its four new nullable Player fields.",
+  "tables": {
+    "Player": {
+      "count": 603,
+      "sha256": "4c8f0d2964e0031c1621cbad86e1c1bd0ec5f638ae59c3246359436f7a993ee4"
+    },
+    "PlayerGameStats": {
+      "count": 363,
+      "sha256": "430c26a6e030525919677e3a91c5811ab3272c00426db5122c223033599519ee"
+    },
+    "Match": {
+      "count": 208,
+      "sha256": "9a95da61360a61c18965b12934c56f7f2282cbb4330567dae04ea17062f9fe02"
+    },
+    "MatchParticipant": {
+      "count": 365,
+      "sha256": "8cbb4ed02c4f27a6e5c9a87916bc25391fb139f4356d970d4f8106c34f696b97"
+    },
+    "PlayerAchievement": {
+      "count": 586,
+      "sha256": "87728d3328193a4cf6160e61e732e6b20e1183cbb9365957a23c123b2b009e53"
+    },
+    "RewardLedgerEntry": {
+      "count": 572,
+      "sha256": "2e377285070520da341b8322945574446c4f1bda9ef4d0d3871cd299ed5fca6e"
+    },
+    "FavoriteGame": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "AbuseReport": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ModerationAction": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "CosmeticInventory": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "CosmeticEquipment": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "CuisineProgress": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

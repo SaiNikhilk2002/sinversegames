@@ -7,18 +7,22 @@ RUN corepack enable
 COPY . .
 # Install only the realtime server and the workspace packages it depends on
 # (skips the web app's Next.js and Cloudflare toolchain), then bundle it into a
-# self-contained dist/ (see apps/realtime/tsup.config.ts).
+# dist/ plus the native production dependency layout (see tsup.config.ts).
 RUN pnpm install --frozen-lockfile --filter "@platform/realtime..." \
  && pnpm --filter @platform/db generate \
- && pnpm --filter @platform/realtime build
+ && pnpm --filter @platform/realtime build \
+ && pnpm --filter @platform/realtime deploy --prod --legacy --ignore-scripts /runtime
 
-# Runtime: Node and the bundle only (no pnpm, no node_modules). Start it with
+# Runtime: Node, bundle, and frozen production dependencies (Sharp/libvips needs
+# its platform-specific native addon; it cannot be bundled into JavaScript).
+# Start it with
 # node directly; railway.json pins the same command so a pnpm start command set
 # in the Railway dashboard can't override it.
 FROM node:24-slim
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /repo/apps/realtime/dist ./dist
+COPY --from=build /runtime/node_modules ./node_modules
 USER node
 EXPOSE 4200
 CMD ["node", "--enable-source-maps", "dist/index.js"]

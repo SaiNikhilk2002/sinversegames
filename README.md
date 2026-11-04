@@ -20,11 +20,13 @@ Single player (server-verified scores, daily leaderboards):
 - **Cascade Solitaire**: Klondike-rules patience with undo, hints and draw 1/3.
 - **Mahjong Garden**: tile matching on three always-solvable layouts.
 
-Earn **Sin Coins** from eligible server-verified play and spend them on profile frames and nameplates in the cosmetic studio at `/store`. Wallet history and owned styles persist in PostgreSQL; guest access still depends on this browser's cookie. Google sign-in, uploaded avatars and nine further expansion games remain unimplemented. Cuisine Quest is the first implemented expansion game; see [its design](docs/CUISINE_QUEST_DESIGN.md) and [current validation](docs/CUISINE_QUEST_QA_REPORT.md). See [the expansion plan](docs/GAME_EXPANSION_PLAN.md) and [current QA/status](docs/EXPANSION_QA_REPORT.md).
+Earn **Sin Coins** from eligible server-verified play and spend them on profile frames and nameplates in the cosmetic studio at `/store`. Wallet history and owned styles persist in PostgreSQL; guest access still depends on this browser's cookie. Optional Google linking/sign-in, username onboarding, revocable account sessions and normalized avatar upload are now implemented; real Google/R2 use awaits owner configuration. Nine further expansion games remain unimplemented. Cuisine Quest is the first implemented expansion game; see [its design](docs/CUISINE_QUEST_DESIGN.md) and [current validation](docs/CUISINE_QUEST_QA_REPORT.md). See [the expansion plan](docs/GAME_EXPANSION_PLAN.md) and [current QA/status](docs/EXPANSION_QA_REPORT.md).
 
 The plan for the first 50 games, with a status tracker: [docs/GAME_ROADMAP.md](docs/GAME_ROADMAP.md).
 
 Rules: [GAME_RULES.md](GAME_RULES.md) · Design: [ARCHITECTURE.md](ARCHITECTURE.md) · Hosting: [DEPLOYMENT.md](DEPLOYMENT.md)
+
+See [account authentication](docs/AUTHENTICATION.md), [external setup/local commands](docs/PLAYER_IDENTITY_SETUP.md), and [identity QA](docs/PLAYER_IDENTITY_PERSISTENCE_QA_REPORT.md). Linking preserves the same Player ID and all wallet/campaign records.
 
 ## Architecture at a glance
 
@@ -106,14 +108,15 @@ First time only: `pnpm --filter @platform/web exec playwright install chromium`.
   - **Kitchen Rush:** level content consistency, cooking and burning, serving and tips, wrong dishes and walkouts, illegal combinations, seating, and replay equality with the live game.
 
   Original games (65): deck composition, unbiased seeded shuffling, dealing, legal and illegal moves, every card effect, stacking, draw-pile exhaustion, timeouts, departures, scoring, hand privacy, and 150 random full-game simulations with card-conservation checks. Doodle: word selection, word privacy, normalisation, alternatives, typo and close detection, hints, timers, scoring, rotation, duplicate and simultaneous guesses, stroke validation and ordering, disconnects.
-- **Shared tests** (8): name sanitising, token forgery, expiry and kind confusion, room codes.
-- **Realtime integration tests** (32). New games:
+- **Shared tests** (11): public username/avatar contract, plus name sanitising, token forgery, expiry and kind confusion, room codes.
+- **Realtime/processing/configuration tests** (40). New games:
   - **Token Trail:** a full race over sockets with server-rolled dice, out-of-turn, stale and forged moves, auto-play while disconnected, and restore on reconnect.
   - **Bumper Blitz:** a server-side simulation driven by input, tick rate, malformed input, input-flood rate limiting, and a timed finish with persistence.
   - Rooms can only be created for multiplayer games.
 
   Original games (23): auth and bans, identity spoofing, create/join/full/invalid rooms, host controls, kick, one-room-per-player, full Color Clash match over sockets with persistence, hand privacy on the wire, simultaneous, stale and duplicate actions, reconnect, grace expiry, session replacement, cross-room isolation, Doodle word privacy, stroke relay, canvas sync and server scoring, guess rate limiting, matchmaking, public auto-start, admin auth.
-- **E2E** (31). New games:
+- **E2E** (35). Identity and new games:
+  - **Identity:** controlled OIDC linking/recovery in independent contexts, unchanged wallet/campaign/cosmetics, username onboarding, real local image lifecycle, session/socket revocation, hostile OAuth and cookie preservation during a database failure. Real Google/R2 configuration remains pending.
   - **Cuisine Quest:** a complete real seven-cuisine campaign, score improvement, server-owned stars/coins/achievements/profile/rankings, lost-response receipt recovery, touch/keyboard/drag, seven viewport sizes, pause/refresh/audio/reduced motion and hostile logs.
   - **Kitchen Rush:** the tutorial level played to a verified, saved score that shows on the leaderboard and profile.
   - **Anti-cheat:** forged logs, impossible timing, replayed runs, stolen runs and client-sent scores are all rejected.

@@ -41,3 +41,7 @@ Implementation and test results are recorded separately in [EXPANSION_QA_REPORT.
 Each cuisine awards the eligible completion/victory 2+10 only on its first successful saved completion. Replaying it can improve best stars/score but cannot repeat those base coins. A new per-cuisine best above an existing positive best can earn 3; a newly unlocked eligible badge can earn 5. The existing duration/completion/positive-score rules, disabled-rewards switch and shared 80/UTC-day cap apply. A failed shift never awards coins or advances campaign progress.
 
 The same locked result transaction updates CuisineProgress, match/stats/XP, achievements and append-only ledger. Receipt metadata records the original actual awards; authenticated retries/receipt reads recover those values without minting another result. Public rankings remove receipt coin/unlock metadata. Concurrent first completions can each count as play, but only one receives first-completion coins; duplicate UUIDs cannot repeat any persisted effect. Real database rollback/concurrency tests and a lost-response browser save are recorded in [Cuisine Quest QA](CUISINE_QUEST_QA_REPORT.md).
+
+## Connected player identity
+
+Google linking and returning sign-in now resolve the same permanent Player ID; they never reconstruct a balance or move ledger rows. Registered sessions and cross-device recovery are documented in [authentication](AUTHENTICATION.md) and [identity QA](PLAYER_IDENTITY_PERSISTENCE_QA_REPORT.md). Real provider setup remains external. Different player accounts cannot merge or transfer coins.

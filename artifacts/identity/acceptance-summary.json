@@ -1,0 +1,35 @@
+{
+  "baseline": "f4819345b92392c9dd274394c0b7d9edc3833046",
+  "unitIntegration": {
+    "total": 200,
+    "engines": 149,
+    "shared": 11,
+    "realtimeProcessingConfiguration": 40,
+    "originalRetained": 189
+  },
+  "database": {
+    "total": 45,
+    "originalRetained": 21,
+    "newIdentity": 24
+  },
+  "browser": {
+    "fullPassed": 35,
+    "fullDurationMinutes": 16.4,
+    "originalRetained": 31,
+    "focusedFinalPassed": 6,
+    "focusedDurationMinutes": 1.1,
+    "retries": 0,
+    "skips": 0
+  },
+  "typechecks": 5,
+  "nodeProductionBuild": true,
+  "linuxOpenNextBuild": true,
+  "packagedLinuxAvatarService": true,
+  "populatedMigrationTablesPreserved": 12,
+  "protectedPathsUnchanged": 219,
+  "manualsIdentical": true,
+  "realGoogleVerified": false,
+  "realR2Verified": false,
+  "productionActions": false,
+  "ownedQaServersStopped": true
+}

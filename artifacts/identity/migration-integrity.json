@@ -1,0 +1,54 @@
+{
+  "equal": true,
+  "note": "Isolated representation of all pre-identity migrations with existing player, ledger, equipped/purchased cosmetic, stats, achievement and Cuisine Quest data. Player comparison removes only the four new nullable columns.",
+  "tables": {
+    "AbuseReport": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "CosmeticEquipment": {
+      "count": 1,
+      "sha256": "f787da71c9ca551f31a8b5f85440a2a2fcf26b80ae94d33e932ece6f92d4be2b"
+    },
+    "CosmeticInventory": {
+      "count": 1,
+      "sha256": "7527c466d3f00d5af8269df9d1efed93a28fab3fe1dc35f1fe9fd41962e72fae"
+    },
+    "CuisineProgress": {
+      "count": 1,
+      "sha256": "d3ee5d4f028c16765a87dbd5b0ffde6e480d7422b6c5b9a8a7a424f7bbd7f508"
+    },
+    "FavoriteGame": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "Match": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "MatchParticipant": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ModerationAction": {
+      "count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "Player": {
+      "count": 1,
+      "sha256": "c701ae593e6b341acba57198ea14cd04561e1e8b2bd222a046b272978a67a948"
+    },
+    "PlayerAchievement": {
+      "count": 1,
+      "sha256": "76b4112ae28275eccec9724a94b9a8ccc7e5cf4b0bd37b34ba188f349a9e84b8"
+    },
+    "PlayerGameStats": {
+      "count": 1,
+      "sha256": "817d56fff4423c147b65258746c87ebab212c7505df5b5972dc50b062fdf2533"
+    },
+    "RewardLedgerEntry": {
+      "count": 1,
+      "sha256": "760ec457ee0312082a79a54a4bb66e7241cc4a4e7a9931f283c16db733e17775"
+    }
+  }
+}

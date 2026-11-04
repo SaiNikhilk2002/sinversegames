@@ -18,7 +18,8 @@ export async function upsertPlayer(db: PrismaClient, p: PlayerIdentity) {
   return db.player.upsert({
     where: { id: p.id },
     create: { id: p.id, displayName: p.name, avatarColor: p.color },
-    update: { displayName: p.name, avatarColor: p.color, lastSeenAt: new Date() },
+    // Old room/token snapshots must never overwrite a registered profile.
+    update: { lastSeenAt: new Date() },
   });
 }
 
@@ -208,13 +209,14 @@ export async function getLeaderboard(db: PrismaClient, gameId: string, metric: L
     where: { gameId, gamesPlayed: { gt: 0 }, player: { OR: [{ bannedUntil: null }, { bannedUntil: { lte: new Date() } }] } },
     orderBy: [{ [metric]: "desc" }, { gamesPlayed: "asc" }, { playerId: "asc" }],
     take: Math.min(100, limit),
-    include: { player: { select: { displayName: true, avatarColor: true, level: true } } },
+    include: { player: { select: { displayName: true, avatarColor: true, level: true, username:true, avatarKey:true } } },
   });
   return rows.map((r, i) => ({
     rank: i + 1,
     playerId: r.playerId,
     name: r.player.displayName,
     color: r.player.avatarColor,
+    username:r.player.username,avatarKey:r.player.avatarKey,
     level: r.player.level,
     gamesPlayed: r.gamesPlayed,
     wins: r.wins,
@@ -230,9 +232,9 @@ export async function getDailyBest(db: PrismaClient, gameId: string, limit = 25,
   const count = Math.max(1, Math.min(100, Math.floor(limit)));
   // Deduplicate before limiting: one prolific player must not crowd others
   // out of an arbitrary 500-row pre-sample. Ties use first achievement then ID.
-  const best = await db.$queryRaw<{ playerId: string; displayName: string; avatarColor: string; level: number; score: number; details: unknown }[]>`
+  const best = await db.$queryRaw<{ playerId: string; displayName: string; avatarColor: string; level: number; score: number; details: unknown;username:string|null;avatarKey:string|null }[]>`
     SELECT best.* FROM (
-      SELECT DISTINCT ON (mp."playerId") mp."playerId", p."displayName", p."avatarColor", p."level", mp."score", mp."details", mp."createdAt"
+      SELECT DISTINCT ON (mp."playerId") mp."playerId", p."displayName", p."avatarColor", p."level", p."username",p."avatarKey", mp."score", mp."details", mp."createdAt"
       FROM "MatchParticipant" mp JOIN "Match" m ON m."id" = mp."matchId" JOIN "Player" p ON p."id" = mp."playerId"
       WHERE m."gameId" = ${gameId} AND m."endedAt" >= ${since} AND m."endedAt" < ${until}
         AND (p."bannedUntil" IS NULL OR p."bannedUntil" <= ${now})
@@ -243,6 +245,7 @@ export async function getDailyBest(db: PrismaClient, gameId: string, limit = 25,
     playerId: r.playerId,
     name: r.displayName,
     color: r.avatarColor,
+    username:r.username,avatarKey:r.avatarKey,
     level: r.level,
     score: r.score,
     details: publicMatchDetails(r.details),

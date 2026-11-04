@@ -18,6 +18,7 @@ const NAV = [
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/profile", label: "Profile", icon: UserRound },
   { href: "/store", label: "Studio", icon: Gamepad2 },
+  { href: "/account", label: "Account", icon: UserRound },
 ];
 
 export function SiteHeader() {
@@ -59,7 +60,7 @@ export function SiteHeader() {
           </button>
           {player && (
             <Link href="/profile" className="hidden items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-sm font-semibold lg:flex">
-              <CosmeticAvatar name={player.name} color={player.color} frameId={player.cosmetics?.frame} size={24} />
+              <CosmeticAvatar name={player.name} color={player.color} frameId={player.cosmetics?.frame} size={24} avatarKey={player.avatarKey} />
               <span className="max-w-32 truncate" style={{ color: cosmeticTextColor(player.cosmetics?.nameplate) }}>{player.name}</span>
             </Link>
           )}

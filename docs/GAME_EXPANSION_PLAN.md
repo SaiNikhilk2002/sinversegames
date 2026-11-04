@@ -39,3 +39,7 @@ A tested engine plus its distinct production client, original cover/detail/tutor
 ## Current run
 
 Milestone 1 documented. Active complete slices: Sin Coins/inventory/store and existing Doodle/lobby/lifecycle improvements. Google sign-in, uploaded avatars, expanded rankings/challenges, and nine further games remain scheduled work. Cuisine Quest now implements all seven cuisines and 28 recipes with a passing real campaign and full regression/build gates; acceptance is recorded in [CUISINE_QUEST_QA_REPORT.md](CUISINE_QUEST_QA_REPORT.md). Current validation/status belongs in [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md).
+
+## Identity milestone update
+
+The separate Player Identity & Persistence milestone implements Google linking/sign-in, registered session revocation, usernames, onboarding and normalized avatars on existing Player IDs. See [authentication](AUTHENTICATION.md), [external setup](PLAYER_IDENTITY_SETUP.md) and [QA](PLAYER_IDENTITY_PERSISTENCE_QA_REPORT.md). Real Google and R2 use await owner setup; deletion and broad rankings/challenges remain unfinished. Earlier checkpoint descriptions above are historical, not current provider implementation status.
