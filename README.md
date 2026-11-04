@@ -42,14 +42,14 @@ The web app and realtime server deploy independently: the web app works on serve
 
 ## Requirements
 
-- Node.js 24 (pinned in `.node-version`; the Cloudflare toolchain requires at least Node 22)
-- pnpm 11 (`corepack enable`)
+- Node.js **24.14.0** for reproducible local/Cloudflare builds (both `.node-version` files); supported range is `>=24.14.0 <25`.
+- pnpm **11.15.1** (`corepack enable`; pinned by `packageManager`). Keep the committed lockfile and install with `pnpm install --frozen-lockfile`.
 - No Docker needed: `pnpm db:local` runs an embedded PostgreSQL.
 
 ## Local development
 
 ```bash
-pnpm install                 # also generates the Prisma client
+pnpm install --frozen-lockfile # also generates both Prisma clients
 cp .env.example .env         # then fill AUTH_SECRET and ADMIN_TOKEN (see the file for commands)
                              # and set DATABASE_URL=postgresql://platform:platform@localhost:5433/platform
 

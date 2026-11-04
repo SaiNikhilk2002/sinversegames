@@ -93,7 +93,11 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 
 Both commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Don't use a bare `npx wrangler deploy` at the repo root: it fails with "The Cloudflare application detection logic has been run in the root of a workspace".
 
-The repository-root `.node-version` pins Node 24 for the configured repository-root build. `apps/web/.node-version` agrees with it; pnpm is pinned by `packageManager`. If an existing dashboard override selects an older Node, review the build variable `NODE_VERSION`. Wrangler 4.155.0 refuses Node 20. Version files do not switch an already running local shell.
+The repository-root `.node-version` and `apps/web/.node-version` both pin **24.14.0**, the reproducible build baseline. Root `engines.node` allows `>=24.14.0 <25`, so Node 24.22.2 satisfies the compatibility range; it is not the exact pinned baseline. `packageManager` keeps pnpm at **11.15.1**. Install with `pnpm install --frozen-lockfile`; do not regenerate the lockfile to change the Node pin.
+
+[Workers Builds supports `.node-version` and the `NODE_VERSION` build variable](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/). Use repository root `/` with the existing build command. If an explicit dashboard `NODE_VERSION` override exists, remove it to use the file or align it to **24.14.0** in every relevant build environment. This is an owner configuration step; no dashboard settings were changed. `NODE_VERSION` belongs to the build environment, not Wrangler runtime `vars`. The existing `nodejs_compat` flag and compatibility date configure the Worker runtime and do not choose the build machine's Node version. Version files also do not switch an already running local shell; select Node 24.14.0 before invoking pnpm.
+
+See [Node version build audit](docs/NODE_VERSION_BUILD_AUDIT.md) for the inspected files and Linux verification results. Earlier QA reports retain their actual historical tool versions.
 
 `NEXT_PUBLIC_*` values are **inlined at build time** (including the CSP `connect-src`), so set them as *build* variables and redeploy after changing them.
 
