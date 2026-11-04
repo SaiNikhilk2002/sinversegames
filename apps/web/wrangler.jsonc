@@ -18,5 +18,13 @@
   "observability": { "enabled": true },
   "vars": {
     "NODE_ENV": "production"
+  },
+  // Workers Builds uses Worker Previews for non-production branches. Assets and
+  // compatibility settings stay above; Preview vars/bindings are separate.
+  // Supply Preview-only secrets through Previews Base, never production copies.
+  "previews": {
+    "vars": {
+      "NODE_ENV": "production"
+    }
   }
 }
