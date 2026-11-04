@@ -26,6 +26,7 @@ interface SubmitResponse {
   completed: boolean;
   details: Record<string, number | string>;
   saved: boolean;
+  earnedCoins: number;
   unlocked: { key: string; title: string }[];
   best: { best: number; today: number; played: number } | null;
   error?: string;
@@ -200,6 +201,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
                   {result.best.best === score && score > 0 ? " — new record!" : ""}
                 </p>
               )}
+              {!!result?.earnedCoins && <p className="text-center font-bold text-[#8a4b00] dark:text-sun" data-testid="earned-coins">+{result.earnedCoins} Sin Coins earned · <Link href="/store" className="underline">Visit the studio</Link></p>}
               {!!result?.unlocked.length && (
                 <div className="flex flex-wrap justify-center gap-2">
                   {result.unlocked.map((a) => (

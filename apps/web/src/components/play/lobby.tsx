@@ -10,6 +10,8 @@ import { GAME_THEME } from "../game-theme";
 import { Avatar, Badge, Button, Card, cn, Tooltip } from "../ui/primitives";
 import { useToast } from "../ui/toast";
 import { ReportDialog } from "./report-dialog";
+import { useConnectionStatus } from "@/lib/realtime/use-room";
+import { useCountdown } from "@/lib/realtime/use-countdown";
 
 export function Lobby({
   room,
@@ -30,6 +32,9 @@ export function Lobby({
   const me = room.players.find((p) => p.id === selfId);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [starting, setStarting] = useState(false);
+  const [changingReady, setChangingReady] = useState(false);
+  const connection = useConnectionStatus();
+  const grace = useCountdown(room.expiresAt);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const inviteUrl = `${typeof window === "undefined" ? brand.siteUrl : window.location.origin}/room/${room.code}`;
   const others = room.players.filter((p) => p.id !== room.hostId);
@@ -52,7 +57,7 @@ export function Lobby({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+    <div className="grid gap-6 pb-64 lg:grid-cols-[1.3fr_1fr] lg:pb-0">
       <div className="space-y-6">
         <Card className="overflow-hidden">
           <div className="relative overflow-hidden p-6" style={{ background: theme.deep, color: theme.ink }}>
@@ -86,7 +91,7 @@ export function Lobby({
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg font-bold">
-              Players <span className="text-ink-faint">{room.players.length}/{room.maxPlayers}</span>
+              <span>{room.players.length} / {room.maxPlayers} players joined</span>
             </h2>
             {!enough && <Badge tone="sun">Need {room.minPlayers - room.players.length} more</Badge>}
           </div>
@@ -145,11 +150,6 @@ export function Lobby({
                 )}
               </motion.li>
             ))}
-            {Array.from({ length: Math.max(0, Math.min(room.maxPlayers, 6) - room.players.length) }, (_, i) => (
-              <li key={`empty-${i}`} className="flex items-center gap-3 rounded-2xl border border-dashed border-line p-3 text-sm text-ink-faint">
-                <span className="size-10 rounded-full border-2 border-dashed border-line" /> Waiting for player…
-              </li>
-            ))}
           </ul>
         </Card>
       </div>
@@ -171,7 +171,8 @@ export function Lobby({
           )}
         </Card>
 
-        <Card className="space-y-3 p-5">
+        <Card className="fixed inset-x-0 bottom-0 z-30 space-y-2 rounded-b-none border-t-2 bg-surface p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgb(0_0_0/0.25)] lg:static lg:space-y-3 lg:rounded-2xl lg:p-5 lg:shadow-none" data-testid="lobby-actions">
+          {room.status === "finished" && grace !== null && <p className="text-center text-xs text-ink-muted">Start a rematch within {Math.max(0, Math.ceil(grace / 60_000))} min to keep this room. Readiness alone does not extend it.</p>}
           {room.autoStartAt && <p className="rounded-xl bg-mint/15 p-3 text-center text-sm font-semibold">Everyone's ready — starting in a moment…</p>}
           {isHost ? (
             <>
@@ -179,7 +180,7 @@ export function Lobby({
                 size="lg"
                 className="w-full"
                 loading={starting}
-                disabled={!enough || !allReady}
+                disabled={!enough || !allReady || connection !== "connected"}
                 onClick={async () => {
                   setStarting(true);
                   await run(send("game:start"));
@@ -193,7 +194,7 @@ export function Lobby({
               </p>
             </>
           ) : (
-            <Button size="lg" variant={me?.ready ? "secondary" : "primary"} className="w-full" onClick={() => run(send("room:ready", { ready: !me?.ready }))}>
+            <Button size="lg" variant={me?.ready ? "secondary" : "primary"} className="w-full" loading={changingReady} disabled={connection !== "connected" || changingReady} onClick={async () => { setChangingReady(true); try { await run(send("room:ready", { ready: !me?.ready })); } finally { setChangingReady(false); } }}>
               {me?.ready ? "I'm not ready" : room.status === "finished" ? "Ready for a rematch" : "I'm ready"}
             </Button>
           )}

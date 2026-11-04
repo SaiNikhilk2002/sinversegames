@@ -44,6 +44,8 @@ model Player {
   participations    MatchParticipant[]
   achievements      PlayerAchievement[]
   rewards           RewardLedgerEntry[]
+  inventory         CosmeticInventory[]
+  equipment         CosmeticEquipment[]
   favorites         FavoriteGame[]
   reportsFiled      AbuseReport[]       @relation("reporter")
   reportsAgainst    AbuseReport[]       @relation("target")
@@ -131,6 +133,29 @@ model RewardLedgerEntry {
 
   @@unique([playerId, reason, refId])
   @@index([playerId, createdAt])
+  @@index([playerId, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+/// One durable purchase per player/item; catalogue prices and visuals live in code.
+model CosmeticInventory {
+  playerId   String   @db.VarChar(64)
+  itemId     String   @db.VarChar(64)
+  acquiredAt DateTime @default(now())
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  equipment  CosmeticEquipment[]
+
+  @@id([playerId, itemId])
+}
+
+/// A category can equip only an item owned by that same player.
+model CosmeticEquipment {
+  playerId String @db.VarChar(64)
+  category String @db.VarChar(32)
+  itemId   String @db.VarChar(64)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  owned    CosmeticInventory @relation(fields: [playerId, itemId], references: [playerId, itemId], onDelete: Cascade)
+
+  @@id([playerId, category])
 }
 
 model FavoriteGame {

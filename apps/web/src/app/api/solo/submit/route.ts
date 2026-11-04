@@ -62,7 +62,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That game finished faster than real time allows" }, { status: 422 });
   }
 
-  const response = { score: result.score, completed: result.completed, details: result.details, saved: false, unlocked: [] as { key: string; title: string }[], best: null as null | { best: number; today: number; played: number } };
+  const response = { score: result.score, completed: result.completed, details: result.details, saved: false, earnedCoins: 0, unlocked: [] as { key: string; title: string }[], best: null as null | { best: number; today: number; played: number } };
   const db = getDb();
   if (!db) return NextResponse.json(response);
   try {
@@ -85,6 +85,7 @@ export async function POST(req: Request) {
       },
     });
     response.saved = !!recorded;
+    response.earnedCoins = recorded?.earned[player.id] ?? 0;
     response.unlocked = (recorded?.unlocked[player.id] ?? []).map((key) => ({ key, title: achievementByKey.get(key)?.title ?? key }));
   } catch (e) {
     // A unique-id conflict means this run was already recorded.

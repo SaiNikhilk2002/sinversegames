@@ -151,7 +151,7 @@ export function RoomView({ code }: { code: string }) {
   const room = state.room;
   const game = getGame(room.gameId);
   const client = GAME_CLIENTS[room.gameId];
-  const playing = room.status === "playing" && state.game;
+  const playing = room.status === "playing" && state.game?.matchId === room.matchId;
 
   return (
     <div ref={containerRef} className="mx-auto max-w-7xl overflow-y-auto bg-bg px-3 py-4 sm:px-6 sm:py-6">
@@ -191,7 +191,7 @@ export function RoomView({ code }: { code: string }) {
       </AnimatePresence>
 
       {playing ? (
-        <client.Game code={code} room={room} game={state.game!} selfId={player.id} send={send} />
+        <client.Game key={room.matchId} code={code} room={room} game={state.game!} selfId={player.id} send={send} />
       ) : (
         <>
           {room.status === "finished" && (state.results ?? room.lastResults) && <ResultsPanel results={(state.results ?? room.lastResults)!} selfId={player.id} room={room} send={send} />}

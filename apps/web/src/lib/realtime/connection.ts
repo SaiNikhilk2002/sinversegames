@@ -29,6 +29,7 @@ class RealtimeConnection {
   private statusListeners = new Set<() => void>();
   private eventListeners = new Map<string, Set<Listener>>();
   private connectListeners = new Set<() => void>();
+  private roomMatch: { roomId: string; matchId: string | null } | null = null;
   private authAbort: AbortController | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private retryDelay = 500;
@@ -142,6 +143,9 @@ class RealtimeConnection {
       this.retryAuthentication(socket);
     });
     socket.onAny((event: string, env: ServerEnvelope) => {
+      if (event === "room:state" && env?.roomId) {
+        this.roomMatch = { roomId: env.roomId, matchId: (env.payload as { matchId: string | null }).matchId };
+      }
       if (env && typeof env.ts === "number") {
         // sample = trueOffset − latency, so the largest recent sample is the best estimate.
         this.offsetSamples.push(env.ts - Date.now());
@@ -154,13 +158,14 @@ class RealtimeConnection {
   }
 
   /** Sends an envelope and resolves with the server's acknowledgement. */
-  emit<T = unknown>(event: string, payload: unknown = {}, opts: { roomId?: string; v?: number } = {}): Promise<Ack<T>> {
+  emit<T = unknown>(event: string, payload: unknown = {}, opts: { roomId?: string; matchId?: string | null; v?: number } = {}): Promise<Ack<T>> {
     const socket = this.socket;
     if (!socket?.connected) {
       return Promise.resolve({ ok: false, error: { code: "INTERNAL", message: "Not connected — reconnecting…" } });
     }
     return new Promise((resolve) => {
-      socket.timeout(ACK_TIMEOUT_MS).emit(event, { id: actionId(), ...opts, payload }, (err: Error | null, ack: Ack<T>) => {
+      const scope = this.roomMatch && (!opts.roomId || opts.roomId === this.roomMatch.roomId) ? this.roomMatch : {};
+      socket.timeout(ACK_TIMEOUT_MS).emit(event, { id: actionId(), ...scope, ...opts, payload }, (err: Error | null, ack: Ack<T>) => {
         if (err) resolve({ ok: false, error: { code: "INTERNAL", message: "The server didn't respond — check your connection" } });
         else resolve(ack);
       });
@@ -169,7 +174,7 @@ class RealtimeConnection {
 
   /** Reliable send without waiting for an ack, for high-frequency events (drawing). */
   send(event: string, payload: unknown) {
-    this.socket?.emit(event, { id: actionId(), payload });
+    if (this.socket?.connected) this.socket.emit(event, { id: actionId(), ...this.roomMatch, payload });
   }
 
   /** Re-runs authentication, e.g. after the player first chooses a name. */

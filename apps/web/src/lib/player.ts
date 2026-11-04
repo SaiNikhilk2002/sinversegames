@@ -7,6 +7,7 @@ export interface Player {
   name: string;
   color: string;
   kind: "guest" | "registered";
+  cosmetics?: { frame: string | null; nameplate: string | null };
 }
 
 interface PlayerState {
@@ -14,7 +15,10 @@ interface PlayerState {
   loading: boolean;
 }
 
-let state: PlayerState = { player: null, loading: true };
+// Keep hydration's snapshot identical to server HTML even if the header's
+// session fetch finishes before a later streamed profile component hydrates.
+const serverState: PlayerState = { player: null, loading: true };
+let state: PlayerState = serverState;
 let fetched: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 const set = (s: PlayerState) => {
@@ -53,6 +57,11 @@ export function usePlayer(): PlayerState {
       return () => listeners.delete(cb);
     },
     () => state,
-    () => state,
+    () => serverState,
   );
+}
+
+export async function reloadPlayer() {
+  fetched = null;
+  await load();
 }

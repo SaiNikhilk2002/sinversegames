@@ -1,5 +1,9 @@
 # Game rules
 
+The existing seven games below remain playable. The ten expansion concepts, including Cuisine Quest, are design-only in [docs/GAME_CATALOGUE.md](docs/GAME_CATALOGUE.md). Validated normal completions lasting at least 30 seconds and scoring positively can earn Sin Coins (solo must complete); the economy/caps are in [docs/SIN_COINS_ECONOMY.md](docs/SIN_COINS_ECONOMY.md). Currency never alters game rules or scoring.
+
+Multiplayer results offer readiness/host-controlled rematches in the same room with a fresh server match identifier and fully reset game state. Finished rooms have a five-minute default grace period; inactivity and readiness alone do not keep a finished room alive. Doodle drawing uses a plain white canvas and a separate circular size preview; the preview is never part of the transmitted/saved drawing. Lobbies show joined players and safe-area mobile readiness controls.
+
 Authoritative rules as implemented by the server engines in `packages/engines`. The engines are the source of truth; this document describes them.
 
 ---

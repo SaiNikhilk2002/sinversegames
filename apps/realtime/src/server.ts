@@ -252,11 +252,18 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
       return { ok: true };
     });
 
-    on("room:ready", roomReadyPayload, (p) => currentRoom()?.setReady(player.id, p.ready) ?? err("NOT_IN_ROOM", "Join a room first"));
-    on("room:configure", roomConfigurePayload, (p) => currentRoom()?.configure(player.id, p.config) ?? err("NOT_IN_ROOM", "Join a room first"));
-    on("room:kick", roomKickPayload, (p) => currentRoom()?.kick(player.id, p.playerId) ?? err("NOT_IN_ROOM", "Join a room first"));
+    const scoped = (env: ClientEnvelope, action: (room: NonNullable<ReturnType<typeof currentRoom>>) => Ack): Ack => {
+      const room = currentRoom();
+      if (!room) return err("NOT_IN_ROOM", "Join a room first");
+      if (env.roomId && env.roomId !== room.code) return err("STALE_STATE", "You are in a different room now.");
+      if ((env.matchId ?? null) !== room.matchId) return err("STALE_STATE", "This match changed. Refresh the room to continue.");
+      return action(room);
+    };
+    on("room:ready", roomReadyPayload, (p, env) => scoped(env, (room) => room.setReady(player.id, p.ready)));
+    on("room:configure", roomConfigurePayload, (p, env) => scoped(env, (room) => room.configure(player.id, p.config)));
+    on("room:kick", roomKickPayload, (p, env) => scoped(env, (room) => room.kick(player.id, p.playerId)));
     on("room:sync", emptyPayload, () => currentRoom()?.resync(player.id) ?? err("NOT_IN_ROOM", "Join a room first"));
-    on("game:start", emptyPayload, () => currentRoom()?.start(player.id) ?? err("NOT_IN_ROOM", "Join a room first"));
+    on("game:start", emptyPayload, (_p, env) => scoped(env, (room) => room.start(player.id, false, env.matchId)));
 
     on("match:queue", matchQueuePayload, (p) => matchmaker.enqueue(player, socket, p.gameId));
     on("match:cancel", emptyPayload, () => matchmaker.cancel(player.id));

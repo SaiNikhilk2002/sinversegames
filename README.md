@@ -1,6 +1,6 @@
 # SinverseGames — browser games platform
 
-*Branding is centralized; `NEXT_PUBLIC_BRAND_NAME` overrides the SinverseGames default at build time.*
+*The platform name is fixed as SinverseGames, including when an older build environment supplies a different name.*
 
 A production-oriented platform for instant multiplayer browser games: guest play without sign-up, private rooms with invite links, public matchmaking, server-authoritative game engines, profiles, stats, achievements and leaderboards.
 
@@ -18,6 +18,8 @@ Single player (server-verified scores, daily leaderboards):
 - **Kitchen Rush**: a time-management cooking game with 12 levels and a tutorial.
 - **Cascade Solitaire**: Klondike-rules patience with undo, hints and draw 1/3.
 - **Mahjong Garden**: tile matching on three always-solvable layouts.
+
+Earn **Sin Coins** from eligible server-verified play and spend them on profile frames and nameplates in the cosmetic studio at `/store`. Wallet history and owned styles persist in PostgreSQL; guest access still depends on this browser's cookie. Google sign-in, uploaded avatars and the ten planned expansion games are not implemented yet. See [the expansion plan](docs/GAME_EXPANSION_PLAN.md) and [current QA/status](docs/EXPANSION_QA_REPORT.md).
 
 The plan for the first 50 games, with a status tracker: [docs/GAME_ROADMAP.md](docs/GAME_ROADMAP.md).
 
@@ -89,6 +91,7 @@ pnpm db:studio     # browse data
 pnpm test          # unit + integration (engines, shared, realtime over real sockets)
 pnpm build         # production build of web + realtime (required before e2e)
 pnpm test:e2e      # Playwright, multiple browser contexts (starts both servers if not running)
+pnpm test:db       # real economic/concurrency tests; requires migrated localhost *_test DB
 ```
 
 First time only: `pnpm --filter @platform/web exec playwright install chromium`.

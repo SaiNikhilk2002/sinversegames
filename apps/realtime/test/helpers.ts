@@ -10,16 +10,17 @@ import { createRealtimeServer, type RealtimeServer } from "../src/server";
 export const SECRET = testConfig().AUTH_SECRET;
 
 export interface RecordedMatch {
+  id?: string;
   results: MatchResults;
   roomCode: string;
 }
 
-export async function startServer(overrides: Partial<RealtimeConfig> = {}) {
+export async function startServer(overrides: Partial<RealtimeConfig> = {}, now = Date.now) {
   const recorded: RecordedMatch[] = [];
   const persistence: Persistence = {
     enabled: true,
     recordMatch: async (input) => {
-      recorded.push({ results: input.results, roomCode: input.roomCode });
+      recorded.push({ id: input.id, results: input.results, roomCode: input.roomCode });
       return { unlocked: {} };
     },
     isBanned: async (id) => id.startsWith("banned"),
@@ -29,6 +30,7 @@ export async function startServer(overrides: Partial<RealtimeConfig> = {}) {
     config: testConfig({ MATCHMAKING_WAIT_MS: 300, ...overrides }),
     persistence,
     rng: seededRng(1234),
+    now,
   });
   const port = await server.listen(0, "127.0.0.1");
   return { server, port, recorded, url: `http://127.0.0.1:${port}` };
@@ -38,7 +40,7 @@ export interface TestClient {
   id: string;
   socket: Socket;
   events: { event: string; env: ServerEnvelope }[];
-  emit<T = unknown>(event: string, payload?: unknown, opts?: { v?: number; id?: string }): Promise<Ack<T>>;
+  emit<T = unknown>(event: string, payload?: unknown, opts?: { v?: number; id?: string; matchId?: string | null }): Promise<Ack<T>>;
   waitFor(event: string, predicate?: (payload: any) => boolean, timeoutMs?: number): Promise<any>;
   last(event: string): any;
   all(event: string): any[];
@@ -69,7 +71,7 @@ export async function connect(url: string, id = `p-${randomUUID().slice(0, 8)}`,
     socket,
     events,
     emit: (event, payload = {}, opts = {}) =>
-      new Promise((resolve) => socket.emit(event, { id: opts.id ?? randomUUID(), v: opts.v, payload }, (ack: Ack<any>) => resolve(ack))),
+      new Promise((resolve) => socket.emit(event, { id: opts.id ?? randomUUID(), matchId: opts.matchId === undefined ? client.last("room:state")?.matchId : opts.matchId, v: opts.v, payload }, (ack: Ack<any>) => resolve(ack))),
     waitFor: (event, predicate = () => true, timeoutMs = 4000) => {
       // Already received?
       for (let i = events.length - 1; i >= 0; i--) {

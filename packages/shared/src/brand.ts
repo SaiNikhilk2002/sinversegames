@@ -1,10 +1,10 @@
 /**
  * Central SinverseGames branding. Every user-facing platform reference
  * must go through this module.
- * Override with NEXT_PUBLIC_BRAND_* environment variables (inlined at build time by Next.js).
+ * Name and currency are fixed. Optional tagline/description values are inlined at build time.
  */
 export const brand = {
-  name: process.env.NEXT_PUBLIC_BRAND_NAME || "SinverseGames",
+  name: "SinverseGames",
   tagline: process.env.NEXT_PUBLIC_BRAND_TAGLINE || "Instant multiplayer games with friends",
   description:
     process.env.NEXT_PUBLIC_BRAND_DESCRIPTION ||
@@ -12,7 +12,7 @@ export const brand = {
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@example.com",
   siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3200").replace(/\/$/, ""),
   /** Name of the non-purchasable virtual reward currency. */
-  rewardCurrencyName: process.env.NEXT_PUBLIC_REWARD_CURRENCY_NAME || "Stars",
+  rewardCurrencyName: "Sin Coins",
 } as const;
 
 export type Brand = typeof brand;

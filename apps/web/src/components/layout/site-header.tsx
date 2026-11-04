@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Gamepad2, Menu, Settings2, Trophy, UserRound, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { GAMES } from "@platform/shared";
+import { GAMES, cosmeticTextColor } from "@platform/shared";
+import { CosmeticAvatar } from "../profile/cosmetic-avatar";
 import { GameArt, Logo } from "../brand";
 import { GAME_THEME } from "../game-theme";
-import { Avatar, cn } from "../ui/primitives";
+import { cn } from "../ui/primitives";
 import { SettingsDialog } from "./settings-dialog";
 import { usePlayer } from "@/lib/player";
 
@@ -16,6 +17,7 @@ const NAV = [
   { href: "/games", label: "Games", icon: Gamepad2 },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/profile", label: "Profile", icon: UserRound },
+  { href: "/store", label: "Studio", icon: Gamepad2 },
 ];
 
 export function SiteHeader() {
@@ -56,9 +58,9 @@ export function SiteHeader() {
             <Settings2 className="size-5" />
           </button>
           {player && (
-            <Link href="/profile" className="hidden items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-sm font-semibold sm:flex">
-              <Avatar name={player.name} color={player.color} size={28} />
-              <span className="max-w-32 truncate">{player.name}</span>
+            <Link href="/profile" className="hidden items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-sm font-semibold lg:flex">
+              <CosmeticAvatar name={player.name} color={player.color} frameId={player.cosmetics?.frame} size={24} />
+              <span className="max-w-32 truncate" style={{ color: cosmeticTextColor(player.cosmetics?.nameplate) }}>{player.name}</span>
             </Link>
           )}
           <button

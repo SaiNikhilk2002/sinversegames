@@ -146,15 +146,9 @@ export function DoodleDuelGame({ code, game, send, selfId }: GameClientProps<Doo
 
       {/* Canvas + tools */}
       <div className="relative min-w-0 space-y-3">
-        <div className="dd-desk relative rounded-[22px] p-3 pt-6 sm:p-5 sm:pt-8">
-          <div className="pointer-events-none absolute inset-x-8 top-1.5 z-10 flex justify-between sm:top-2.5" aria-hidden>
-            {Array.from({ length: 14 }, (_, i) => (
-              <span key={i} className="block h-6 w-2.5 rounded-full border-2 border-[#8d8a99] bg-gradient-to-b from-[#f1f0f5] to-[#b7b4c3] shadow-[0_2px_2px_rgb(0_0_0/0.35)] sm:h-8 sm:w-3" />
-            ))}
-          </div>
+        <div className="relative rounded-[18px] border-2 border-line bg-surface p-2 sm:p-3">
           <div className="relative overflow-hidden rounded-[6px] bg-white shadow-[0_1px_0_#e2ddd0,0_2px_0_#f7f3ea,0_3px_0_#e2ddd0,0_4px_0_#f7f3ea,0_12px_24px_-6px_rgb(0_0_0/0.45)]">
             <DrawingCanvas ref={canvas} code={code} turn={view.turnNumber} isDrawer={isDrawer && view.phase === "drawing"} brush={brush} />
-            <div className="dd-paper pointer-events-none absolute inset-0" aria-hidden />
             <AnimatePresence>
               {cheer && (
                 <motion.div key={cheer.id} className="pointer-events-none absolute inset-x-0 top-[8%] z-20 flex justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

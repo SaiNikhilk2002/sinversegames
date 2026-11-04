@@ -89,7 +89,7 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 | Root directory | `/` (repository root; leave empty) |
 | Build command | `pnpm cloudflare:build` |
 | Deploy command | `pnpm cloudflare:deploy` |
-| Build variables | `NEXT_PUBLIC_SITE_URL=https://<your-domain>`, `NEXT_PUBLIC_REALTIME_URL=https://rt.<your-domain>`, `NEXT_PUBLIC_BRAND_NAME=SinverseGames`, `NEXT_PUBLIC_SUPPORT_EMAIL=…` |
+| Build variables | `NEXT_PUBLIC_SITE_URL=https://<your-domain>`, `NEXT_PUBLIC_REALTIME_URL=https://rt.<your-domain>`, `NEXT_PUBLIC_SUPPORT_EMAIL=…` (platform name is fixed) |
 
 Both commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Don't use a bare `npx wrangler deploy` at the repo root: it fails with "The Cloudflare application detection logic has been run in the root of a workspace".
 
@@ -128,7 +128,7 @@ Then make `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL` and `ALLOWED_ORIGIN
 | `DATABASE_URL` | ✅ | | ✅ | Neon pooled URL |
 | `NEXT_PUBLIC_SITE_URL` | | ✅ | | |
 | `NEXT_PUBLIC_REALTIME_URL` | | ✅ | | also used by `/api/health` |
-| `NEXT_PUBLIC_BRAND_NAME`, `NEXT_PUBLIC_SUPPORT_EMAIL`, … | | optional | | see `.env.example` |
+| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_BRAND_TAGLINE`, `NEXT_PUBLIC_BRAND_DESCRIPTION` | | optional | | see `.env.example`; platform/currency names are fixed |
 | `ALLOWED_ORIGINS` | | | ✅ | site origin(s) |
 | `PORT` | | | Railway-provided | |
 | tuning (`RECONNECT_GRACE_MS`, …) | | | optional | see `.env.example` |
@@ -154,3 +154,15 @@ The observed GitHub check is **Workers Builds: sinversegames**, but this checkou
 Keep preview data, signing secrets, and realtime rooms separate from production. A version preview URL alone does not isolate bindings or database writes. Before enabling a preview, select an isolated Worker/configuration, a non-production PostgreSQL database, an isolated realtime service, and matching preview-only signing secrets. Compile `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_REALTIME_URL` for that preview and allow only its exact browser origin on its realtime service. Do not add broad `*.workers.dev` access to the production origin list.
 
 `pnpm cloudflare:build` builds locally without publishing. Uploading a Worker version, populating a remote OpenNext cache, or changing dashboard settings is an external mutation and needs approval. Do not replace a non-production branch command with a production deploy command just to obtain a green check.
+
+## Expansion migration and manual release actions
+
+This phase is local implementation only. Prepared migration `20261104010000_sin_coins_cosmetics` adds ownership/equipment and a ledger history index without rewriting existing balances or outcomes. Both generators must run. Apply it to the approved target before enabling the new wallet/profile queries; inspect the database target first. It has been exercised on isolated local fresh and existing databases; production is untouched.
+
+The browser and realtime server now share a match-UUID protocol. An old open tab does not have the required game scope. A future approved release needs coordinated web/realtime rollout and a clearly communicated refresh of open games; preserve the existing one-replica limitation. Never accept unscoped old game input as a compatibility workaround. Optionally configure `FINISHED_ROOM_TTL_MS` on realtime (default five minutes); no change is required for its default behavior.
+
+Platform and currency names are fixed as SinverseGames and Sin Coins. Older `NEXT_PUBLIC_BRAND_NAME`/`NEXT_PUBLIC_REWARD_CURRENCY_NAME` values are ignored by the new code; no production variable was edited. Continue compiling the correct site/realtime URLs and exact origin allow-list. Optional tagline/description remain build-time configuration.
+
+No Google/R2/Images provider is implemented/provisioned in this slice. [ACCOUNT_AND_PROFILE_DESIGN.md](docs/ACCOUNT_AND_PROFILE_DESIGN.md) lists the planned callback URLs, credential names, linking rules and storage approval prerequisites. Do not configure an unimplemented provider route or claim cross-device recovery. The current wallet/store works with existing guest identities and PostgreSQL.
+
+For local economy tests, create/migrate `sinversegames_expansion_test` on localhost:5433 and run `pnpm test:db`; `ECONOMY_TEST_DATABASE_URL` accepts only a local database ending in `_test`. Set `E2E_DATABASE_URL` to the same local target for the complete browser suite. These commands create local test data. Do not use a Neon/production URL. The checked-in migration can be reviewed independently before any future production approval.

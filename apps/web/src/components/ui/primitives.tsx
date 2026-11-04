@@ -28,7 +28,7 @@ const sizes: Record<Size, string> = {
 export const buttonClass = (variant: Variant = "primary", size: Size = "md", extra?: string) =>
   cn(
     "inline-flex select-none items-center justify-center font-semibold whitespace-nowrap transition duration-150",
-    "disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
+    "disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sun",
     variants[variant],
     sizes[size],
     extra,

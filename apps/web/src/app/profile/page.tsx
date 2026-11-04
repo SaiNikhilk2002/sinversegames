@@ -8,6 +8,10 @@ import { GAME_THEME } from "@/components/game-theme";
 import { CreateProfile, RenameCard } from "@/components/play/rename-card";
 import { Avatar, Badge, Card, cn } from "@/components/ui/primitives";
 import { getSession } from "@/lib/server/session";
+import { WalletPanel } from "@/components/profile/wallet-panel";
+import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
+import { cosmeticTextColor } from "@platform/shared";
+import { AchievementEmblem, achievementTier } from "@/components/profile/achievement-emblem";
 
 export const metadata: Metadata = { title: "Your profile", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -35,13 +39,13 @@ export default async function ProfilePage() {
         </div>
         <div className="-mt-12 flex flex-col gap-4 px-6 pb-6 sm:flex-row sm:items-end">
           <div className="relative w-fit">
-            <Avatar name={session.name} color={session.color} size={96} className="border-4 border-surface" />
+            <CosmeticAvatar name={session.name} color={session.color} size={80} frameId={profile?.equipment.find((item) => item.category === "profile-frame")?.itemId} />
             <span className="absolute -right-2 -bottom-1 grid size-10 place-items-center rounded-xl border-[3px] border-surface bg-[#ffb23d] font-display text-lg font-black text-[#17142b]" aria-label={`Level ${level}`}>
               {level}
             </span>
           </div>
           <div className="flex-1">
-            <h1 className="font-display text-3xl font-black">{session.name}</h1>
+            <h1 className="font-display text-3xl font-black" style={{ color: cosmeticTextColor(profile?.equipment.find((item) => item.category === "nameplate")?.itemId) }}>{session.name}</h1>
             <p className="text-sm text-ink-muted">
               {session.kind === "guest" ? "Guest player" : "Player"} · Level {level} · {unlocked.size}/{ACHIEVEMENTS.length} achievements
             </p>
@@ -71,7 +75,7 @@ export default async function ProfilePage() {
           { label: "Games played", value: totals.played },
           { label: "Wins", value: totals.wins },
           { label: "Losses", value: totals.played - totals.wins },
-          { label: brand.rewardCurrencyName, value: profile?.rewardBalance ?? 0, icon: Star },
+          { label: brand.rewardCurrencyName, value: profile?.rewardBalance ?? "—", icon: Star },
         ].map((s) => (
           <Card key={s.label} className="border-2 p-5">
             <p className="text-xs font-black tracking-[0.2em] text-ink-muted uppercase">{s.label}</p>
@@ -85,6 +89,7 @@ export default async function ProfilePage() {
       <p className="mt-2 text-xs text-ink-faint">
         {brand.rewardCurrencyName} are a just-for-fun reward for playing. They can't be bought, sold, transferred or exchanged, and have no monetary value.
       </p>
+      <div className="mt-8"><WalletPanel /></div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <section aria-labelledby="per-game">
@@ -166,10 +171,11 @@ export default async function ProfilePage() {
                       className={cn("relative grid size-11 shrink-0 place-items-center rounded-full border-[3px]", got ? "text-[#17142b]" : "border-line text-ink-faint")}
                       style={got ? { background: medal, borderColor: "#17142b", boxShadow: `0 3px 0 #17142b, 0 0 14px ${medal}88` } : undefined}
                     >
-                      {got ? <Trophy className="size-5" /> : <Lock className="size-4" />}
+                      <AchievementEmblem achievementKey={a.key} earned={got} />
                     </span>
                     <div>
                       <p className="font-semibold">{a.title}</p>
+                      <p className="text-[10px] font-bold tracking-wider uppercase text-ink-faint">{achievementTier(a.key)} · {got ? "Earned" : "Not earned yet"}</p>
                       <p className="text-xs text-ink-muted">{a.description}</p>
                     </div>
                   </li>

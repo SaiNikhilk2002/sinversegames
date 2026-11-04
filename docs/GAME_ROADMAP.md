@@ -15,7 +15,7 @@ No game on this list needs new infrastructure (no Redis, no new hosts). The few 
 
 **Complexity:** S (Small) = 2–4 days, M (Medium) = 1–2 weeks, L (Large) = 3–5 weeks, for one engineer, including tests.
 
-**Monetization potential** assumes ads between rounds and optional cosmetics. The reward currency (Stars) stays non-purchasable.
+**Monetization potential** assumes ads between rounds and optional cosmetics. The reward currency (Sin Coins) stays non-purchasable.
 
 **Priority:**
 - **P1:** next batch. High demand, quick to build, reuses existing engines.
@@ -110,6 +110,10 @@ No game on this list needs new infrastructure (no Redis, no new hosts). The few 
 | 50 | Bakery Bloom | Single | M | 1.5 weeks | Mix, proof, bake and decorate with oven timing; seasonal menus | Solo (event simulation) | High | P2 |
 
 **Counts:** 10 casual, 8 puzzle, 8 board and card, 8 party, 8 arcade, 4 sports, 4 cooking, for a total of **50**. By size: 22 Small, 21 Medium, 7 Large (including the finished games).
+
+## Expansion phase (November 2026)
+
+The next ten-game selection and full implementation gates are now defined in [GAME_CATALOGUE.md](GAME_CATALOGUE.md) and [GAME_EXPANSION_PLAN.md](GAME_EXPANSION_PLAN.md). Cuisine Quest leads, followed by four distinct solo and five multiplayer designs. These concepts are **not implemented** and are not in the runtime registry. The existing seven games are retained. Shared Sin Coins/cosmetic and Doodle improvements are tracked in [EXPANSION_QA_REPORT.md](EXPANSION_QA_REPORT.md); Google identity, secure avatars and the new games remain later complete slices. This selection refines the earlier catalogue proposals without claiming those earlier entries are finished.
 
 ## Development tracker
 

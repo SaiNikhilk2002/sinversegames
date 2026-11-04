@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const player = await getSession();
-  return NextResponse.json({ player }, { headers: { "cache-control": "no-store" } });
+  const db = player ? getDb() : null;
+  const equipment = db && player ? await db.cosmeticEquipment.findMany({ where: { playerId: player.id } }).catch(() => []) : [];
+  const cosmetics = { frame: equipment.find((item) => item.category === "profile-frame")?.itemId ?? null, nameplate: equipment.find((item) => item.category === "nameplate")?.itemId ?? null };
+  return NextResponse.json({ player: player ? { ...player, cosmetics } : null }, { headers: { "cache-control": "no-store" } });
 }
 
 const bodySchema = z.object({ displayName: displayNameSchema, color: avatarColorSchema.optional() });

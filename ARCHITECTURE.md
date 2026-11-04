@@ -75,12 +75,13 @@ Kitchen Rush is a real-time game, so its engine is an **event simulation**. Cook
 
 ## Real-time protocol
 
-- **Transport:** Socket.IO (WebSocket with HTTP long-polling fallback). Built-in ping/pong heartbeats every 15 s with a 20 s timeout.
+- **Transport:** Socket.IO establishes polling, probes a WebSocket upgrade and tries an alternative opening transport when necessary. Built-in ping/pong heartbeats every 15 s with a 20 s timeout. Token fetches and transport opening have deadlines; inactive authentication failures have capped backoff while terminal 401/403 responses stop retries.
 - **Authentication:** the web app holds a long-lived `session` JWT in an **httpOnly** cookie. Before each (re)connect the browser exchanges it at `POST /api/session/token` for a 15-minute `realtime` JWT, sent in the handshake. The realtime server verifies the signature, audience and expiry, and checks bans. The player id comes *only* from the token, so clients can't impersonate anyone.
-- **Client → server:** `{ id, roomId?, v?, payload }` with an acknowledgement callback returning `{ ok, data } | { ok: false, error: { code, message } }`.
+- **Client → server:** `{ id, roomId?, matchId?, v?, payload }` with an acknowledgement callback returning `{ ok, data } | { ok: false, error: { code, message } }`.
   - `id`: client action id; the last 64 per player are remembered for **idempotent retries**.
   - `v`: state version; turn-based actions are rejected with `STALE_STATE` if it's stale (double-click and race protection).
-- **Server → client:** `{ id, roomId, seq, ts, payload }`. `seq` is per recipient connection, so the client requests `room:sync` if it detects a gap. `ts` lets clients align countdowns to the server clock.
+  - `matchId`: server UUID for the current match. All game actions require it, including versionless drawing/arena actions. Ready/configure/kick/start validate the current room/match scope. A restart assigns a new UUID; stale session input cannot reach the new engine state.
+- **Server → client:** `{ id, roomId, matchId?, seq, ts, payload }`. `seq` is per recipient connection, so the client requests `room:sync` if it detects a gap. `ts` lets clients align countdowns to the server clock. Room/game snapshots include the match UUID; a new match remounts game UI.
 - **Events:** `room:create|join|leave|ready|configure|kick|sync`, `game:start`, `match:queue|cancel`, game actions (`card:play|draw|pass`, `doodle:select-word|stroke|undo|clear|guess`). Server pushes include `room:state`, `game:state`, `game:action`, `game:ended`, `game:reconnected`, `doodle:*`, `match:status`, `room:notice`, `room:closed` and `session:replaced`.
 - **Isolation:** rooms deliver messages by iterating their own members, never via global broadcasts, so another room's events can't leak. An integration test asserts this.
 - **Serialisation:** Node runs each handler to completion, so actions within a room are applied strictly one at a time; concurrent requests are naturally ordered.
@@ -112,6 +113,13 @@ PostgreSQL via Prisma 7 with the `pg` driver adapter. Tables:
 - `PlayerAchievement`: unlocks; definitions live in code.
 - `RewardLedgerEntry`: append-only ledger for the non-purchasable reward currency, with uniqueness on (player, reason, ref) for idempotency.
 - `FavoriteGame`, `AbuseReport`, `ModerationAction` (audit trail).
+- `CosmeticInventory`, `CosmeticEquipment`: unique per-player item ownership and one equipped item per category. A composite foreign key prevents equipping someone else's inventory.
+
+**Sin Coins:** the append-only reward ledger remains the balance authority. `recordMatch`, purchases and equipment changes serialize against the same Player row; multi-player records lock IDs in sorted order. A server-selected stable match UUID is reused across persistence retries, so an uncertain commit cannot mint another result. Rewards require normal completion, positive score and at least 30 seconds (solo must complete); daily positive credits cap at 80/UTC day. Prices and reward rules are versioned code. Purchasing atomically checks the balance, inserts a uniquely referenced debit, and grants inventory; retries return existing ownership. No real-money flow, transfer or paid service is included. Private paginated wallet/history is `/api/wallet`; `/store` and the profile render actual earned ownership/equipment. See [the economy specification](docs/SIN_COINS_ECONOMY.md).
+
+**Completed rooms:** `FINISHED_ROOM_TTL_MS` defaults to five minutes from completion. Readiness, sync and other activity cannot extend it; a new authorized match clears the deadline. The periodic sweep removes expired rooms, and start/join reject at the exact deadline. New matches clear ready state, scores, drawings and old action caches. The room link/membership is preserved for an accepted rematch.
+
+**Expansion boundaries:** the ten new game concepts, persistent provider identity and secure uploads are designed in [GAME_EXPANSION_PLAN.md](docs/GAME_EXPANSION_PLAN.md); they are not implemented by these wallet/Doodle additions. Existing guest cookies still determine access to stored data. No R2/S3/OAuth provider is configured. Database connection/statement/query waits now have explicit budgets; result retry remains best-effort rather than a durable outbox.
 
 **Not stored:** strokes, individual moves, chat, hands and secret words. These live only in the realtime server's memory. Results are written once per match in a single transaction, retried up to 3 times.
 

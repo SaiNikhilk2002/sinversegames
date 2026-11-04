@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Privacy policy", description: `How $
 
 export default function PrivacyPage() {
   return (
-    <ProsePage title="Privacy policy" updated="31 October 2026" intro="This policy explains what information we collect when you play, why, and the choices you have.">
+    <ProsePage title="Privacy policy" updated="4 November 2026" intro="This policy explains what information we collect when you play, why, and the choices you have.">
       <h2>Information we collect</h2>
       <ul>
         <li>
@@ -23,6 +23,8 @@ export default function PrivacyPage() {
           <strong>Technical data:</strong> our servers process your IP address and connection information to deliver the service, prevent abuse (for example rate limiting), and keep short-lived operational logs.
         </li>
       </ul>
+      <h2>Sin Coins and cosmetics</h2>
+      <p>We retain your reward and purchase transactions, owned cosmetic items and equipped profile styles in the player database. Your transaction history is private to your current player session. Coins cannot be bought for money or transferred. Guest access depends on the browser cookie; account sign-in and recovery across devices are not available yet.</p>
       <h2>What we don't store</h2>
       <p>
         Drawings, individual moves and in-game chat messages are relayed in real time to the other players in your room and are not saved to our database. They exist only in server memory for the duration of a game.

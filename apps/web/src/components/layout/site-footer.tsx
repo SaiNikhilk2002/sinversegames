@@ -16,6 +16,7 @@ export function SiteFooter() {
           links={[
             { href: "/leaderboard", label: "Leaderboard" },
             { href: "/profile", label: "Your profile" },
+            { href: "/store", label: "Cosmetic studio" },
             { href: "/about", label: "About" },
             { href: "/contact", label: "Contact" },
           ]}

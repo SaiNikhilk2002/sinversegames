@@ -1,6 +1,7 @@
-import type { MatchResults } from "@platform/shared";
+import { COIN_REWARD_REASONS, COIN_RULES, type MatchResults } from "@platform/shared";
 import type { PrismaClient } from "./generated/prisma/client";
 import { ACHIEVEMENTS, levelForXp, REWARD_RULES, rewardsEnabled, XP_RULES } from "./progression";
+import { lockPlayer } from "./wallet";
 
 // ---------------------------------------------------------------------------
 // Players
@@ -47,6 +48,7 @@ export interface RecordMatchInput {
 export interface RecordMatchOutput {
   matchId: string;
   unlocked: Record<string, string[]>;
+  earned: Record<string, number>;
 }
 
 /**
@@ -59,12 +61,13 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
   const grantRewards = rewardsEnabled();
 
   return db.$transaction(async (tx) => {
-    for (const p of input.players) {
+    for (const p of [...input.players].sort((a, b) => a.id.localeCompare(b.id))) {
       await tx.player.upsert({
         where: { id: p.id },
         create: { id: p.id, displayName: p.name, avatarColor: p.color },
         update: { lastSeenAt: new Date() },
       });
+      await lockPlayer(tx, p.id);
     }
 
     const match = await tx.match.create({
@@ -93,6 +96,7 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
     });
 
     const unlocked: Record<string, string[]> = {};
+    const earnedCoins: Record<string, number> = {};
     for (const e of results.entries) {
       const prev = await tx.playerGameStats.findUnique({ where: { playerId_gameId: { playerId: e.playerId, gameId: results.gameId } } });
       await tx.playerGameStats.upsert({
@@ -120,18 +124,6 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
       const xp = player.xp + XP_RULES.matchPlayed + (e.isWinner ? XP_RULES.matchWon : 0);
       await tx.player.update({ where: { id: e.playerId }, data: { xp, level: levelForXp(xp) } });
 
-      if (grantRewards) {
-        await tx.rewardLedgerEntry.createMany({
-          data: [
-            { playerId: e.playerId, amount: REWARD_RULES.matchPlayed, reason: "match_played", refType: "match", refId: match.id },
-            ...(e.isWinner
-              ? [{ playerId: e.playerId, amount: REWARD_RULES.matchWon, reason: "match_won", refType: "match", refId: match.id }]
-              : []),
-          ],
-          skipDuplicates: true,
-        });
-      }
-
       const stats = await tx.playerGameStats.findMany({ where: { playerId: e.playerId } });
       const have = new Set(
         (await tx.playerAchievement.findMany({ where: { playerId: e.playerId }, select: { achievementKey: true } })).map((a) => a.achievementKey),
@@ -146,9 +138,32 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
         });
         unlocked[e.playerId] = fresh;
       }
+      const eligible = results.reason === "completed" && match.durationMs >= COIN_RULES.minimumDurationMs && e.score > 0 && (!input.solo || e.isWinner);
+      if (grantRewards && eligible) {
+        const now = new Date();
+        const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const until = new Date(since.getTime() + 86_400_000);
+        const earned = await tx.rewardLedgerEntry.aggregate({
+          where: { playerId: e.playerId, amount: { gt: 0 }, reason: { in: [...COIN_REWARD_REASONS] }, createdAt: { gte: since, lt: until } }, _sum: { amount: true },
+        });
+        let remaining = Math.max(0, COIN_RULES.dailyCap - (earned._sum.amount ?? 0));
+        const grants = [
+          { amount: REWARD_RULES.matchPlayed, reason: "match_played", refType: "match", refId: match.id },
+          ...(e.isWinner ? [{ amount: REWARD_RULES.matchWon, reason: "match_won", refType: "match", refId: match.id }] : []),
+          ...(prev && prev.bestScore > 0 && e.score > prev.bestScore ? [{ amount: COIN_RULES.personalBest, reason: "personal_best", refType: "match", refId: match.id }] : []),
+          ...fresh.map((key) => ({ amount: COIN_RULES.achievement, reason: "achievement", refType: "achievement", refId: key })),
+        ];
+        for (const grant of grants) {
+          const amount = Math.min(grant.amount, remaining);
+          if (!amount) break;
+          await tx.rewardLedgerEntry.create({ data: { ...grant, amount, playerId: e.playerId, createdAt: now } });
+          earnedCoins[e.playerId] = (earnedCoins[e.playerId] ?? 0) + amount;
+          remaining -= amount;
+        }
+      }
     }
-    return { matchId: match.id, unlocked };
-  });
+    return { matchId: match.id, unlocked, earned: earnedCoins };
+  }, { maxWait: 5_000, timeout: 15_000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +177,8 @@ export async function getProfile(db: PrismaClient, playerId: string) {
       stats: true,
       achievements: { orderBy: { unlockedAt: "desc" } },
       favorites: true,
+      inventory: true,
+      equipment: true,
       participations: {
         orderBy: { createdAt: "desc" },
         take: 15,
@@ -178,8 +195,8 @@ export type LeaderboardMetric = "totalPoints" | "wins" | "bestScore";
 
 export async function getLeaderboard(db: PrismaClient, gameId: string, metric: LeaderboardMetric = "totalPoints", limit = 25) {
   const rows = await db.playerGameStats.findMany({
-    where: { gameId, gamesPlayed: { gt: 0 }, player: { bannedUntil: null } },
-    orderBy: [{ [metric]: "desc" }, { gamesPlayed: "asc" }],
+    where: { gameId, gamesPlayed: { gt: 0 }, player: { OR: [{ bannedUntil: null }, { bannedUntil: { lte: new Date() } }] } },
+    orderBy: [{ [metric]: "desc" }, { gamesPlayed: "asc" }, { playerId: "asc" }],
     take: Math.min(100, limit),
     include: { player: { select: { displayName: true, avatarColor: true, level: true } } },
   });
@@ -199,20 +216,24 @@ export async function getLeaderboard(db: PrismaClient, gameId: string, metric: L
 /** Best single score per player today (UTC), for single-player daily leaderboards. */
 export async function getDailyBest(db: PrismaClient, gameId: string, limit = 25, now = new Date()) {
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const rows = await db.matchParticipant.findMany({
-    where: { match: { gameId, endedAt: { gte: since } }, player: { bannedUntil: null } },
-    orderBy: [{ score: "desc" }, { createdAt: "asc" }],
-    take: 500,
-    include: { player: { select: { displayName: true, avatarColor: true, level: true } } },
-  });
-  const seen = new Set<string>();
-  const best = rows.filter((r) => !seen.has(r.playerId) && seen.add(r.playerId)).slice(0, Math.min(100, limit));
+  const until = new Date(since.getTime() + 86_400_000);
+  const count = Math.max(1, Math.min(100, Math.floor(limit)));
+  // Deduplicate before limiting: one prolific player must not crowd others
+  // out of an arbitrary 500-row pre-sample. Ties use first achievement then ID.
+  const best = await db.$queryRaw<{ playerId: string; displayName: string; avatarColor: string; level: number; score: number; details: unknown }[]>`
+    SELECT best.* FROM (
+      SELECT DISTINCT ON (mp."playerId") mp."playerId", p."displayName", p."avatarColor", p."level", mp."score", mp."details", mp."createdAt"
+      FROM "MatchParticipant" mp JOIN "Match" m ON m."id" = mp."matchId" JOIN "Player" p ON p."id" = mp."playerId"
+      WHERE m."gameId" = ${gameId} AND m."endedAt" >= ${since} AND m."endedAt" < ${until}
+        AND (p."bannedUntil" IS NULL OR p."bannedUntil" <= ${now})
+      ORDER BY mp."playerId", mp."score" DESC, mp."createdAt" ASC, mp."id" ASC
+    ) best ORDER BY best."score" DESC, best."createdAt" ASC, best."playerId" ASC LIMIT ${count}`;
   return best.map((r, i) => ({
     rank: i + 1,
     playerId: r.playerId,
-    name: r.player.displayName,
-    color: r.player.avatarColor,
-    level: r.player.level,
+    name: r.displayName,
+    color: r.avatarColor,
+    level: r.level,
     score: r.score,
     details: (r.details ?? {}) as Record<string, number | string>,
   }));
