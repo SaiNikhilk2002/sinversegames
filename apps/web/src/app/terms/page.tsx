@@ -22,7 +22,7 @@ export default function TermsPage() {
       <p>We may remove players from rooms, close rooms, or suspend access for anyone who breaks these rules.</p>
       <h2>Virtual rewards</h2>
       <p>
-        You may earn {brand.rewardCurrencyName} and achievements by playing. They are a just-for-fun feature: they cannot be purchased, sold, transferred or exchanged for money or anything of value, and we may change or reset them.
+        You may earn {brand.rewardCurrencyName} and achievements from eligible verified games. Coins unlock clearly priced cosmetic items in our studio; they provide no competitive advantage. Coins cannot be purchased for money, sold, transferred or redeemed for money or anything of value. There are no random paid rewards. We may adjust future earning rates and item prices; purchases remain in your inventory.
       </p>
       <h2>Availability</h2>
       <p>

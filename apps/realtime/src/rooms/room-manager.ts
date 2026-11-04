@@ -63,11 +63,15 @@ export class RoomManager {
       rng: this.deps.rng,
       logger: this.deps.logger,
       reconnectGraceMs: this.deps.config.RECONNECT_GRACE_MS,
+      finishedRoomTtlMs: this.deps.config.FINISHED_ROOM_TTL_MS,
       onMatchEnded: (r, results, players, startedAt) => {
         this.matchesCompleted++;
         void this.deps.persistence
-          .recordMatch({ results, roomCode: r.code, visibility: r.visibility, config: r.config, startedAt, players })
+          .recordMatch({ id: r.matchId!, results, roomCode: r.code, visibility: r.visibility, config: r.config, startedAt, players })
           .then((out) => {
+            for (const [playerId, coins] of Object.entries(out?.earned ?? {})) {
+              if (coins > 0) r.notice(playerId, "info", `You earned ${coins} Sin Coins. See your wallet in your profile.`);
+            }
             for (const [playerId, keys] of Object.entries(out?.unlocked ?? {})) {
               r.notice(playerId, "info", `Achievement unlocked: ${keys.length === 1 ? keys[0] : `${keys.length} new achievements`}!`);
             }
@@ -91,7 +95,8 @@ export class RoomManager {
   join(room: Room, player: PlayerInfo, socket: Socket): Ack {
     const current = this.roomOf(player.id);
     if (current && current !== room) {
-      if (!room.has(player.id) && (room.status === "playing" || room.members.size >= room.engine.maxPlayers)) {
+      const expired = room.finishedAt !== null && this.deps.now() >= room.finishedAt + this.deps.config.FINISHED_ROOM_TTL_MS;
+      if (room.closed || expired || (!room.has(player.id) && (room.status === "playing" || room.members.size >= room.engine.maxPlayers))) {
         // Check before leaving so a failed join doesn't cost the player their current seat.
         return room.join(player, socket);
       }
@@ -138,7 +143,7 @@ export class RoomManager {
       const empty = this.emptySince.get(room.code);
       if (room.members.size === 0 || (empty !== undefined && room.connectedCount === 0 && now - empty > this.deps.config.EMPTY_ROOM_TTL_MS)) {
         this.destroy(room, "empty");
-      } else if (room.status !== "playing" && now - room.lastActivityAt > this.deps.config.ROOM_IDLE_MS) {
+      } else if ((room.finishedAt !== null && now >= room.finishedAt + this.deps.config.FINISHED_ROOM_TTL_MS) || (room.status !== "playing" && now - room.lastActivityAt > this.deps.config.ROOM_IDLE_MS)) {
         this.destroy(room, "expired");
       }
     }

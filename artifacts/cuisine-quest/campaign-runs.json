@@ -1,0 +1,109 @@
+{
+  "note": "Server-saved metrics from the final real campaign plus Indian replay, isolated local test identity; no player/run IDs, cookies, tokens or ledger history.",
+  "runs": [
+    {
+      "level": 1,
+      "cuisine": "indian",
+      "stars": 3,
+      "score": 9662,
+      "activeMs": 79877,
+      "served": 7,
+      "perfect": 6,
+      "mistakes": 4,
+      "burnt": 0,
+      "precision": 97,
+      "satisfaction": 96
+    },
+    {
+      "level": 1,
+      "cuisine": "indian",
+      "stars": 3,
+      "score": 9970,
+      "activeMs": 78319,
+      "served": 7,
+      "perfect": 7,
+      "mistakes": 0,
+      "burnt": 0,
+      "precision": 100,
+      "satisfaction": 98
+    },
+    {
+      "level": 2,
+      "cuisine": "italian",
+      "stars": 3,
+      "score": 9974,
+      "activeMs": 78166,
+      "served": 7,
+      "perfect": 7,
+      "mistakes": 0,
+      "burnt": 0,
+      "precision": 100,
+      "satisfaction": 98
+    },
+    {
+      "level": 3,
+      "cuisine": "japanese",
+      "stars": 3,
+      "score": 9976,
+      "activeMs": 72877,
+      "served": 7,
+      "perfect": 7,
+      "mistakes": 0,
+      "burnt": 0,
+      "precision": 100,
+      "satisfaction": 98
+    },
+    {
+      "level": 4,
+      "cuisine": "mexican",
+      "stars": 3,
+      "score": 9976,
+      "activeMs": 71460,
+      "served": 7,
+      "perfect": 7,
+      "mistakes": 0,
+      "burnt": 0,
+      "precision": 100,
+      "satisfaction": 98
+    },
+    {
+      "level": 5,
+      "cuisine": "thai",
+      "stars": 3,
+      "score": 9968,
+      "activeMs": 78741,
+      "served": 7,
+      "perfect": 7,
+      "mistakes": 0,
+      "burnt": 0,
+      "precision": 100,
+      "satisfaction": 98
+    },
+    {
+      "level": 6,
+      "cuisine": "chinese",
+      "stars": 3,
+      "score": 9970,
+      "activeMs": 77936,
+      "served": 7,
+      "perfect": 7,
+      "mistakes": 0,
+      "burnt": 0,
+      "precision": 100,
+      "satisfaction": 98
+    },
+    {
+      "level": 7,
+      "cuisine": "mediterranean",
+      "stars": 3,
+      "score": 9970,
+      "activeMs": 78255,
+      "served": 7,
+      "perfect": 7,
+      "mistakes": 0,
+      "burnt": 0,
+      "precision": 100,
+      "satisfaction": 98
+    }
+  ]
+}

@@ -17,7 +17,9 @@ async function startRoom(browser: Browser, slug: string, settings: string[], vie
 /** Rolls or moves if it's this page's turn. */
 async function trailStep(page: Page): Promise<boolean> {
   const roll = page.getByTestId("roll-button");
-  if (await roll.isEnabled().catch(() => false)) {
+  // isEnabled() waits for the element, so check it exists first: once this page shows
+  // the results there is no roll button, and waiting would stall the loop.
+  if ((await roll.count()) > 0 && (await roll.isEnabled().catch(() => false))) {
     await roll.click({ timeout: 2000 }).catch(() => {});
     return true;
   }

@@ -1,0 +1,215 @@
+{
+  "date": "2026-11-04",
+  "viewport": "1280x900",
+  "reducedMotion": true,
+  "routes": [
+    {
+      "path": "/",
+      "status": 200,
+      "title": "SinverseGames — Instant multiplayer games with friends",
+      "heading": "Pick a game.Send the link.Play.",
+      "elements": 4137,
+      "covers": 29,
+      "svgElements": 3695,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/games/color-clash",
+      "status": 200,
+      "title": "Color Clash — play free online with friends · SinverseGames",
+      "heading": "Color Clash",
+      "elements": 1100,
+      "covers": 5,
+      "svgElements": 814,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/color-clash/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/games/doodle-duel",
+      "status": 200,
+      "title": "Doodle Duel — play free online with friends · SinverseGames",
+      "heading": "Doodle Duel",
+      "elements": 718,
+      "covers": 5,
+      "svgElements": 432,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/doodle-duel/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/games/token-trail",
+      "status": 200,
+      "title": "Token Trail — play free online with friends · SinverseGames",
+      "heading": "Token Trail",
+      "elements": 1116,
+      "covers": 5,
+      "svgElements": 830,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/token-trail/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/games/bumper-blitz",
+      "status": 200,
+      "title": "Bumper Blitz — play free online with friends · SinverseGames",
+      "heading": "Bumper Blitz",
+      "elements": 777,
+      "covers": 5,
+      "svgElements": 491,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/bumper-blitz/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/games/kitchen-rush",
+      "status": 200,
+      "title": "Kitchen Rush — play free online · SinverseGames",
+      "heading": "Kitchen Rush",
+      "elements": 1292,
+      "covers": 5,
+      "svgElements": 1009,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/kitchen-rush/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/games/cascade-solitaire",
+      "status": 200,
+      "title": "Cascade Solitaire — play free online · SinverseGames",
+      "heading": "Cascade Solitaire",
+      "elements": 1582,
+      "covers": 5,
+      "svgElements": 1298,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/cascade-solitaire/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/games/mahjong-garden",
+      "status": 200,
+      "title": "Mahjong Garden — play free online · SinverseGames",
+      "heading": "Mahjong Garden",
+      "elements": 1256,
+      "covers": 5,
+      "svgElements": 972,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/mahjong-garden/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/leaderboard",
+      "status": 200,
+      "title": "Leaderboard · SinverseGames",
+      "heading": "Color Clash",
+      "elements": 1592,
+      "covers": 8,
+      "svgElements": 1066,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/play/color-clash",
+      "status": 200,
+      "title": "Play Color Clash · SinverseGames",
+      "elements": 145,
+      "covers": 0,
+      "svgElements": 0,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/room/95X7S7",
+      "status": 200,
+      "title": "Join game · SinverseGames",
+      "elements": 145,
+      "covers": 0,
+      "svgElements": 0,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/profile",
+      "status": 200,
+      "title": "Your profile · SinverseGames",
+      "heading": "TakeoverQA",
+      "elements": 2403,
+      "covers": 14,
+      "svgElements": 2056,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/games/unknown-audit-game",
+      "status": 404,
+      "title": "SinverseGames — Instant multiplayer games with friends",
+      "heading": "This page wandered off",
+      "elements": 152,
+      "covers": 0,
+      "svgElements": 0,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/games/unknown-audit-game/opengraph-image?4fef7f0e7fbe3e9c"
+    },
+    {
+      "path": "/play/unknown-audit-game",
+      "status": 404,
+      "title": "SinverseGames — Instant multiplayer games with friends",
+      "heading": "This page wandered off",
+      "elements": 150,
+      "covers": 0,
+      "svgElements": 0,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/room/bad",
+      "status": 404,
+      "title": "Join game · SinverseGames",
+      "heading": "This page wandered off",
+      "elements": 151,
+      "covers": 0,
+      "svgElements": 0,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "title": "SinverseGames — Instant multiplayer games with friends",
+      "heading": "Pick a game.Send the link.Play.",
+      "elements": 4137,
+      "covers": 29,
+      "svgElements": 3695,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/games",
+      "status": 200,
+      "title": "All games · SinverseGames",
+      "heading": "All games",
+      "elements": 1353,
+      "covers": 7,
+      "svgElements": 1028,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/leaderboard",
+      "status": 200,
+      "title": "Leaderboard · SinverseGames",
+      "heading": "Color Clash",
+      "elements": 1603,
+      "covers": 8,
+      "svgElements": 1066,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    },
+    {
+      "path": "/profile",
+      "status": 200,
+      "title": "Your profile · SinverseGames",
+      "heading": "TakeoverQA",
+      "elements": 2414,
+      "covers": 14,
+      "svgElements": 2056,
+      "horizontalOverflow": 0,
+      "ogImage": "http://localhost:3200/opengraph-image?7554b689512995b8"
+    }
+  ],
+  "errors": []
+}

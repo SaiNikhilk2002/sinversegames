@@ -88,12 +88,29 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 | Project name | `sinversegames-web` (must match `name` in `apps/web/wrangler.jsonc`) |
 | Root directory | `/` (repository root; leave empty) |
 | Build command | `pnpm cloudflare:build` |
-| Deploy command | `pnpm cloudflare:deploy` |
-| Build variables | `NEXT_PUBLIC_SITE_URL=https://<your-domain>`, `NEXT_PUBLIC_REALTIME_URL=https://rt.<your-domain>`, `NEXT_PUBLIC_BRAND_NAME=SinverseGames`, `NEXT_PUBLIC_SUPPORT_EMAIL=…` |
+| Production deploy command | `pnpm cloudflare:deploy` (unchanged) |
+| Preview command (non-production branches) | `pnpm cloudflare:preview:deploy` |
+| Build variables | `NEXT_PUBLIC_SITE_URL=https://<your-domain>`, `NEXT_PUBLIC_REALTIME_URL=https://rt.<your-domain>`, `NEXT_PUBLIC_SUPPORT_EMAIL=…` (platform name is fixed) |
 
-Both commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Don't use a bare `npx wrangler deploy` at the repo root: it fails with "The Cloudflare application detection logic has been run in the root of a workspace".
+The build and both deployment commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Don't use a bare `npx wrangler deploy` at the repo root: it fails with "The Cloudflare application detection logic has been run in the root of a workspace".
 
-The Node version comes from `apps/web/.node-version` (24) and pnpm from `packageManager`. If the build image picks an older Node, add the build variable `NODE_VERSION=24`.
+### Worker Previews and the reported missing-block failure
+
+The supplied build log completed Next.js/OpenNext and failed only on the dashboard command `npx wrangler preview` (4.157.0). That command is absent from repository scripts. [Workers Builds uses it by default for new Workers, and requires the Preview workflow after a one-time switch](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/). The log establishes which workflow ran; it does not identify who selected it or when. This project now supports that workflow with a `previews` block. Do not substitute the production deploy command or switch this build to version uploads to silence the error.
+
+Use **`pnpm cloudflare:preview:deploy`** in the dashboard's **Preview command** field, with repository root `/` and build command `pnpm cloudflare:build`. It runs in `apps/web`, prepares OpenNext's prerender cache with `populateCache local`, then invokes the installed **Wrangler 4.155.0** as `wrangler preview --config wrangler.jsonc`. Package scripts resolve the pinned local binary; no `npx` download or dependency upgrade is needed. The preparation step copies static cache files into `.open-next/assets/cdn-cgi/_next_cache`, which the Preview upload must include. For the current static-assets cache adapter it writes local files only; changing the cache backend later requires reviewing this workflow.
+
+Keep `.open-next/worker.js`, `.open-next/assets`, compatibility settings, placement and observability at their existing top-level locations. [Preview variables and data bindings belong in `previews`](https://developers.cloudflare.com/workers/previews/configuration/). Its `NODE_ENV=production` means optimized runtime mode, not production routing. Set Preview-only `AUTH_SECRET`, optional `ADMIN_TOKEN`, and a non-production `DATABASE_URL` in **Previews Base** or that branch Preview; use an isolated realtime service with matching signing secret and exact origins. Google credentials/origin and an AVATARS R2 binding, if enabled, also need Preview-safe values/resources. No production secret/binding is copied automatically by this change. Existing top-level Worker settings and both production deployment scripts are preserved.
+
+`pnpm --filter @platform/web cf:preview` remains the existing **local** OpenNext/Wrangler dev server. It is different from the dashboard Preview deployment. `wrangler versions upload` creates version URLs using that version's production resources; it is not the branch Preview workflow configured by the supplied log. No `preview_urls` toggle is added.
+
+Local verification after building: **`pnpm cloudflare:preview:check`** prepares the same cache and runs pinned `wrangler deploy --dry-run`, packaging the shared Worker/assets payload without uploading or changing routes. Wrangler 4.155.0's beta `preview` command has no `--dry-run`; do not run it as a packaging test. The check validates the common entry/assets/compatibility configuration, and the QA harness separately validates `previews.vars`. It cannot verify remote Preview creation, permissions or dashboard Base secrets. See [preview QA](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md) for exact results and the remaining owner check. No publishing or dashboard change was performed during this fix.
+
+The repository-root `.node-version` and `apps/web/.node-version` both pin **24.14.0**, the reproducible build baseline. Root `engines.node` allows `>=24.14.0 <25`, so Node 24.22.2 satisfies the compatibility range; it is not the exact pinned baseline. `packageManager` keeps pnpm at **11.15.1**. Install with `pnpm install --frozen-lockfile`; do not regenerate the lockfile to change the Node pin.
+
+[Workers Builds supports `.node-version` and the `NODE_VERSION` build variable](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/). Use repository root `/` with the existing build command. If an explicit dashboard `NODE_VERSION` override exists, remove it to use the file or align it to **24.14.0** in every relevant build environment. This is an owner configuration step; no dashboard settings were changed. `NODE_VERSION` belongs to the build environment, not Wrangler runtime `vars`. The existing `nodejs_compat` flag and compatibility date configure the Worker runtime and do not choose the build machine's Node version. Version files also do not switch an already running local shell; select Node 24.14.0 before invoking pnpm.
+
+See [Node version build audit](docs/NODE_VERSION_BUILD_AUDIT.md) for the inspected files and Linux verification results. Earlier QA reports retain their actual historical tool versions.
 
 `NEXT_PUBLIC_*` values are **inlined at build time** (including the CSP `connect-src`), so set them as *build* variables and redeploy after changing them.
 
@@ -101,9 +118,9 @@ The Node version comes from `apps/web/.node-version` (24) and pnpm from `package
 
 ```bash
 cd apps/web
-npx wrangler secret put AUTH_SECRET
-npx wrangler secret put ADMIN_TOKEN
-npx wrangler secret put DATABASE_URL
+pnpm exec wrangler secret put AUTH_SECRET
+pnpm exec wrangler secret put ADMIN_TOKEN
+pnpm exec wrangler secret put DATABASE_URL
 ```
 
 Manual deploy from Linux, macOS or WSL instead of Workers Builds: `pnpm --filter @platform/web cf:deploy`, with the same `NEXT_PUBLIC_*` values in the environment.
@@ -128,7 +145,7 @@ Then make `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL` and `ALLOWED_ORIGIN
 | `DATABASE_URL` | ✅ | | ✅ | Neon pooled URL |
 | `NEXT_PUBLIC_SITE_URL` | | ✅ | | |
 | `NEXT_PUBLIC_REALTIME_URL` | | ✅ | | also used by `/api/health` |
-| `NEXT_PUBLIC_BRAND_NAME`, `NEXT_PUBLIC_SUPPORT_EMAIL`, … | | optional | | see `.env.example` |
+| `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_BRAND_TAGLINE`, `NEXT_PUBLIC_BRAND_DESCRIPTION` | | optional | | see `.env.example`; platform/currency names are fixed |
 | `ALLOWED_ORIGINS` | | | ✅ | site origin(s) |
 | `PORT` | | | Railway-provided | |
 | tuning (`RECONNECT_GRACE_MS`, …) | | | optional | see `.env.example` |
@@ -144,3 +161,30 @@ Then make `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL` and `ALLOWED_ORIGIN
 - [ ] `/admin` sign-in with `ADMIN_TOKEN` shows metrics.
 - [ ] Legal pages reviewed; `NEXT_PUBLIC_SUPPORT_EMAIL` is a monitored inbox.
 - [ ] Uptime monitoring on both health URLs.
+
+## Takeover audit and preview isolation
+
+The November 2026 takeover is local only. Historical deploy and migration instructions above are a reference, not approval to run them. See [CODEX_TAKEOVER_REPORT.md](docs/CODEX_TAKEOVER_REPORT.md) and [RELIABILITY_INVESTIGATION.md](docs/RELIABILITY_INVESTIGATION.md).
+
+The observed GitHub check is **Workers Builds: sinversegames**, but this checkout's Wrangler name is **sinversegames-web**. Confirm the intended existing Worker and the failed build's logs before reconciling these names; do not create or redirect a production Worker based on an assumption. Also verify that the dashboard uses the repository root and the workspace-aware build/deploy commands above.
+
+Keep preview data, signing secrets, and realtime rooms separate from production. Worker Previews use the checked-in `previews` configuration and Preview-only Base secrets under the existing parent Worker; an uploaded version URL does not provide that boundary. Use a non-production PostgreSQL database, isolated realtime service and matching Preview-only signing secrets. Compile `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_REALTIME_URL` for that preview and allow only its exact browser origin on its realtime service. Do not add broad `*.workers.dev` access to the production origin list.
+
+`pnpm cloudflare:build` and `pnpm cloudflare:preview:check` run locally without publishing. `pnpm cloudflare:preview:deploy` publishes a branch Preview; uploading any Preview/version, populating a remote OpenNext cache, or changing dashboard settings is an external mutation and needs approval. Do not replace a non-production branch command with a production deploy command just to obtain a green check.
+
+## Expansion migration and manual release actions
+
+This phase is local implementation only. Prepared migration `20261104010000_sin_coins_cosmetics` adds ownership/equipment and a ledger history index without rewriting existing balances or outcomes. Both generators must run. Apply it to the approved target before enabling the new wallet/profile queries; inspect the database target first. It has been exercised on isolated local fresh and existing databases; production is untouched.
+
+The browser and realtime server now share a match-UUID protocol. An old open tab does not have the required game scope. A future approved release needs coordinated web/realtime rollout and a clearly communicated refresh of open games; preserve the existing one-replica limitation. Never accept unscoped old game input as a compatibility workaround. Optionally configure `FINISHED_ROOM_TTL_MS` on realtime (default five minutes); no change is required for its default behavior.
+
+Platform and currency names are fixed as SinverseGames and Sin Coins. Older `NEXT_PUBLIC_BRAND_NAME`/`NEXT_PUBLIC_REWARD_CURRENCY_NAME` values are ignored by the new code; no production variable was edited. Continue compiling the correct site/realtime URLs and exact origin allow-list. Optional tagline/description remain build-time configuration.
+
+At the earlier expansion checkpoint, Google/R2/Images integration was design-only. The later identity milestone now implements Google linking/sign-in and a private R2 adapter with Node image normalization; [PLAYER_IDENTITY_SETUP.md](docs/PLAYER_IDENTITY_SETUP.md) lists exact owner configuration and [identity QA](docs/PLAYER_IDENTITY_PERSISTENCE_QA_REPORT.md) distinguishes controlled local tests from pending real Google/R2 verification. No external service has been configured or provisioned.
+
+For local economy tests, create/migrate `sinversegames_expansion_test` on localhost:5433 and run `pnpm test:db`; `ECONOMY_TEST_DATABASE_URL` accepts only a local database ending in `_test`. Set `E2E_DATABASE_URL` to the same local target for the complete browser suite. These commands create local test data. Do not use a Neon/production URL. The checked-in migration can be reviewed independently before any future production approval.
+
+
+## Player identity release prerequisite
+
+Before a separately approved release, follow [PLAYER_IDENTITY_SETUP.md](docs/PLAYER_IDENTITY_SETUP.md): apply additive migration `20261104030000_player_identity`, configure exact AUTH_ORIGIN and Google Web client secrets on the web service, bind a private R2 bucket as AVATARS, and verify REALTIME_INTERNAL_URL plus matching AUTH_SECRET. The Node image now retains frozen production dependencies for Sharp/libvips; image normalization does not run on Workers. No IDENTITY_TEST_MODE or filesystem avatar path belongs in a provider environment. Real Google consent, apex/www cookie behavior, R2 put/get/delete and registered socket revocation require deployment verification. No dashboard/deployment action was performed by this implementation.

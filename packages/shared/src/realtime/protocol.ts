@@ -60,14 +60,16 @@ export type Ack<T = unknown> = { ok: true; data?: T } | { ok: false; error: Prot
 export const clientEnvelopeSchema = z.object({
   id: z.string().min(8).max(64),
   roomId: z.string().max(16).optional(),
+  matchId: z.string().uuid().nullable().optional(),
   v: z.number().int().nonnegative().optional(),
   payload: z.unknown(),
 });
-export type ClientEnvelope<P = unknown> = { id: string; roomId?: string; v?: number; payload: P };
+export type ClientEnvelope<P = unknown> = { id: string; roomId?: string; matchId?: string | null; v?: number; payload: P };
 
 export interface ServerEnvelope<P = unknown> {
   id: string;
   roomId: string | null;
+  matchId?: string | null;
   seq: number;
   ts: number;
   payload: P;
@@ -117,6 +119,9 @@ export interface RoomSnapshot {
   maxPlayers: number;
   config: Record<string, unknown>;
   matchNumber: number;
+  matchId: string | null;
+  /** Fixed rematch grace deadline; activity does not extend it. */
+  expiresAt: number | null;
   /** Public rooms auto-start when everyone is ready; epoch ms or null. */
   autoStartAt: number | null;
   /** Results of the most recent finished match, if any. */
@@ -143,6 +148,7 @@ export interface MatchResults {
 
 export interface GameStatePayload<V = unknown> {
   version: number;
+  matchId: string;
   view: V;
 }
 

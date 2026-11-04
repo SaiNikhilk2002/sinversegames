@@ -13,6 +13,12 @@ const loading = () => (
 
 /** Single-player game clients, code-split like the multiplayer ones. */
 export const SOLO_CLIENTS: Record<SoloGameId, SoloClient> = {
+  "cuisine-quest": {
+    Setup: dynamic(() => import("./cuisine-quest/cuisine-quest-game").then(m => m.CuisineQuestSetup), { ssr: false, loading }),
+    Game: dynamic(() => import("./cuisine-quest/cuisine-quest-game").then(m => m.CuisineQuestGame), { ssr: false, loading }),
+    ResultDetails: dynamic(() => import("./cuisine-quest/cuisine-quest-game").then(m => m.CuisineQuestResultDetails), { ssr: false }),
+    recoverable: true,
+  },
   "kitchen-rush": {
     Setup: dynamic(() => import("./kitchen-rush/kitchen-rush-game").then((m) => m.KitchenRushSetup), { ssr: false, loading }),
     Game: dynamic(() => import("./kitchen-rush/kitchen-rush-game").then((m) => m.KitchenRushGame), { ssr: false, loading }),

@@ -17,7 +17,7 @@ export default async function GameOgImage({ params }: { params: Promise<{ slug: 
         <div style={{ fontSize: 34, opacity: 0.85 }}>{brand.name}</div>
         <div style={{ fontSize: 110, fontWeight: 800, lineHeight: 1 }}>{game.name}</div>
         <div style={{ fontSize: 40, marginTop: 20, maxWidth: 950 }}>{game.tagline}</div>
-        <div style={{ fontSize: 30, marginTop: 24, opacity: 0.85 }}>{`${game.minPlayers}–${game.maxPlayers} players · Free · No download`}</div>
+        <div style={{ fontSize: 30, marginTop: 24, opacity: 0.85 }}>{`${game.kind === "solo" ? "Single player" : `${game.minPlayers}–${game.maxPlayers} players`} · Free · No download`}</div>
       </div>
     ),
     size,

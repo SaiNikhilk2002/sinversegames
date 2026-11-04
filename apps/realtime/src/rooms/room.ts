@@ -38,6 +38,7 @@ export interface RoomDeps {
   rng: Rng;
   logger: Logger;
   reconnectGraceMs: number;
+  finishedRoomTtlMs: number;
   /** Called (asynchronously persisted) when a match ends. */
   onMatchEnded: (room: Room, results: MatchResults, players: PlayerInfo[], startedAt: number) => void;
   /** Called whenever the room loses its last member. */
@@ -67,6 +68,8 @@ export class Room {
   config: Record<string, unknown>;
   lastActivityAt: number;
   matchNumber = 0;
+  matchId: string | null = null;
+  finishedAt: number | null = null;
   lastResults: MatchResults | null = null;
   closed = false;
 
@@ -114,7 +117,7 @@ export class Room {
   private send(m: Member, event: ServerEventName, payload: unknown) {
     if (!m.socket) return;
     m.seq++;
-    m.socket.emit(event, { id: randomUUID(), roomId: this.code, seq: m.seq, ts: this.deps.now(), payload });
+    m.socket.emit(event, { id: randomUUID(), roomId: this.code, matchId: this.matchId, seq: m.seq, ts: this.deps.now(), payload });
   }
 
   private broadcast(event: ServerEventName, payload: unknown) {
@@ -156,6 +159,8 @@ export class Room {
       maxPlayers: this.engine.maxPlayers,
       config: this.config,
       matchNumber: this.matchNumber,
+      matchId: this.matchId,
+      expiresAt: this.finishedAt === null ? null : this.finishedAt + this.deps.finishedRoomTtlMs,
       autoStartAt: this.autoStartAt,
       lastResults: this.lastResults,
     };
@@ -167,7 +172,7 @@ export class Room {
 
   private sendGameState(m: Member) {
     if (this.status !== "playing" || this.state === null) return;
-    this.send(m, "game:state", { version: this.version, view: this.engine.viewFor(this.state, m.id) });
+    this.send(m, "game:state", { version: this.version, matchId: this.matchId!, view: this.engine.viewFor(this.state, m.id) });
   }
 
   private broadcastGameState() {
@@ -185,6 +190,7 @@ export class Room {
   /** Adds a player or reattaches a returning player's new connection. */
   join(player: PlayerInfo, socket: Socket): Ack {
     if (this.closed) return err("ROOM_NOT_FOUND", "This room no longer exists");
+    if (this.finishedAt !== null && this.deps.now() >= this.finishedAt + this.deps.finishedRoomTtlMs) return err("ROOM_NOT_FOUND", "The rematch grace period has ended");
     const existing = this.members.get(player.id);
     if (existing) {
       this.attach(existing, socket);
@@ -361,9 +367,11 @@ export class Room {
     return { now: this.deps.now(), rng: this.deps.rng };
   }
 
-  start(playerId: string, auto = false): Ack {
+  start(playerId: string, auto = false, expectedMatchId?: string | null): Ack {
     if (!auto && playerId !== this.hostId) return err("NOT_HOST", "Only the host can start the game");
     if (this.status === "playing") return err("ROOM_IN_PROGRESS", "The game has already started");
+    if (this.finishedAt !== null && this.deps.now() >= this.finishedAt + this.deps.finishedRoomTtlMs) return err("ROOM_NOT_FOUND", "The rematch grace period has ended");
+    if (!auto && this.matchId && expectedMatchId !== this.matchId) return err("STALE_STATE", "This match has changed. Refresh the room before playing again.");
     const members = [...this.members.values()];
     if (members.length < this.engine.minPlayers) {
       return err("NOT_ENOUGH_PLAYERS", `${this.meta.name} needs at least ${this.engine.minPlayers} players`);
@@ -388,9 +396,12 @@ export class Room {
     this.status = "playing";
     this.version = 1;
     this.matchNumber++;
+    this.matchId = randomUUID();
+    this.finishedAt = null;
     this.matchStartedAt = this.deps.now();
     this.lastResults = null;
     for (const m of members) m.recentActions.clear();
+    for (const m of members) m.ready = false;
     this.touch();
     this.deps.logger.info("match started", { room: this.code, game: this.gameId, players: members.length, match: this.matchNumber });
 
@@ -416,6 +427,8 @@ export class Room {
 
   private applyAction(m: Member, type: string, envelope: ClientEnvelope): Ack {
     if (this.status !== "playing" || this.state === null) return err("GAME_NOT_ACTIVE", "No game is running");
+    if (envelope.roomId && envelope.roomId !== this.code) return err("STALE_STATE", "You are in a different room now.");
+    if (envelope.matchId !== this.matchId) return err("STALE_STATE", "This match has changed. Refresh the room to continue.");
     if (!this.engine.actionTypes.includes(type)) return err("INVALID_PAYLOAD", "That action isn't part of this game");
     if (this.engine.requiresVersion(type) && envelope.v !== this.version) {
       return err("STALE_STATE", "The game moved on — try again");
@@ -470,6 +483,7 @@ export class Room {
     if (this.state === null) return;
     const results = this.engine.results(this.state);
     this.status = "finished";
+    this.finishedAt = this.deps.now();
     this.lastResults = results;
     this.state = null;
     this.clearTimers();

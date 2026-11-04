@@ -2,45 +2,63 @@ import Link from "next/link";
 import { Clock, Users } from "lucide-react";
 import { GAME_CATEGORIES, type GameMeta } from "@platform/shared";
 import { GameArt } from "../brand";
-import { Badge, cn } from "../ui/primitives";
+import { GAME_THEME } from "../game-theme";
+import { cn } from "../ui/primitives";
 
 export const playerRange = (g: GameMeta) => (g.kind === "solo" ? "Single player" : `${g.minPlayers}–${g.maxPlayers} players`);
 const NEW_FOR_DAYS = 30;
 export const isNew = (g: GameMeta, now = Date.now()) => now - Date.parse(g.addedAt) < NEW_FOR_DAYS * 86_400_000;
 export const durationRange = (g: GameMeta) => `${g.avgDurationMinutes[0]}–${g.avgDurationMinutes[1]} min`;
 
+function Tag({ children, color }: { children: React.ReactNode; color: string }) {
+  return (
+    <span className="rounded-md px-2 py-0.5 text-[11px] font-black tracking-wider text-[#17142b] uppercase shadow-[0_2px_0_rgb(0_0_0/0.35)]" style={{ background: color }}>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * An art-first game tile: the cover fills the card (it already carries the
+ * game's wordmark), with a strip in the game's own colours underneath.
+ */
 export function GameCard({ game, size = "md", className }: { game: GameMeta; size?: "md" | "lg"; className?: string }) {
+  const theme = GAME_THEME[game.id];
   return (
     <Link
       href={`/games/${game.slug}`}
+      aria-label={`${game.name} — ${game.tagline}`}
+      style={{ "--accent": theme.accent } as React.CSSProperties}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-card transition duration-300",
-        "hover:-translate-y-1 hover:border-brand-400/60 hover:shadow-[0_24px_48px_-24px_rgb(124_92_255/0.55)]",
+        "group relative flex flex-col overflow-hidden rounded-[22px] border-2 border-white/5 bg-[#120f24] shadow-[0_12px_30px_-18px_rgb(0_0_0/0.9)] transition duration-300",
+        "hover:-translate-y-1.5 hover:border-[var(--accent)] hover:shadow-[0_22px_44px_-20px_var(--accent)] focus-visible:border-[var(--accent)]",
         className,
       )}
     >
       <div className={cn("relative overflow-hidden", size === "lg" ? "aspect-[16/9]" : "aspect-[16/10]")}>
-        <GameArt gameId={game.id} className="size-full object-cover transition duration-500 group-hover:scale-[1.04]" />
-        <div className="absolute top-3 left-3 flex gap-1.5">
-          {game.featured && <Badge className="border-white/30 bg-black/45 text-white backdrop-blur">Featured</Badge>}
-          {game.popular && <Badge className="border-white/30 bg-black/45 text-white backdrop-blur">🔥 Popular</Badge>}
-          {isNew(game) && <Badge className="border-white/30 bg-black/45 text-white backdrop-blur">✨ New</Badge>}
-        </div>
+        <GameArt gameId={game.id} className="size-full transition duration-500 group-hover:scale-[1.05]" />
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-5">
+      <div className="relative flex flex-1 flex-col gap-1.5 px-4 pt-3 pb-4" style={{ background: theme.deep }}>
+        <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: theme.accent }} aria-hidden />
         <div className="flex items-center justify-between gap-3">
-          <h3 className={cn("font-display font-bold tracking-tight", size === "lg" ? "text-2xl" : "text-xl")}>{game.name}</h3>
-          <span className="rounded-full bg-brand-gradient px-3 py-1 text-xs font-bold text-white opacity-90 transition group-hover:opacity-100">Play</span>
+          <h3 className={cn("flex min-w-0 items-center gap-1.5 font-display font-black tracking-tight", size === "lg" ? "text-2xl" : "text-lg")} style={{ color: theme.ink }}>
+            <span className="truncate">{game.name}</span>
+            {isNew(game) && <Tag color="#2fd6a8">New</Tag>}
+            {game.popular && <Tag color="#ffb23d">Hot</Tag>}
+          </h3>
+          <span className="rounded-full px-3 py-1 text-xs font-black text-[#17142b] transition group-hover:scale-105" style={{ background: theme.accent }}>
+            PLAY
+          </span>
         </div>
-        <p className="line-clamp-2 text-sm text-ink-muted">{game.tagline}</p>
-        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 text-xs font-medium text-ink-muted">
-          <span className="inline-flex items-center gap-1.5">
+        {size === "lg" && <p className="line-clamp-2 text-sm" style={{ color: `${theme.ink}cc` }}>{game.tagline}</p>}
+        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs font-semibold" style={{ color: `${theme.ink}b3` }}>
+          <span className="inline-flex items-center gap-1">
             <Users className="size-3.5" /> {playerRange(game)}
           </span>
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1">
             <Clock className="size-3.5" /> {durationRange(game)}
           </span>
-          <span>{game.categories.map((c) => GAME_CATEGORIES[c]).slice(0, 2).join(" · ")}</span>
+          <span className="truncate">{game.categories.map((c) => GAME_CATEGORIES[c]).slice(0, 2).join(" · ")}</span>
         </div>
       </div>
     </Link>

@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-04",
+  "branch": "codex/takeover-and-reliability-audit",
+  "preservedCheckpoint": "412955267ce388349e908838a3dcaf8ff033c965",
+  "unitIntegration": {
+    "passed": 153,
+    "original": 151
+  },
+  "isolatedPostgres": {
+    "passed": 12
+  },
+  "browser": {
+    "passed": 27,
+    "original": 25,
+    "finalContrastFollowupPassed": 2
+  },
+  "typecheck": "All five packages, including new database tests",
+  "nodeBuild": "Passed",
+  "linuxOpenNextBuild": "Passed; build only",
+  "legacyTablesUnchanged": 9,
+  "instructionFilesIdentical": true,
+  "instructionSha256": "6f1e3d206e5a5bdf8becd2ce9f37d8f10ceffb8017ee52d7f87859da2ed150cf",
+  "relativeDocumentationLinksChecked": 29,
+  "ui": {
+    "layoutChecks": 32,
+    "errors": 0,
+    "metadataResponses": 10,
+    "home": {
+      "path": "/",
+      "title": "SinverseGames — Instant multiplayer games with friends",
+      "elements": 4142,
+      "covers": 29,
+      "svgElements": 3695,
+      "overflow": 0,
+      "domContentLoadedMs": 142.29999995231628,
+      "loadMs": 419.19999998807907,
+      "longTasksMs": [
+        61,
+        61
+      ],
+      "oldBrandVisible": false
+    }
+  },
+  "newGamesImplemented": 0,
+  "designedGames": 10,
+  "cuisineLevelsImplemented": 0,
+  "googleOAuthImplemented": false,
+  "uploadsImplemented": false,
+  "productionChanges": false,
+  "pushed": false,
+  "deployed": false,
+  "limits": [
+    "Guest-cookie access only; no cross-device identity recovery.",
+    "Local headless timings and screenshots do not prove physical-device performance or accessibility conformance.",
+    "No durable failed-result retry across service restarts.",
+    "All ten new games and broader account/ranking/challenge features remain unimplemented."
+  ]
+}

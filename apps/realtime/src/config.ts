@@ -23,6 +23,7 @@ const schema = z.object({
   RECONNECT_GRACE_MS: z.coerce.number().int().min(5_000).default(60_000),
   /** Lobbies and finished rooms with no activity for this long are closed. */
   ROOM_IDLE_MS: z.coerce.number().int().min(60_000).default(30 * 60_000),
+  FINISHED_ROOM_TTL_MS: z.coerce.number().int().min(15_000).default(5 * 60_000),
   /** Rooms nobody is connected to are removed after this long. */
   EMPTY_ROOM_TTL_MS: z.coerce.number().int().min(1_000).default(60_000),
   MATCHMAKING_WAIT_MS: z.coerce.number().int().min(1_000).default(8_000),

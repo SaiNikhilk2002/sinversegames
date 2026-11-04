@@ -1,0 +1,543 @@
+{
+  "date": "2026-11-04",
+  "environment": "Local production build, headless Chromium, no CPU/network throttling; reduced motion enabled. Timings are samples, not a mobile performance guarantee.",
+  "routes": [
+    {
+      "path": "/",
+      "title": "SinverseGames — Instant multiplayer games with friends",
+      "elements": 4142,
+      "covers": 29,
+      "svgElements": 3695,
+      "overflow": 0,
+      "domContentLoadedMs": 142.29999995231628,
+      "loadMs": 419.19999998807907,
+      "longTasksMs": [
+        61,
+        61
+      ],
+      "oldBrandVisible": false
+    },
+    {
+      "path": "/store",
+      "title": "Cosmetic studio · SinverseGames",
+      "elements": 250,
+      "covers": 0,
+      "svgElements": 0,
+      "overflow": 0,
+      "domContentLoadedMs": 94,
+      "loadMs": 96.39999997615814,
+      "longTasksMs": [],
+      "oldBrandVisible": false
+    },
+    {
+      "path": "/profile",
+      "title": "Your profile · SinverseGames",
+      "elements": 2464,
+      "covers": 14,
+      "svgElements": 2056,
+      "overflow": 0,
+      "domContentLoadedMs": 406.69999998807907,
+      "loadMs": 407.0999999642372,
+      "longTasksMs": [
+        69
+      ],
+      "oldBrandVisible": false
+    },
+    {
+      "path": "/leaderboard",
+      "title": "Leaderboard · SinverseGames",
+      "elements": 1458,
+      "covers": 8,
+      "svgElements": 1066,
+      "overflow": 0,
+      "domContentLoadedMs": 203.39999997615814,
+      "loadMs": 207.5,
+      "longTasksMs": [],
+      "oldBrandVisible": false
+    },
+    {
+      "path": "/games",
+      "title": "All games · SinverseGames",
+      "elements": 1366,
+      "covers": 7,
+      "svgElements": 1028,
+      "overflow": 0,
+      "domContentLoadedMs": 69.30000001192093,
+      "loadMs": 110.20000004768372,
+      "longTasksMs": [],
+      "oldBrandVisible": false
+    }
+  ],
+  "layouts": [
+    {
+      "path": "/store",
+      "width": 320,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 320,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 320,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 320,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 360,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 360,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 360,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 360,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 375,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 375,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 375,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 375,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 390,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 390,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 390,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 390,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 430,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 430,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 430,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 430,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 768,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 768,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 768,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 768,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 1024,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 1024,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 1024,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 1024,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 1280,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/store",
+      "width": 1280,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s",
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 1280,
+      "theme": "light",
+      "overflow": 0,
+      "scheme": "light",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    },
+    {
+      "path": "/profile",
+      "width": 1280,
+      "theme": "dark",
+      "overflow": 0,
+      "scheme": "dark",
+      "headerOverflow": 0,
+      "animationDurations": [
+        "1e-05s"
+      ]
+    }
+  ],
+  "metadata": [
+    {
+      "path": "/manifest.webmanifest",
+      "status": 200,
+      "name": "SinverseGames"
+    },
+    {
+      "path": "/icon.svg",
+      "status": 200,
+      "type": "image/svg+xml"
+    },
+    {
+      "path": "/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    },
+    {
+      "path": "/games/color-clash/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    },
+    {
+      "path": "/games/doodle-duel/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    },
+    {
+      "path": "/games/token-trail/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    },
+    {
+      "path": "/games/bumper-blitz/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    },
+    {
+      "path": "/games/kitchen-rush/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    },
+    {
+      "path": "/games/cascade-solitaire/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    },
+    {
+      "path": "/games/mahjong-garden/opengraph-image",
+      "status": 200,
+      "type": "image/png"
+    }
+  ],
+  "errors": [],
+  "walletUnavailableShowsUnknownBalanceAndRetry": true
+}

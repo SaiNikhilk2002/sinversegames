@@ -1,5 +1,9 @@
 # Game rules
 
+Eight games below are implemented. Cuisine Quest adds a seven-level campaign; nine other expansion concepts remain design-only in [docs/GAME_CATALOGUE.md](docs/GAME_CATALOGUE.md). Validated normal completions lasting at least 30 seconds and scoring positively can earn Sin Coins (solo must complete); the economy/caps are in [docs/SIN_COINS_ECONOMY.md](docs/SIN_COINS_ECONOMY.md). Currency never alters game rules or scoring.
+
+Multiplayer results offer readiness/host-controlled rematches in the same room with a fresh server match identifier and fully reset game state. Finished rooms have a five-minute default grace period; inactivity and readiness alone do not keep a finished room alive. Doodle drawing uses a plain white canvas and a separate circular size preview; the preview is never part of the transmitted/saved drawing. Lobbies show joined players and safe-area mobile readiness controls.
+
 Authoritative rules as implemented by the server engines in `packages/engines`. The engines are the source of truth; this document describes them.
 
 ---
@@ -318,3 +322,30 @@ A real-time arena brawler for **2–6 players** (`packages/engines/src/bumper-bl
 - **Knockouts:** a pod whose centre leaves the ring falls and respawns after 2 s, with 1.5 s of no-collision. The last rival to hit it within 4 s scores a **knockout**. Falling on your own scores nobody.
 - **Match:** 30 s to 3 min after a 3 s countdown. **Score** = 100 per knockout − 25 per fall (never below 0). Ties at the top share the win.
 - **Disconnected pods** stop steering but stay in the arena. If only one player is left, the match ends.
+
+
+## Cuisine Quest
+
+Single player. Travel the world. Master the kitchen. Complete seven cuisines in order; one saved star opens the next kitchen. Replay unlocked kitchens freely to improve their best stars/scores. Three stars marks cuisine mastery; the passport holds up to 21 stars. A saved campaign needs PostgreSQL and the current guest cookie.
+
+| Kitchen | Four recipes | Introduced/combined skills |
+| --- | --- | --- |
+| Indian | Masala dosa, paneer tikka, butter naan, vegetable biryani | Batter mixing, dosa spreading/tawa flips, chopping/marinating/grilling, dough stretching/baking, rice and spice layering |
+| Italian | Margherita pizza, Pasta Alfredo, bruschetta, lasagna | Knead/stretch/toppings, accurate boiling/sauce mixing, slicing, layered oven service |
+| Japanese | Sushi rolls, ramen, tempura, onigiri | Rice boiling, precise slicing/rolling, broth mixing, frying, rice shaping |
+| Mexican | Tacos, quesadillas, burritos, nachos | Chopped fillings, tortilla grilling, folding/wrapping, layered oven assembly |
+| Thai | Pad Thai, green curry, Tom Yum, mango sticky rice | Measured 1/2 portions, wok cadence, curry-paste crushing/mixing, soup heat, rice steaming |
+| Chinese | Fried rice, dumplings, chow mein, kung pao chicken | Wok sequencing/tosses, chopping, folding/sealing/steaming, marinating |
+| Mediterranean | Hummus platter, falafel, Greek salad, shakshuka | Blending, shaping/frying, fresh slicing/mixing, layered pan finishing and precise plating |
+
+Each shift seats six guests, requesting seven plates. The first four tickets cover every recipe, arriving no earlier than 0/14/28/42 seconds, with at most three seated at once. The fourth wants two independently prepared plates. The last two arrive after the first four resolve: a special finish and a regular guest. Regular/patient/impatient/large patience is 155/180/125/200 seconds and begins only on seating. The maximum logical shift is nine minutes. Pause/backgrounding stop logical time.
+
+Choose each recipe ingredient in order and the displayed portion count. Begin the relevant technique and follow ordered spatial markers, at least 140 ms apart. Tap/drag or keyboard Space/Enter and Follow marker use identical positions and score rules. Wrong ingredients/portions/markers lower quality and can be corrected. Two batches can be active; each physical station serves one active technique/cooking step. Switch tickets to prepare another dish while food cooks. Restart discards one batch, records a mistake and preserves its customer's remaining patience.
+
+Set heat 1-5 before placing food. Correct heat integrates 1 ms of cooking work per logical ms; lower/higher heat uses 0.6/1.4 and reduces quality. Each method has authored cook time, heat and flip/stir requirements. Ideal flip is 40-85% of cooking work; stirring has a 600 ms minimum gap. Food becomes perfect at its required work, overcooked 2 seconds later and burnt 5 seconds later. Lift cannot end cooking early. Missing flips/stirs, wrong heat and overcooking reduce quality; burning remains counted after restarting. Visual windows and text work with muted sound/reduced motion.
+
+Complete spatial plating and choose the ticket's herbs/lemon/sesame finish. Serve or drag the plate to its correct ticket. Wrong finish/guest records a recoverable mistake and retains the plate. A large guest requires two full batches. Guests leave when patience expires; unfinished plates count missed.
+
+The engine recomputes score up to 10,000: 45% completion, 30% preparation/cooking precision, 15% customer satisfaction, 10% mistake-adjusted served accuracy. No served plates means zero. Stars require a finished shift: one at 5+ plates and 5,200; two at 6+ and 7,000; three at all seven, 8,500 and 85% precision. Satisfaction combines food quality (70%) and remaining patience (30%). Logs must end with a valid finish seal; the server rejects impossible, malformed, backwards, oversized and unrealistically fast replays.
+
+The first successful completion of each cuisine can earn normal 2+10 Sin Coins if eligible (30+ seconds, positive score). Repeat completions do not repeat these coins. A new per-cuisine personal best above an existing positive best can earn 3; new eligible achievements 5 each, all within the shared 80/UTC-day cap. Achievements include seven cuisine masteries, first perfect plate, three stars, perfect shift, no-burn service, seven-plate speed service within 120 seconds, and completing all seven kitchens. Failed shifts do not unlock the next cuisine or grant rewards. Duplicate/uncertain saves return the original receipt and never repeat awards.

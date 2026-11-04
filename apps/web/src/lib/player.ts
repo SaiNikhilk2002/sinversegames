@@ -7,14 +7,21 @@ export interface Player {
   name: string;
   color: string;
   kind: "guest" | "registered";
+  username?:string|null;
+  avatarKey?:string|null;
+  cosmetics?: { frame: string | null; nameplate: string | null };
 }
 
 interface PlayerState {
   player: Player | null;
   loading: boolean;
+  error?: string;
 }
 
-let state: PlayerState = { player: null, loading: true };
+// Keep hydration's snapshot identical to server HTML even if the header's
+// session fetch finishes before a later streamed profile component hydrates.
+const serverState: PlayerState = { player: null, loading: true };
+let state: PlayerState = serverState;
 let fetched: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 const set = (s: PlayerState) => {
@@ -24,9 +31,9 @@ const set = (s: PlayerState) => {
 
 function load() {
   fetched ??= fetch("/api/session", { cache: "no-store" })
-    .then((r) => r.json())
+    .then((r) => {if(!r.ok)throw new Error("Your player couldn't be checked. Please retry; your cookie is preserved.");return r.json();})
     .then((d: { player: Player | null }) => set({ player: d.player, loading: false }))
-    .catch(() => set({ player: null, loading: false }));
+    .catch(() => set({ player:state.player, loading:false,error:"Your player couldn't be checked. Please retry; your cookie is preserved." }));
   return fetched;
 }
 
@@ -53,6 +60,11 @@ export function usePlayer(): PlayerState {
       return () => listeners.delete(cb);
     },
     () => state,
-    () => state,
+    () => serverState,
   );
+}
+
+export async function reloadPlayer() {
+  fetched = null;
+  await load();
 }

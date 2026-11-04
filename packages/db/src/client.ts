@@ -21,6 +21,9 @@ function createClient(url: string): PrismaClient {
     // Serverless-friendly pool: small, with short idle timeouts.
     max: isWorkerd ? 1 : Number(process.env.DATABASE_POOL_MAX ?? 5),
     idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 2_500,
+    statement_timeout: 5_000,
+    query_timeout: 6_000,
   });
   return new PrismaClient({ adapter });
 }

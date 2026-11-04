@@ -44,6 +44,8 @@ const newStrokeId = () => `${Date.now().toString(36)}${(strokeCounter++).toStrin
 export const DrawingCanvas = memo(
   forwardRef<CanvasHandle, { code: string; turn: number; isDrawer: boolean; brush: Brush }>(function DrawingCanvas({ code, turn, isDrawer, brush }, ref) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const cursorRef = useRef<HTMLSpanElement>(null);
+    const pointer = useRef<{ x: number; y: number; type: string } | null>(null);
     const strokes = useRef(new Map<string, LocalStroke>());
     const order = useRef<string[]>([]);
     const scale = useRef(1);
@@ -52,7 +54,7 @@ export const DrawingCanvas = memo(
     brushRef.current = brush;
 
     // Active local stroke state (drawer only).
-    const active = useRef<{ stroke: LocalStroke; seq: number; pending: Pt[]; last: Pt | null; timer: number | null } | null>(null);
+    const active = useRef<{ pointerId: number; stroke: LocalStroke; seq: number; pending: Pt[]; last: Pt | null; timer: number | null } | null>(null);
 
     const ctx2d = () => canvasRef.current?.getContext("2d") ?? null;
 
@@ -103,6 +105,7 @@ export const DrawingCanvas = memo(
     }, [drawChunk]);
 
     const reset = useCallback(() => {
+      if (active.current?.timer) clearInterval(active.current.timer);
       strokes.current.clear();
       order.current = [];
       active.current = null;
@@ -127,6 +130,25 @@ export const DrawingCanvas = memo(
       [drawChunk, redraw],
     );
 
+    const updateCursor = useCallback(() => {
+      const canvas = canvasRef.current;
+      const cursor = cursorRef.current;
+      const position = pointer.current;
+      if (!canvas || !cursor || !position || !isDrawer) {
+        if (cursor) cursor.style.display = "none";
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      const diameter = brushRef.current.size * rect.width / CANVAS_WIDTH;
+      Object.assign(cursor.style, { display: "block", width: `${diameter}px`, height: `${diameter}px`, left: `${position.x - rect.left}px`, top: `${position.y - rect.top}px` });
+    }, [isDrawer]);
+
+    useEffect(updateCursor, [brush.size, brush.tool, isDrawer, updateCursor]);
+    useEffect(() => {
+      window.addEventListener("scroll", updateCursor, true);
+      return () => window.removeEventListener("scroll", updateCursor, true);
+    }, [updateCursor]);
+
     // Size the backing store to the element (crisp on high-DPI screens).
     useEffect(() => {
       const c = canvasRef.current;
@@ -138,10 +160,11 @@ export const DrawingCanvas = memo(
         c.height = Math.round(w * (CANVAS_HEIGHT / CANVAS_WIDTH) * dpr);
         scale.current = c.width / CANVAS_WIDTH;
         redraw();
+        updateCursor();
       });
       ro.observe(c);
       return () => ro.disconnect();
-    }, [redraw]);
+    }, [redraw, updateCursor]);
 
     useEffect(() => {
       if (turnRef.current !== turn) {
@@ -201,6 +224,9 @@ export const DrawingCanvas = memo(
 
     const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
       if (!isDrawer || (e.pointerType === "mouse" && e.button !== 0)) return;
+      if (active.current) return;
+      pointer.current = { x: e.clientX, y: e.clientY, type: e.pointerType };
+      updateCursor();
       try {
         e.currentTarget.setPointerCapture(e.pointerId);
       } catch {
@@ -211,10 +237,13 @@ export const DrawingCanvas = memo(
       strokes.current.set(stroke.id, stroke);
       order.current.push(stroke.id);
       e.currentTarget.dataset.strokes = String(order.current.length);
-      active.current = { stroke, seq: 0, pending: [toLogical(e)], last: null, timer: window.setInterval(flush, FLUSH_MS) };
+      active.current = { pointerId: e.pointerId, stroke, seq: 0, pending: [toLogical(e)], last: null, timer: window.setInterval(flush, FLUSH_MS) };
       flush();
     };
     const onMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (active.current && active.current.pointerId !== e.pointerId) return;
+      pointer.current = { x: e.clientX, y: e.clientY, type: e.pointerType };
+      updateCursor();
       const a = active.current;
       if (!a) return;
       // Coalesced events give smoother lines on fast pointer movement.
@@ -232,12 +261,13 @@ export const DrawingCanvas = memo(
         a.pending.push(p);
       }
     };
-    const onUp = () => {
+    const onUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
       const a = active.current;
-      if (!a) return;
+      if (!a || a.pointerId !== e.pointerId) return;
       flush();
       if (a.timer) clearInterval(a.timer);
       active.current = null;
+      if (pointer.current?.type === "touch") { pointer.current = null; updateCursor(); }
     };
 
     useImperativeHandle(
@@ -265,6 +295,7 @@ export const DrawingCanvas = memo(
     }, []);
 
     return (
+      <div className="relative overflow-hidden rounded-[4px] bg-white">
       <canvas
         ref={canvasRef}
         data-testid="doodle-canvas"
@@ -274,9 +305,14 @@ export const DrawingCanvas = memo(
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
+        onLostPointerCapture={onUp}
+        onPointerEnter={(e) => { pointer.current = { x: e.clientX, y: e.clientY, type: e.pointerType }; updateCursor(); }}
+        onPointerLeave={() => { pointer.current = null; updateCursor(); }}
         className="block aspect-[4/3] w-full touch-none rounded-[4px] bg-white select-none"
-        style={{ cursor: isDrawer ? (brush.tool === "eraser" ? "cell" : "crosshair") : "default" }}
+        style={{ cursor: isDrawer ? "none" : "default" }}
       />
+      <span ref={cursorRef} data-testid="brush-preview" aria-hidden className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/20 shadow-[inset_0_0_0_1px_#17142b]" style={{ display: "none" }} />
+      </div>
     );
   }),
 );

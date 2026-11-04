@@ -26,6 +26,8 @@ import { categoryFor, RateLimiter } from "./rate-limit";
 import { Matchmaker } from "./rooms/matchmaker";
 import { err, type PlayerInfo } from "./rooms/room";
 import { RoomManager } from "./rooms/room-manager";
+import { avatarHandler } from "./avatars";
+import { getDb, resolveAccountSession } from "@platform/db";
 
 export interface RealtimeServerOptions {
   config: RealtimeConfig;
@@ -40,6 +42,7 @@ interface SocketData {
   roomCode: string | null;
   limiter: RateLimiter;
   ip: string;
+  sessionHash?: string;
 }
 
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>;
@@ -95,10 +98,22 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
     const header = req.headers.authorization ?? "";
     return !!config.ADMIN_TOKEN && header.startsWith("Bearer ") && secureEquals(header.slice(7), config.ADMIN_TOKEN);
   };
+  const handleAvatar = avatarHandler(config.AUTH_SECRET);
+  const accountValid = async (playerId: string, sid?: string) => {
+    if (!persistence.enabled) return !sid;
+    const db = getDb();
+    if (!db) return !sid;
+    try {
+      if (sid) return (await resolveAccountSession(db, sid))?.playerId === playerId;
+      const player = await db.player.findUnique({ where: { id: playerId }, select: { kind: true } });
+      return player?.kind !== "REGISTERED";
+    } catch { return false; }
+  };
 
   const http = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     try {
+      if (req.method === "POST" && url.pathname === "/internal/avatar") return await handleAvatar(req, res);
       if (req.method === "GET" && (url.pathname === "/health" || url.pathname === "/")) {
         return json(res, 200, { status: "ok", uptimeSeconds: Math.round((Date.now() - startedAt) / 1000) });
       }
@@ -172,6 +187,8 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
     }
     try {
       const claims = await verifyPlayerToken(token, "realtime", config.AUTH_SECRET);
+      if ((claims.kind === "registered" && !claims.sid) || !await accountValid(claims.sub, claims.sid)) return next(new Error("UNAUTHORIZED"));
+      socket.data.sessionHash = claims.sid;
       if (await persistence.isBanned(claims.sub)) {
         counters.rejectedConnections++;
         return next(new Error("BANNED"));
@@ -189,6 +206,12 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
 
   io.on("connection", (socket: GameSocket) => {
     const player = socket.data.player;
+    socket.use((_packet, next) => {
+      void accountValid(player.id, socket.data.sessionHash).then(valid => {
+        if (valid) next();
+        else { next(new Error("UNAUTHORIZED")); socket.disconnect(true); }
+      }).catch(() => socket.disconnect(true));
+    });
     counters.connectionsTotal++;
     connectionsPerIp.set(socket.data.ip, (connectionsPerIp.get(socket.data.ip) ?? 0) + 1);
     logger.debug("connected", { player: player.id, socket: socket.id });
@@ -252,11 +275,18 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
       return { ok: true };
     });
 
-    on("room:ready", roomReadyPayload, (p) => currentRoom()?.setReady(player.id, p.ready) ?? err("NOT_IN_ROOM", "Join a room first"));
-    on("room:configure", roomConfigurePayload, (p) => currentRoom()?.configure(player.id, p.config) ?? err("NOT_IN_ROOM", "Join a room first"));
-    on("room:kick", roomKickPayload, (p) => currentRoom()?.kick(player.id, p.playerId) ?? err("NOT_IN_ROOM", "Join a room first"));
+    const scoped = (env: ClientEnvelope, action: (room: NonNullable<ReturnType<typeof currentRoom>>) => Ack): Ack => {
+      const room = currentRoom();
+      if (!room) return err("NOT_IN_ROOM", "Join a room first");
+      if (env.roomId && env.roomId !== room.code) return err("STALE_STATE", "You are in a different room now.");
+      if ((env.matchId ?? null) !== room.matchId) return err("STALE_STATE", "This match changed. Refresh the room to continue.");
+      return action(room);
+    };
+    on("room:ready", roomReadyPayload, (p, env) => scoped(env, (room) => room.setReady(player.id, p.ready)));
+    on("room:configure", roomConfigurePayload, (p, env) => scoped(env, (room) => room.configure(player.id, p.config)));
+    on("room:kick", roomKickPayload, (p, env) => scoped(env, (room) => room.kick(player.id, p.playerId)));
     on("room:sync", emptyPayload, () => currentRoom()?.resync(player.id) ?? err("NOT_IN_ROOM", "Join a room first"));
-    on("game:start", emptyPayload, () => currentRoom()?.start(player.id) ?? err("NOT_IN_ROOM", "Join a room first"));
+    on("game:start", emptyPayload, (_p, env) => scoped(env, (room) => room.start(player.id, false, env.matchId)));
 
     on("match:queue", matchQueuePayload, (p) => matchmaker.enqueue(player, socket, p.gameId));
     on("match:cancel", emptyPayload, () => matchmaker.cancel(player.id));

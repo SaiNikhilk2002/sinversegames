@@ -71,7 +71,8 @@ export function useRoom(code: string, enabled: boolean) {
       setState((s) => {
         const next = env.payload as GameStatePayload;
         // Never let an older state overwrite a newer one.
-        if (s.game && next.version < s.game.version && s.room?.status === "playing") return s;
+        if (next.matchId !== s.room?.matchId) return s;
+        if (s.game?.matchId === next.matchId && next.version < s.game.version && s.room?.status === "playing") return s;
         return { ...s, game: next };
       }),
     );
@@ -84,6 +85,7 @@ export function useRoom(code: string, enabled: boolean) {
     offs.push(
       realtime.onConnect(() => {
         lastSeq.current = 0;
+        setState((s) => ({ ...s, phase: "joining", error: null }));
         void realtime.emit<{ code: string }>("room:join", { code }).then((ack) => {
           if (!ack.ok) setState((s) => ({ ...s, phase: "error", error: ack.error }));
         });
@@ -108,6 +110,10 @@ export function useRoom(code: string, enabled: boolean) {
   const retry = useCallback(() => {
     setState(initial);
     lastSeq.current = 0;
+    if (realtime.status !== "connected") {
+      realtime.reauthenticate();
+      return;
+    }
     void realtime.emit("room:join", { code }).then((ack) => {
       if (!ack.ok) setState((s) => ({ ...s, phase: "error", error: ack.error }));
     });

@@ -86,6 +86,21 @@ test("two players complete a Doodle Duel match with synced drawing and server sc
   expect(scores).toHaveLength(2);
   for (const s of scores) expect(parseInt(s, 10)).toBeGreaterThan(100);
 
+  // The same players rematch in the same room. No canvas, guesses, results or
+  // accumulated scores from the completed match may survive in the new client.
+  await b.page.getByRole("button", { name: "Ready for a rematch", exact: true }).click();
+  await a.page.getByRole("button", { name: "Play again", exact: true }).click();
+  for (const player of [a, b]) {
+    await expect(player.page).toHaveURL(new RegExp(`/room/${code}$`));
+    await expect(player.page.getByTestId("doodle-duel")).toBeVisible();
+    await expect(player.page.getByTestId("results")).toBeHidden();
+    await expect(player.page.getByTestId("guess-log")).not.toContainText("definitely not it");
+    await expect.poll(() => inkPixels(player.page)).toBe(0);
+    const resetScores = await player.page.locator('[data-testid^="doodle-score-"]').allTextContents();
+    expect(resetScores).toHaveLength(2);
+    expect(resetScores.every((score) => parseInt(score, 10) === 0)).toBe(true);
+  }
+
   await a.context.close();
   await b.context.close();
 });

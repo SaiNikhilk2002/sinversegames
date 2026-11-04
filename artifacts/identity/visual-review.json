@@ -1,0 +1,34 @@
+{
+  "fixture": "Controlled local OIDC provider with signed-token/PKCE/nonce checks and actual local image normalization/storage. Fresh guest linked through real UI; no game stats, ledger, stars or balances were seeded. This is not Google consent or R2 verification.",
+  "layouts": [
+    {
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "width": 360,
+      "overflow": 0
+    },
+    {
+      "width": 375,
+      "overflow": 0
+    },
+    {
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "width": 430,
+      "overflow": 0
+    },
+    {
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "width": 1280,
+      "overflow": 0
+    }
+  ],
+  "pageErrors": []
+}

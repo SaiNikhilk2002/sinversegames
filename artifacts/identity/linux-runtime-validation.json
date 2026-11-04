@@ -1,0 +1,15 @@
+{
+  "packagedHealth": true,
+  "small": {
+    "width": 64,
+    "height": 64,
+    "format": "webp"
+  },
+  "full": {
+    "width": 256,
+    "height": 256,
+    "format": "webp"
+  },
+  "replayedJobStatus": 401,
+  "noExternalService": true
+}

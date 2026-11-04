@@ -1,0 +1,7 @@
+{
+  "baseline": "f481934",
+  "scope": "Entire engine package, original game clients, all original test/e2e/test-db paths and prior artifacts",
+  "protectedCount": 219,
+  "changedProtectedPaths": [],
+  "manualsIdentical": true
+}

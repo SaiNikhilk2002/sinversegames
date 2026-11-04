@@ -1,6 +1,8 @@
-import type { MatchResults } from "@platform/shared";
+import { COIN_REWARD_REASONS, COIN_RULES, type MatchResults } from "@platform/shared";
 import type { PrismaClient } from "./generated/prisma/client";
 import { ACHIEVEMENTS, levelForXp, REWARD_RULES, rewardsEnabled, XP_RULES } from "./progression";
+import { lockPlayer } from "./wallet";
+import { recordCuisineProgress } from "./cuisine";
 
 // ---------------------------------------------------------------------------
 // Players
@@ -16,7 +18,8 @@ export async function upsertPlayer(db: PrismaClient, p: PlayerIdentity) {
   return db.player.upsert({
     where: { id: p.id },
     create: { id: p.id, displayName: p.name, avatarColor: p.color },
-    update: { displayName: p.name, avatarColor: p.color, lastSeenAt: new Date() },
+    // Old room/token snapshots must never overwrite a registered profile.
+    update: { lastSeenAt: new Date() },
   });
 }
 
@@ -47,6 +50,7 @@ export interface RecordMatchInput {
 export interface RecordMatchOutput {
   matchId: string;
   unlocked: Record<string, string[]>;
+  earned: Record<string, number>;
 }
 
 /**
@@ -59,12 +63,13 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
   const grantRewards = rewardsEnabled();
 
   return db.$transaction(async (tx) => {
-    for (const p of input.players) {
+    for (const p of [...input.players].sort((a, b) => a.id.localeCompare(b.id))) {
       await tx.player.upsert({
         where: { id: p.id },
         create: { id: p.id, displayName: p.name, avatarColor: p.color },
         update: { lastSeenAt: new Date() },
       });
+      await lockPlayer(tx, p.id);
     }
 
     const match = await tx.match.create({
@@ -93,7 +98,10 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
     });
 
     const unlocked: Record<string, string[]> = {};
+    const earnedCoins: Record<string, number> = {};
     for (const e of results.entries) {
+      const cuisine = (results.gameId as string) === "cuisine-quest" ? await recordCuisineProgress(tx, e.playerId, e.score, e.isWinner, e.details ?? {}) : null;
+      const details = cuisine?.summary ?? e.details ?? {};
       const prev = await tx.playerGameStats.findUnique({ where: { playerId_gameId: { playerId: e.playerId, gameId: results.gameId } } });
       await tx.playerGameStats.upsert({
         where: { playerId_gameId: { playerId: e.playerId, gameId: results.gameId } },
@@ -120,24 +128,12 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
       const xp = player.xp + XP_RULES.matchPlayed + (e.isWinner ? XP_RULES.matchWon : 0);
       await tx.player.update({ where: { id: e.playerId }, data: { xp, level: levelForXp(xp) } });
 
-      if (grantRewards) {
-        await tx.rewardLedgerEntry.createMany({
-          data: [
-            { playerId: e.playerId, amount: REWARD_RULES.matchPlayed, reason: "match_played", refType: "match", refId: match.id },
-            ...(e.isWinner
-              ? [{ playerId: e.playerId, amount: REWARD_RULES.matchWon, reason: "match_won", refType: "match", refId: match.id }]
-              : []),
-          ],
-          skipDuplicates: true,
-        });
-      }
-
       const stats = await tx.playerGameStats.findMany({ where: { playerId: e.playerId } });
       const have = new Set(
         (await tx.playerAchievement.findMany({ where: { playerId: e.playerId }, select: { achievementKey: true } })).map((a) => a.achievementKey),
       );
       const fresh = ACHIEVEMENTS.filter(
-        (a) => !have.has(a.key) && a.unlocked(stats, { gameId: results.gameId, score: e.score, isWinner: e.isWinner, details: e.details ?? {} }),
+        (a) => !have.has(a.key) && a.unlocked(stats, { gameId: results.gameId, score: e.score, isWinner: e.isWinner, details }),
       ).map((a) => a.key);
       if (fresh.length) {
         await tx.playerAchievement.createMany({
@@ -146,9 +142,34 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
         });
         unlocked[e.playerId] = fresh;
       }
+      const eligible = results.reason === "completed" && match.durationMs >= COIN_RULES.minimumDurationMs && e.score > 0 && (!input.solo || e.isWinner);
+      if (grantRewards && eligible) {
+        const now = new Date();
+        const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const until = new Date(since.getTime() + 86_400_000);
+        const earned = await tx.rewardLedgerEntry.aggregate({
+          where: { playerId: e.playerId, amount: { gt: 0 }, reason: { in: [...COIN_REWARD_REASONS] }, createdAt: { gte: since, lt: until } }, _sum: { amount: true },
+        });
+        let remaining = Math.max(0, COIN_RULES.dailyCap - (earned._sum.amount ?? 0));
+        const previousBest = cuisine?.previousBest ?? prev?.bestScore ?? 0;
+        const grants = [
+          ...(!cuisine || cuisine.firstCompletion ? [{ amount: REWARD_RULES.matchPlayed, reason: "match_played", refType: "match", refId: match.id }] : []),
+          ...(e.isWinner && (!cuisine || cuisine.firstCompletion) ? [{ amount: REWARD_RULES.matchWon, reason: "match_won", refType: "match", refId: match.id }] : []),
+          ...(previousBest > 0 && e.score > previousBest ? [{ amount: COIN_RULES.personalBest, reason: "personal_best", refType: "match", refId: match.id }] : []),
+          ...fresh.map((key) => ({ amount: COIN_RULES.achievement, reason: "achievement", refType: "achievement", refId: key })),
+        ];
+        for (const grant of grants) {
+          const amount = Math.min(grant.amount, remaining);
+          if (!amount) break;
+          await tx.rewardLedgerEntry.create({ data: { ...grant, amount, playerId: e.playerId, createdAt: now } });
+          earnedCoins[e.playerId] = (earnedCoins[e.playerId] ?? 0) + amount;
+          remaining -= amount;
+        }
+      }
+      if (cuisine) await tx.matchParticipant.update({ where: { matchId_playerId: { matchId: match.id, playerId: e.playerId } }, data: { details: { ...details, coinsEarned: earnedCoins[e.playerId] ?? 0, unlockedKeys: fresh.join(",") } } });
     }
-    return { matchId: match.id, unlocked };
-  });
+    return { matchId: match.id, unlocked, earned: earnedCoins };
+  }, { maxWait: 5_000, timeout: 15_000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +183,9 @@ export async function getProfile(db: PrismaClient, playerId: string) {
       stats: true,
       achievements: { orderBy: { unlockedAt: "desc" } },
       favorites: true,
+      inventory: true,
+      equipment: true,
+      cuisineProgress: { orderBy: { level: "asc" } },
       participations: {
         orderBy: { createdAt: "desc" },
         take: 15,
@@ -170,24 +194,29 @@ export async function getProfile(db: PrismaClient, playerId: string) {
     },
   });
   if (!player) return null;
-  const balance = await db.rewardLedgerEntry.aggregate({ where: { playerId }, _sum: { amount: true } });
-  return { ...player, rewardBalance: balance._sum.amount ?? 0 };
+  const [balance, cuisineRuns] = await Promise.all([
+    db.rewardLedgerEntry.aggregate({ where: { playerId }, _sum: { amount: true } }),
+    player.cuisineProgress.length ? db.matchParticipant.findMany({ where: { playerId, match: { gameId: "cuisine-quest" } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 6, include: { match: { select: { endedAt: true } } } }) : Promise.resolve([]),
+  ]);
+  return { ...player, rewardBalance: balance._sum.amount ?? 0, cuisineRuns };
 }
 
 export type LeaderboardMetric = "totalPoints" | "wins" | "bestScore";
+const publicMatchDetails = (value: unknown): Record<string, number | string> => Object.fromEntries(Object.entries((value ?? {}) as Record<string, number | string>).filter(([key]) => key !== "coinsEarned" && key !== "unlockedKeys"));
 
 export async function getLeaderboard(db: PrismaClient, gameId: string, metric: LeaderboardMetric = "totalPoints", limit = 25) {
   const rows = await db.playerGameStats.findMany({
-    where: { gameId, gamesPlayed: { gt: 0 }, player: { bannedUntil: null } },
-    orderBy: [{ [metric]: "desc" }, { gamesPlayed: "asc" }],
+    where: { gameId, gamesPlayed: { gt: 0 }, player: { OR: [{ bannedUntil: null }, { bannedUntil: { lte: new Date() } }] } },
+    orderBy: [{ [metric]: "desc" }, { gamesPlayed: "asc" }, { playerId: "asc" }],
     take: Math.min(100, limit),
-    include: { player: { select: { displayName: true, avatarColor: true, level: true } } },
+    include: { player: { select: { displayName: true, avatarColor: true, level: true, username:true, avatarKey:true } } },
   });
   return rows.map((r, i) => ({
     rank: i + 1,
     playerId: r.playerId,
     name: r.player.displayName,
     color: r.player.avatarColor,
+    username:r.player.username,avatarKey:r.player.avatarKey,
     level: r.player.level,
     gamesPlayed: r.gamesPlayed,
     wins: r.wins,
@@ -199,22 +228,27 @@ export async function getLeaderboard(db: PrismaClient, gameId: string, metric: L
 /** Best single score per player today (UTC), for single-player daily leaderboards. */
 export async function getDailyBest(db: PrismaClient, gameId: string, limit = 25, now = new Date()) {
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const rows = await db.matchParticipant.findMany({
-    where: { match: { gameId, endedAt: { gte: since } }, player: { bannedUntil: null } },
-    orderBy: [{ score: "desc" }, { createdAt: "asc" }],
-    take: 500,
-    include: { player: { select: { displayName: true, avatarColor: true, level: true } } },
-  });
-  const seen = new Set<string>();
-  const best = rows.filter((r) => !seen.has(r.playerId) && seen.add(r.playerId)).slice(0, Math.min(100, limit));
+  const until = new Date(since.getTime() + 86_400_000);
+  const count = Math.max(1, Math.min(100, Math.floor(limit)));
+  // Deduplicate before limiting: one prolific player must not crowd others
+  // out of an arbitrary 500-row pre-sample. Ties use first achievement then ID.
+  const best = await db.$queryRaw<{ playerId: string; displayName: string; avatarColor: string; level: number; score: number; details: unknown;username:string|null;avatarKey:string|null }[]>`
+    SELECT best.* FROM (
+      SELECT DISTINCT ON (mp."playerId") mp."playerId", p."displayName", p."avatarColor", p."level", p."username",p."avatarKey", mp."score", mp."details", mp."createdAt"
+      FROM "MatchParticipant" mp JOIN "Match" m ON m."id" = mp."matchId" JOIN "Player" p ON p."id" = mp."playerId"
+      WHERE m."gameId" = ${gameId} AND m."endedAt" >= ${since} AND m."endedAt" < ${until}
+        AND (p."bannedUntil" IS NULL OR p."bannedUntil" <= ${now})
+      ORDER BY mp."playerId", mp."score" DESC, mp."createdAt" ASC, mp."id" ASC
+    ) best ORDER BY best."score" DESC, best."createdAt" ASC, best."playerId" ASC LIMIT ${count}`;
   return best.map((r, i) => ({
     rank: i + 1,
     playerId: r.playerId,
-    name: r.player.displayName,
-    color: r.player.avatarColor,
-    level: r.player.level,
+    name: r.displayName,
+    color: r.avatarColor,
+    username:r.username,avatarKey:r.avatarKey,
+    level: r.level,
     score: r.score,
-    details: (r.details ?? {}) as Record<string, number | string>,
+    details: publicMatchDetails(r.details),
   }));
 }
 

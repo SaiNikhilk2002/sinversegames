@@ -1,0 +1,104 @@
+{
+  "fixture": "Existing fully completed isolated local campaign; owner session signed with public dummy test key, no token retained. Normal server-checked starts and unmodified UI. No scores, progress or reward rows were seeded for this review.",
+  "reports": [
+    {
+      "level": 1,
+      "width": 320,
+      "controls": 5,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 1,
+      "width": 360,
+      "controls": 5,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 2,
+      "width": 320,
+      "controls": 6,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 2,
+      "width": 360,
+      "controls": 6,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 3,
+      "width": 320,
+      "controls": 6,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 3,
+      "width": 360,
+      "controls": 6,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 4,
+      "width": 320,
+      "controls": 6,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 4,
+      "width": 360,
+      "controls": 6,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 5,
+      "width": 320,
+      "controls": 9,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 5,
+      "width": 360,
+      "controls": 9,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 6,
+      "width": 320,
+      "controls": 9,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 6,
+      "width": 360,
+      "controls": 9,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 7,
+      "width": 320,
+      "controls": 9,
+      "overflow": 0,
+      "failures": []
+    },
+    {
+      "level": 7,
+      "width": 360,
+      "controls": 9,
+      "overflow": 0,
+      "failures": []
+    }
+  ],
+  "pageErrors": []
+}

@@ -5,6 +5,7 @@ import { signRunToken } from "@platform/shared/identity";
 import { SOLO_GAMES } from "@platform/engines/solo";
 import { authSecret, getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { activeBan, getCuisineCampaign, getDb } from "@platform/db";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,16 @@ export async function POST(req: Request) {
   const game = SOLO_GAMES[parsed.data.gameId];
   const config = game.configSchema.safeParse(parsed.data.config ?? {});
   if (!config.success) return NextResponse.json({ error: "Invalid game settings" }, { status: 400 });
+
+  if ((parsed.data.gameId as string) === "cuisine-quest") {
+    const db = getDb(); const level = Number((config.data as { level: number }).level);
+    if (!db && level > 1) return NextResponse.json({ error: "Campaign saving must be available to unlock the next cuisine." }, { status: 503 });
+    if (db) try {
+      if (await activeBan(db, player.id)) return NextResponse.json({ error: "Your account is suspended." }, { status: 403 });
+      const campaign = await getCuisineCampaign(db, player.id);
+      if (!campaign.levels[level - 1]?.unlocked) return NextResponse.json({ error: "Complete the earlier cuisine levels first." }, { status: 403 });
+    } catch { return NextResponse.json({ error: "Your campaign couldn't be checked. Please retry." }, { status: 503 }); }
+  }
 
   const seed = crypto.getRandomValues(new Uint32Array(1))[0]!;
   const runId = crypto.randomUUID();

@@ -6,7 +6,8 @@ import { Globe2, Lock, Radar, X } from "lucide-react";
 import { getGame, type MatchStatusPayload, type MultiplayerGameId, type RoomVisibility } from "@platform/shared";
 import { GameArt } from "../brand";
 import { JoinCodeForm } from "../games/join-code-form";
-import { Button, Card, Spinner } from "../ui/primitives";
+import { GAME_THEME } from "../game-theme";
+import { Button, cn, Spinner } from "../ui/primitives";
 import { useToast } from "../ui/toast";
 import { ConnectionBadge } from "./connection-badge";
 import { realtime } from "@/lib/realtime/connection";
@@ -61,66 +62,89 @@ export function PlayHub({ gameId }: { gameId: MultiplayerGameId }) {
     else setMatch({ state: "searching", gameId, since: Date.now(), queued: 1 });
   }
 
+  const theme = GAME_THEME[gameId];
+  const searching = match.state === "searching";
+  const waited = Math.max(0, Math.round((now - (match.since ?? now)) / 1000));
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-        <GameArt gameId={gameId} className="h-28 w-44 shrink-0 rounded-2xl border border-line object-cover shadow-card" />
-        <div className="flex-1">
-          <h1 className="font-display text-4xl font-extrabold tracking-tight">{game.name}</h1>
-          <p className="mt-1 text-ink-muted">{game.tagline}</p>
+    <div style={{ "--accent": theme.accent } as React.CSSProperties}>
+      <section className="relative overflow-hidden border-b-[3px]" style={{ background: theme.deep, borderColor: theme.accent, color: theme.ink }}>
+        <div className="pointer-events-none absolute inset-0 opacity-25" aria-hidden>
+          <GameArt gameId={gameId} className="size-full scale-125 blur-2xl" />
         </div>
-        <ConnectionBadge status={status} />
-      </div>
+        <div className="relative mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8 sm:flex-row sm:items-center sm:px-6">
+          <div className="w-full max-w-xs shrink-0 overflow-hidden rounded-2xl border-[3px] shadow-[0_20px_40px_-20px_rgb(0_0_0/0.9)] sm:w-60" style={{ borderColor: theme.accent }}>
+            <GameArt gameId={gameId} className="block aspect-[16/10] w-full" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-black tracking-[0.25em] uppercase opacity-70">
+              {game.minPlayers}–{game.maxPlayers} players
+            </p>
+            <h1 className="font-display text-4xl font-black tracking-tight sm:text-5xl">{game.name}</h1>
+            <p className="mt-1 opacity-80">{game.tagline}</p>
+          </div>
+          <ConnectionBadge status={status} />
+        </div>
+      </section>
 
-      <div className="mt-10 grid gap-5 md:grid-cols-2">
-        <Card className="flex flex-col p-6">
-          <Lock className="size-7 text-brand-500" aria-hidden />
-          <h2 className="mt-3 font-display text-xl font-bold">Play with friends</h2>
-          <p className="mt-1 text-sm text-ink-muted">Create a private room and share the invite link. Only people with the link or code can join.</p>
+      <div className="mx-auto grid max-w-5xl gap-5 px-4 py-8 sm:px-6 md:grid-cols-2">
+        <div className="flex flex-col rounded-[24px] border-2 border-line bg-surface p-6">
+          <span className="grid size-12 place-items-center rounded-2xl border-2 border-[#17142b] text-[#17142b] shadow-[0_3px_0_#17142b]" style={{ background: theme.accent }}>
+            <Lock className="size-6" aria-hidden />
+          </span>
+          <h2 className="mt-4 font-display text-2xl font-black">Play with friends</h2>
+          <p className="mt-1 text-sm text-ink-muted">Open a private table and send the link. Only people with the link or code can sit down.</p>
           <Button className="mt-5" size="lg" onClick={() => createRoom("private")} loading={busy === "private"} disabled={!connected}>
             Create private room
           </Button>
-          <div className="mt-5 border-t border-line pt-5">
-            <p className="mb-2 text-sm font-semibold">Have a code?</p>
+          <div className="mt-5 border-t-2 border-dashed border-line pt-5">
+            <p className="mb-2 text-sm font-bold">Have a code?</p>
             <JoinCodeForm compact />
           </div>
-        </Card>
+        </div>
 
-        <Card className="flex flex-col p-6">
-          <Globe2 className="size-7 text-hot" aria-hidden />
-          <h2 className="mt-3 font-display text-xl font-bold">Play with anyone</h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            Find a public match with other players. Public games start automatically once everyone is ready.
-          </p>
-          {match.state === "searching" ? (
-            <div className="mt-5 rounded-2xl border border-brand-500/30 bg-brand-500/10 p-4" role="status" aria-live="polite">
-              <div className="flex items-center gap-3">
-                <span className="relative flex size-10 items-center justify-center rounded-full bg-brand-500 text-white animate-pulse-ring">
+        <div className="relative flex flex-col overflow-hidden rounded-[24px] border-2 border-line bg-surface p-6">
+          <span className="grid size-12 place-items-center rounded-2xl border-2 border-[#17142b] bg-[#ff4f8b] text-[#17142b] shadow-[0_3px_0_#17142b]">
+            <Globe2 className="size-6" aria-hidden />
+          </span>
+          <h2 className="mt-4 font-display text-2xl font-black">Play with anyone</h2>
+          <p className="mt-1 text-sm text-ink-muted">Quick match finds other players. Public games start automatically once everyone is ready.</p>
+          {searching ? (
+            <div className="mt-5 flex items-center gap-4 rounded-2xl border-2 p-4" style={{ borderColor: theme.accent }} role="status" aria-live="polite">
+              <span className="relative grid size-16 shrink-0 place-items-center" aria-hidden>
+                {[0, 1, 2].map((k) => (
+                  <span key={k} className="hub-radar absolute inset-0 rounded-full border-2" style={{ borderColor: theme.accent, animationDelay: `${k * 0.6}s` }} />
+                ))}
+                <span className="grid size-9 place-items-center rounded-full text-[#17142b]" style={{ background: theme.accent }}>
                   <Radar className="size-5" />
                 </span>
-                <div className="flex-1">
-                  <p className="font-semibold">Finding players…</p>
-                  <p className="text-sm text-ink-muted">
-                    {match.queued ?? 1} in queue · {Math.max(0, Math.round((now - (match.since ?? now)) / 1000))}s
-                  </p>
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-lg font-black">Finding players…</p>
+                <div className="mt-1 flex items-center gap-1" aria-label={`${match.queued ?? 1} in queue`}>
+                  {Array.from({ length: game.maxPlayers }, (_, k) => (
+                    <span key={k} className={cn("size-3 rounded-full border-2 transition", k < (match.queued ?? 1) ? "scale-110" : "opacity-40")} style={{ borderColor: theme.accent, background: k < (match.queued ?? 1) ? theme.accent : "transparent" }} />
+                  ))}
+                  <span className="ml-2 text-sm text-ink-muted tabular-nums">
+                    {match.queued ?? 1} in queue · {waited}s
+                  </span>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => realtime.emit("match:cancel").then(() => setMatch({ state: "idle" }))} icon={<X className="size-4" />}>
-                  Cancel
-                </Button>
               </div>
+              <Button variant="ghost" size="sm" onClick={() => realtime.emit("match:cancel").then(() => setMatch({ state: "idle" }))} icon={<X className="size-4" />}>
+                Cancel
+              </Button>
             </div>
           ) : (
             <Button className="mt-5" size="lg" variant="secondary" onClick={quickMatch} disabled={!connected}>
               Quick match
             </Button>
           )}
-          <Button className="mt-3" variant="ghost" onClick={() => createRoom("public")} loading={busy === "public"} disabled={!connected || match.state === "searching"}>
+          <Button className="mt-3" variant="ghost" onClick={() => createRoom("public")} loading={busy === "public"} disabled={!connected || searching}>
             Or host a public room
           </Button>
-        </Card>
+        </div>
       </div>
       {!connected && status !== "unauthorized" && (
-        <div className="mt-6 flex justify-center">
+        <div className="mb-8 flex justify-center">
           <Spinner label="Connecting to the game server" />
         </div>
       )}

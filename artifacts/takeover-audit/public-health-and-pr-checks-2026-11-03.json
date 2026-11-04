@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-03",
+  "public": [
+    {
+      "url": "https://rt.sinversegames.com/health",
+      "finalUrl": "https://rt.sinversegames.com/health",
+      "status": 200,
+      "csp": null,
+      "health": "{\"status\":\"ok\",\"uptimeSeconds\":29828}"
+    },
+    {
+      "url": "https://sinversegames.com",
+      "finalUrl": "https://sinversegames.com/",
+      "status": 200,
+      "title": "Playwave — Instant multiplayer games with friends",
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://rt.sinversegames.com wss://rt.sinversegames.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    },
+    {
+      "url": "https://www.sinversegames.com",
+      "finalUrl": "https://www.sinversegames.com/",
+      "status": 200,
+      "title": "Playwave — Instant multiplayer games with friends",
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://rt.sinversegames.com wss://rt.sinversegames.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+    },
+    {
+      "url": "https://sinversegames.com/api/health",
+      "finalUrl": "https://sinversegames.com/api/health",
+      "status": 200,
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://rt.sinversegames.com wss://rt.sinversegames.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+      "health": "{\"status\":\"ok\",\"web\":\"ok\",\"database\":\"ok\",\"realtime\":\"ok\"}"
+    },
+    {
+      "url": "https://rt.sinversegames.com/socket.io/?EIO=4&transport=polling",
+      "origin": "https://sinversegames.com",
+      "status": 200,
+      "allowOrigin": "https://sinversegames.com",
+      "engineHandshake": true
+    },
+    {
+      "url": "https://rt.sinversegames.com/socket.io/?EIO=4&transport=polling",
+      "origin": "https://www.sinversegames.com",
+      "status": 200,
+      "allowOrigin": "https://www.sinversegames.com",
+      "engineHandshake": true
+    },
+    {
+      "url": "https://rt.sinversegames.com/socket.io/?EIO=4&transport=polling",
+      "origin": "https://untrusted.example",
+      "status": 403,
+      "allowOrigin": null,
+      "engineHandshake": false,
+      "error": "{\"code\":4,\"message\":\"Forbidden\"}"
+    },
+    {
+      "url": "https://rt.sinversegames.com/health",
+      "status": 200,
+      "health": "{\"status\":\"ok\",\"uptimeSeconds\":29832}"
+    }
+  ],
+  "github": {
+    "prs": [
+      {
+        "number": 1,
+        "title": "Feature/overnight game polish",
+        "state": "closed",
+        "mergedAt": "2026-11-03T06:38:45Z",
+        "base": "main",
+        "head": "feature/overnight-game-polish",
+        "headSha": "7ec6eec0b2169f09afffeed8ba14a64dfcc0943c",
+        "url": "https://github.com/SaiNikhilk2002/sinversegames/pull/1"
+      }
+    ],
+    "checks": [
+      {
+        "sha": "7ec6eec0b2169f09afffeed8ba14a64dfcc0943c",
+        "checks": [
+          {
+            "name": "Workers Builds: sinversegames",
+            "status": "completed",
+            "conclusion": "failure",
+            "url": "https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production/builds/007fc998-c24b-44b7-abd1-4ccacad6d48e",
+            "summary": "\nBuild ID: [007fc998-c24b-44b7-abd1-4ccacad6d48e](https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production/builds/007fc998-c24b-44b7-abd1-4ccacad6d48e)\nScript: [sinversegames](https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production)\n"
+          }
+        ],
+        "statuses": []
+      }
+    ]
+  }
+}

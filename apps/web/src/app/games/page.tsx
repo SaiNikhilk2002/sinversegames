@@ -63,7 +63,7 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
         aria-current={active ? "true" : undefined}
         className={cn(
           "rounded-full border px-4 py-2 text-sm font-semibold transition",
-          active ? "border-transparent bg-brand-gradient text-white" : "border-line bg-surface text-ink-muted hover:text-ink",
+          active ? "border-[#17142b] bg-[#ffb23d] text-[#17142b] shadow-[0_3px_0_#17142b]" : "border-line bg-surface text-ink-muted hover:text-ink",
         )}
       >
         {label}

@@ -17,6 +17,7 @@ export interface PlayerClaims {
   name: string;
   color: string;
   kind: "guest" | "registered";
+  sid?: string;
 }
 
 const ISSUER = "platform";
@@ -44,7 +45,7 @@ export async function signPlayerToken(
   secret: string | undefined,
   ttlSeconds: number = kind === "session" ? SESSION_TTL_SECONDS : REALTIME_TTL_SECONDS,
 ): Promise<string> {
-  return new SignJWT({ name: claims.name, color: claims.color, kind: claims.kind, typ: kind })
+  return new SignJWT({ name: claims.name, color: claims.color, kind: claims.kind, typ: kind, ...(claims.sid ? { sid: claims.sid } : {}) })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(claims.sub)
     .setIssuer(ISSUER)
@@ -84,6 +85,7 @@ export async function verifyPlayerToken(
       name: payload.name,
       color: payload.color,
       kind: payload.kind === "registered" ? "registered" : "guest",
+      ...(typeof payload.sid === "string" && /^[a-f0-9]{64}$/.test(payload.sid) ? { sid: payload.sid } : {}),
     };
   } catch (err) {
     if (err instanceof InvalidTokenError) throw err;

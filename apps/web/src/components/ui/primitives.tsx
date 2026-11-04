@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { forwardRef, type ButtonHTMLAttributes, type ComponentProps, type HTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
+export { PlayerAvatar as Avatar } from "../profile/player-avatar";
 
 export const cn = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
 
@@ -13,7 +14,7 @@ type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-brand-gradient text-white shadow-[0_8px_24px_-8px_rgb(124_92_255/0.7)] hover:brightness-110 active:brightness-95",
+    "bg-[#ff4f8b] text-white shadow-[0_4px_0_#a3194f] hover:-translate-y-px hover:brightness-110 active:translate-y-0.5 active:shadow-[0_1px_0_#a3194f] disabled:shadow-none",
   secondary: "bg-surface-2 text-ink hover:bg-surface-3 border border-line",
   outline: "border border-line text-ink hover:bg-surface-2",
   ghost: "text-ink-muted hover:text-ink hover:bg-surface-2",
@@ -28,7 +29,7 @@ const sizes: Record<Size, string> = {
 export const buttonClass = (variant: Variant = "primary", size: Size = "md", extra?: string) =>
   cn(
     "inline-flex select-none items-center justify-center font-semibold whitespace-nowrap transition duration-150",
-    "disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
+    "disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sun",
     variants[variant],
     sizes[size],
     extra,
@@ -182,24 +183,6 @@ export function Segmented<T extends string | number>({
 // ---------------------------------------------------------------------------
 // Avatars & tooltips
 // ---------------------------------------------------------------------------
-
-export function Avatar({ name, color, size = 40, className, ring }: { name: string; color: string; size?: number; className?: string; ring?: boolean }) {
-  const initials = name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  return (
-    <span
-      aria-hidden
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-full font-display font-bold text-[#17142b]", ring && "ring-4 ring-brand-400/70", className)}
-      style={{ width: size, height: size, background: color, fontSize: size * 0.38 }}
-    >
-      {initials}
-    </span>
-  );
-}
 
 /** CSS-only tooltip; the label is also exposed to assistive tech via aria-label on the trigger. */
 export function Tooltip({ label, children, side = "top" }: { label: string; children: ReactNode; side?: "top" | "bottom" }) {

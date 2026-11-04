@@ -8,7 +8,7 @@ import { errorFields } from "./logger";
  */
 export interface Persistence {
   readonly enabled: boolean;
-  recordMatch(input: RecordMatchInput): Promise<{ unlocked: Record<string, string[]> } | null>;
+  recordMatch(input: RecordMatchInput): Promise<{ unlocked: Record<string, string[]>; earned?: Record<string, number> } | null>;
   isBanned(playerId: string): Promise<boolean>;
   healthy(): Promise<boolean>;
 }
@@ -36,6 +36,13 @@ export function createDbPersistence(logger: Logger): Persistence {
         try {
           return await recordMatch(db, input);
         } catch (err) {
+          // A previous attempt may have committed before the connection failed.
+          // The stable server UUID identifies that exact match; no new rewards
+          // or unlock notifications should be emitted for a duplicate insert.
+          if (input.id && (err as { code?: string }).code === "P2002") {
+            const existing = await db.match.findUnique({ where: { id: input.id }, select: { gameId: true } });
+            if (existing?.gameId === input.results.gameId) return { unlocked: {}, earned: {} };
+          }
           logger.error("recordMatch failed", { attempt, gameId: input.results.gameId, room: input.roomCode, ...errorFields(err) });
           await new Promise((r) => setTimeout(r, 500 * attempt));
         }

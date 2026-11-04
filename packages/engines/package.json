@@ -13,6 +13,7 @@
     "./token-trail": "./src/token-trail/engine.ts",
     "./bumper-blitz": "./src/bumper-blitz/engine.ts",
     "./kitchen-rush": "./src/kitchen-rush/index.ts",
+    "./cuisine-quest": "./src/cuisine-quest/index.ts",
     "./cascade-solitaire": "./src/cascade-solitaire/engine.ts",
     "./mahjong-garden": "./src/mahjong-garden/engine.ts"
   },

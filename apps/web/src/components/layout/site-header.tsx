@@ -4,8 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Gamepad2, Menu, Settings2, Trophy, UserRound, X } from "lucide-react";
-import { Logo } from "../brand";
-import { Avatar, cn } from "../ui/primitives";
+import { AnimatePresence, motion } from "motion/react";
+import { GAMES, cosmeticTextColor } from "@platform/shared";
+import { CosmeticAvatar } from "../profile/cosmetic-avatar";
+import { GameArt, Logo } from "../brand";
+import { GAME_THEME } from "../game-theme";
+import { cn } from "../ui/primitives";
 import { SettingsDialog } from "./settings-dialog";
 import { usePlayer } from "@/lib/player";
 
@@ -13,6 +17,8 @@ const NAV = [
   { href: "/games", label: "Games", icon: Gamepad2 },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/profile", label: "Profile", icon: UserRound },
+  { href: "/store", label: "Studio", icon: Gamepad2 },
+  { href: "/account", label: "Account", icon: UserRound },
 ];
 
 export function SiteHeader() {
@@ -36,12 +42,10 @@ export function SiteHeader() {
               key={href}
               href={href}
               aria-current={pathname.startsWith(href) ? "page" : undefined}
-              className={cn(
-                "rounded-xl px-3.5 py-2 text-sm font-semibold transition",
-                pathname.startsWith(href) ? "bg-surface-2 text-ink" : "text-ink-muted hover:text-ink",
-              )}
+              className={cn("relative rounded-xl px-3.5 py-2 text-sm font-bold transition", pathname.startsWith(href) ? "text-ink" : "text-ink-muted hover:text-ink")}
             >
               {label}
+              {pathname.startsWith(href) && <motion.span layoutId="nav-underline" className="absolute inset-x-3 -bottom-[13px] h-[3px] rounded-full bg-[#ff4f8b]" />}
             </Link>
           ))}
         </nav>
@@ -55,9 +59,9 @@ export function SiteHeader() {
             <Settings2 className="size-5" />
           </button>
           {player && (
-            <Link href="/profile" className="hidden items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-sm font-semibold sm:flex">
-              <Avatar name={player.name} color={player.color} size={28} />
-              <span className="max-w-32 truncate">{player.name}</span>
+            <Link href="/profile" className="hidden items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-sm font-semibold lg:flex">
+              <CosmeticAvatar name={player.name} color={player.color} frameId={player.cosmetics?.frame} size={24} avatarKey={player.avatarKey} />
+              <span className="max-w-32 truncate" style={{ color: cosmeticTextColor(player.cosmetics?.nameplate) }}>{player.name}</span>
             </Link>
           )}
           <button
@@ -71,15 +75,34 @@ export function SiteHeader() {
           </button>
         </div>
       </div>
-      {menuOpen && (
-        <nav aria-label="Mobile" className="border-t border-line bg-bg px-4 py-3 md:hidden">
-          {NAV.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className="flex items-center gap-3 rounded-xl px-3 py-3 font-semibold hover:bg-surface-2">
-              <Icon className="size-5 text-brand-500" /> {label}
-            </Link>
-          ))}
-        </nav>
-      )}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.nav
+            aria-label="Mobile"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.2, 0.8, 0.3, 1] }}
+            className="overflow-hidden border-t border-line bg-bg md:hidden"
+          >
+            <div className="px-4 py-3">
+              {NAV.map(({ href, label, icon: Icon }) => (
+                <Link key={href} href={href} aria-current={pathname.startsWith(href) ? "page" : undefined} className={cn("flex items-center gap-3 rounded-xl px-3 py-3 font-bold hover:bg-surface-2", pathname.startsWith(href) && "bg-surface-2")}>
+                  <Icon className="size-5 text-[#ff4f8b]" /> {label}
+                </Link>
+              ))}
+              <p className="mt-3 mb-2 px-3 text-xs font-black tracking-[0.2em] text-ink-faint uppercase">Jump into a game</p>
+              <div className="grid grid-cols-3 gap-2 px-1 pb-2">
+                {GAMES.map((g) => (
+                  <Link key={g.id} href={`/play/${g.slug}`} className="overflow-hidden rounded-xl border-2" style={{ borderColor: GAME_THEME[g.id].accent }} aria-label={`Play ${g.name}`}>
+                    <GameArt gameId={g.id} className="block aspect-[16/10] w-full" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </motion.nav>
+        )}
+      </AnimatePresence>
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </header>
   );

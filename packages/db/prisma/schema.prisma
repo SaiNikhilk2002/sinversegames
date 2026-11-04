@@ -26,7 +26,7 @@ enum PlayerKind {
   REGISTERED
 }
 
-/// A player identity. Guests are created on first visit; REGISTERED is reserved for future auth.
+/// Permanent identity shared by guest play and linked provider accounts.
 model Player {
   id           String     @id @db.VarChar(64)
   displayName  String     @db.VarChar(32)
@@ -39,15 +39,66 @@ model Player {
   bannedReason String?    @db.VarChar(500)
   createdAt    DateTime   @default(now())
   lastSeenAt   DateTime   @default(now())
+  username     String?    @unique @db.VarChar(20)
+  usernameChangedAt DateTime?
+  avatarKey    String?    @db.VarChar(128)
+  onboardingAt DateTime?
+  identities   ExternalIdentity[]
+  sessions     AccountSession[]
+  oauthAttempts OAuthAttempt[]
 
   stats             PlayerGameStats[]
   participations    MatchParticipant[]
   achievements      PlayerAchievement[]
   rewards           RewardLedgerEntry[]
+  inventory         CosmeticInventory[]
+  equipment         CosmeticEquipment[]
+  cuisineProgress   CuisineProgress[]
   favorites         FavoriteGame[]
   reportsFiled      AbuseReport[]       @relation("reporter")
   reportsAgainst    AbuseReport[]       @relation("target")
   moderationActions ModerationAction[]
+}
+
+model ExternalIdentity {
+  provider String @db.VarChar(16)
+  subject String @db.VarChar(255)
+  playerId String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  @@id([provider, subject])
+  @@unique([playerId, provider])
+}
+
+/// Only hashes of opaque browser secrets are stored. No OAuth tokens are retained.
+model AccountSession {
+  tokenHash String @id @db.VarChar(64)
+  playerId String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  @@index([playerId, expiresAt])
+}
+
+model OAuthAttempt {
+  stateHash String @id @db.VarChar(64)
+  browserHash String @db.VarChar(64)
+  actorId String? @db.VarChar(64)
+  actorSessionHash String? @db.VarChar(64)
+  mode String @db.VarChar(8)
+  verifier String @db.VarChar(128)
+  nonce String @db.VarChar(128)
+  expiresAt DateTime
+  consumedAt DateTime?
+  actor Player? @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+}
+
+/// Distributed fixed-window counters for sensitive identity mutations.
+model IdentityRateLimit {
+  key String @id @db.VarChar(64)
+  count Int
+  resetAt DateTime
 }
 
 /// Aggregate per-game statistics; also backs the leaderboards.
@@ -131,6 +182,44 @@ model RewardLedgerEntry {
 
   @@unique([playerId, reason, refId])
   @@index([playerId, createdAt])
+  @@index([playerId, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+/// One durable purchase per player/item; catalogue prices and visuals live in code.
+model CosmeticInventory {
+  playerId   String   @db.VarChar(64)
+  itemId     String   @db.VarChar(64)
+  acquiredAt DateTime @default(now())
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  equipment  CosmeticEquipment[]
+
+  @@id([playerId, itemId])
+}
+
+/// A category can equip only an item owned by that same player.
+model CosmeticEquipment {
+  playerId String @db.VarChar(64)
+  category String @db.VarChar(32)
+  itemId   String @db.VarChar(64)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  owned    CosmeticInventory @relation(fields: [playerId, itemId], references: [playerId, itemId], onDelete: Cascade)
+
+  @@id([playerId, category])
+}
+
+/// Verified, per-cuisine campaign records; never hydrated from browser storage.
+model CuisineProgress {
+  playerId      String   @db.VarChar(64)
+  level         Int
+  stars         Int      @default(0)
+  bestScore     Int      @default(0)
+  completedRuns Int      @default(0)
+  perfectRuns   Int      @default(0)
+  lastPlayedAt  DateTime @default(now())
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, level])
+  @@index([level, bestScore(sort: Desc), playerId])
 }
 
 model FavoriteGame {

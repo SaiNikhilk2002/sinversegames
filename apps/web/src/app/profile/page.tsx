@@ -4,9 +4,15 @@ import { Lock, Star, Trophy } from "lucide-react";
 import { brand, GAMES, getGame, isGameId } from "@platform/shared";
 import { ACHIEVEMENTS, getDb, getProfile, levelForXp, xpForLevel } from "@platform/db";
 import { GameArt } from "@/components/brand";
+import { GAME_THEME } from "@/components/game-theme";
 import { CreateProfile, RenameCard } from "@/components/play/rename-card";
 import { Avatar, Badge, Card, cn } from "@/components/ui/primitives";
 import { getSession } from "@/lib/server/session";
+import { WalletPanel } from "@/components/profile/wallet-panel";
+import { CosmeticAvatar } from "@/components/profile/cosmetic-avatar";
+import { cosmeticTextColor } from "@platform/shared";
+import { AchievementEmblem, achievementTier } from "@/components/profile/achievement-emblem";
+import { CuisinePassport } from "@/components/profile/cuisine-passport";
 
 export const metadata: Metadata = { title: "Your profile", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -25,13 +31,26 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <Card className="overflow-hidden">
-        <div className="bg-brand-gradient h-24" />
+      <Card className="overflow-hidden border-2">
+        {/* Banner: a strip of the game covers */}
+        <div className="flex h-28 overflow-hidden" aria-hidden>
+          {GAMES.map((g) => (
+            <GameArt key={g.id} gameId={g.id} className="h-full w-auto shrink-0 opacity-70" />
+          ))}
+        </div>
         <div className="-mt-12 flex flex-col gap-4 px-6 pb-6 sm:flex-row sm:items-end">
-          <Avatar name={session.name} color={session.color} size={96} className="border-4 border-surface" />
+          <div className="relative w-fit">
+            <CosmeticAvatar name={session.name} color={session.color} size={80} avatarKey={profile?.avatarKey} frameId={profile?.equipment.find((item) => item.category === "profile-frame")?.itemId} />
+            <span className="absolute -right-2 -bottom-1 grid size-10 place-items-center rounded-xl border-[3px] border-surface bg-[#ffb23d] font-display text-lg font-black text-[#17142b]" aria-label={`Level ${level}`}>
+              {level}
+            </span>
+          </div>
           <div className="flex-1">
-            <h1 className="font-display text-3xl font-extrabold">{session.name}</h1>
-            <p className="text-sm text-ink-muted">{session.kind === "guest" ? "Guest player" : "Player"} · Level {level}</p>
+            <h1 className="font-display text-3xl font-black" style={{ color: cosmeticTextColor(profile?.equipment.find((item) => item.category === "nameplate")?.itemId) }}>{session.name}</h1>
+            {profile?.username&&<p className="mt-1 text-sm font-semibold text-brand-400">@{profile.username}</p>}
+            <p className="text-sm text-ink-muted">
+              {session.kind === "guest" ? "Guest player" : "Google linked"} · Level {level} · {unlocked.size}/{ACHIEVEMENTS.length} achievements
+            </p>
           </div>
           <div className="w-full sm:w-64">
             <div className="flex justify-between text-xs font-semibold text-ink-muted">
@@ -41,11 +60,12 @@ export default async function ProfilePage() {
               </span>
             </div>
             <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to next level">
-              <div className="bg-brand-gradient h-full rounded-full" style={{ width: `${progress * 100}%` }} />
+              <div className="h-full rounded-full bg-[#ffb23d] shadow-[0_0_10px_#ffb23d]" style={{ width: `${progress * 100}%` }} />
             </div>
           </div>
         </div>
       </Card>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"><p className="max-w-xl text-sm text-ink-muted">{session.kind==="guest"?"Save your player with Google to recover coins, badges and your chef's passport on another device. Guests can keep playing freely.":"Your player is connected. Manage your username, picture and active sessions."}</p><Link href="/account" className="rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white">{session.kind==="guest"?"Save my player":"Account settings"}</Link></div>
 
       {!db && (
         <p className="mt-6 rounded-2xl border border-sun/40 bg-sun/10 p-4 text-sm">
@@ -58,11 +78,11 @@ export default async function ProfilePage() {
           { label: "Games played", value: totals.played },
           { label: "Wins", value: totals.wins },
           { label: "Losses", value: totals.played - totals.wins },
-          { label: brand.rewardCurrencyName, value: profile?.rewardBalance ?? 0, icon: Star },
+          { label: brand.rewardCurrencyName, value: profile?.rewardBalance ?? "—", icon: Star },
         ].map((s) => (
-          <Card key={s.label} className="p-5">
-            <p className="text-sm text-ink-muted">{s.label}</p>
-            <p className="mt-1 flex items-center gap-2 font-display text-3xl font-extrabold">
+          <Card key={s.label} className="border-2 p-5">
+            <p className="text-xs font-black tracking-[0.2em] text-ink-muted uppercase">{s.label}</p>
+            <p className="mt-1 flex items-center gap-2 font-mono text-3xl font-black tabular-nums">
               {s.icon && <s.icon className="size-6 fill-sun text-sun" aria-hidden />}
               {s.value.toLocaleString()}
             </p>
@@ -72,6 +92,8 @@ export default async function ProfilePage() {
       <p className="mt-2 text-xs text-ink-faint">
         {brand.rewardCurrencyName} are a just-for-fun reward for playing. They can't be bought, sold, transferred or exchanged, and have no monetary value.
       </p>
+      <div className="mt-8"><WalletPanel /></div>
+      {profile && <CuisinePassport rows={profile.cuisineProgress} runs={profile.cuisineRuns} achievementKeys={[...unlocked]} />}
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
         <section aria-labelledby="per-game">
@@ -81,8 +103,8 @@ export default async function ProfilePage() {
               const s = profile?.stats.find((x) => x.gameId === g.id);
               const fav = profile?.favorites.some((f) => f.gameId === g.id);
               return (
-                <Card key={g.id} className="flex items-center gap-4 p-3">
-                  <GameArt gameId={g.id} className="h-14 w-20 shrink-0 rounded-xl" />
+                <Card key={g.id} className="flex items-center gap-4 border-2 p-3" style={{ borderLeftColor: GAME_THEME[g.id].accent, borderLeftWidth: 5 }}>
+                  <GameArt gameId={g.id} className="h-14 w-[5.6rem] shrink-0 rounded-xl" />
                   <div className="min-w-0 flex-1">
                     <p className="font-bold">
                       {g.name} {fav && <Badge tone="hot">Favourite</Badge>}
@@ -91,8 +113,8 @@ export default async function ProfilePage() {
                       {s ? `${s.gamesPlayed} played · ${s.wins} wins · ${s.totalPoints.toLocaleString()} pts · best ${s.bestScore}` : "Not played yet"}
                     </p>
                   </div>
-                  <Link href={`/play/${g.slug}`} className="text-sm font-semibold text-brand-500 hover:underline">
-                    Play
+                  <Link href={`/play/${g.slug}`} className="rounded-full px-3 py-1 text-xs font-black text-[#17142b]" style={{ background: GAME_THEME[g.id].accent }}>
+                    PLAY
                   </Link>
                 </Card>
               );
@@ -132,17 +154,32 @@ export default async function ProfilePage() {
         <div className="space-y-8">
           <RenameCard name={session.name} color={session.color} />
           <section aria-labelledby="achievements">
-            <h2 id="achievements" className="mb-4 font-display text-2xl font-bold">Achievements</h2>
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <h2 id="achievements" className="font-display text-2xl font-bold">
+                Achievements
+              </h2>
+              <span className="text-sm font-bold text-ink-muted">
+                {unlocked.size} / {ACHIEVEMENTS.length}
+              </span>
+            </div>
+            <div className="mb-4 h-2 overflow-hidden rounded-full bg-surface-3">
+              <div className="h-full rounded-full bg-[#2fd6a8]" style={{ width: `${(unlocked.size / Math.max(1, ACHIEVEMENTS.length)) * 100}%` }} />
+            </div>
             <ul className="grid gap-2">
-              {ACHIEVEMENTS.map((a) => {
+              {ACHIEVEMENTS.map((a, i) => {
                 const got = unlocked.has(a.key);
+                const medal = ["#ffb23d", "#2fd6a8", "#ff4f8b", "#3d8bff", "#c04dff"][i % 5]!;
                 return (
-                  <li key={a.key} className={cn("flex items-center gap-3 rounded-2xl border border-line p-3", got ? "bg-surface" : "bg-surface-2 opacity-70")}>
-                    <span className={cn("flex size-10 items-center justify-center rounded-xl", got ? "bg-brand-gradient text-white" : "bg-surface-3 text-ink-faint")}>
-                      {got ? <Trophy className="size-5" /> : <Lock className="size-4" />}
+                  <li key={a.key} className={cn("flex items-center gap-3 rounded-2xl border-2 p-3", got ? "bg-surface" : "border-dashed bg-surface-2 opacity-60")} style={got ? { borderColor: medal } : undefined}>
+                    <span
+                      className={cn("relative grid size-11 shrink-0 place-items-center rounded-full border-[3px]", got ? "text-[#17142b]" : "border-line text-ink-faint")}
+                      style={got ? { background: medal, borderColor: "#17142b", boxShadow: `0 3px 0 #17142b, 0 0 14px ${medal}88` } : undefined}
+                    >
+                      <AchievementEmblem achievementKey={a.key} earned={got} />
                     </span>
                     <div>
                       <p className="font-semibold">{a.title}</p>
+                      <p className="text-[10px] font-bold tracking-wider uppercase text-ink-faint">{achievementTier(a.key)} · {got ? "Earned" : "Not earned yet"}</p>
                       <p className="text-xs text-ink-muted">{a.description}</p>
                     </div>
                   </li>

@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { Check, Copy, Crown, Flag, LogOut, Share2, UserX, WifiOff } from "lucide-react";
 import { brand, getGame, type Ack, type RoomSnapshot } from "@platform/shared";
 import { GAME_CLIENTS } from "@/games/registry";
+import { GameArt } from "../brand";
+import { GAME_THEME } from "../game-theme";
 import { Avatar, Badge, Button, Card, cn, Tooltip } from "../ui/primitives";
 import { useToast } from "../ui/toast";
 import { ReportDialog } from "./report-dialog";
+import { useConnectionStatus } from "@/lib/realtime/use-room";
+import { useCountdown } from "@/lib/realtime/use-countdown";
 
 export function Lobby({
   room,
@@ -23,9 +28,13 @@ export function Lobby({
   const game = getGame(room.gameId);
   const client = GAME_CLIENTS[room.gameId];
   const isHost = room.hostId === selfId;
+  const theme = GAME_THEME[room.gameId];
   const me = room.players.find((p) => p.id === selfId);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [starting, setStarting] = useState(false);
+  const [changingReady, setChangingReady] = useState(false);
+  const connection = useConnectionStatus();
+  const grace = useCountdown(room.expiresAt);
   const [reportTarget, setReportTarget] = useState<{ id: string; name: string } | null>(null);
   const inviteUrl = `${typeof window === "undefined" ? brand.siteUrl : window.location.origin}/room/${room.code}`;
   const others = room.players.filter((p) => p.id !== room.hostId);
@@ -48,16 +57,20 @@ export function Lobby({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+    <div className="grid gap-6 pb-64 lg:grid-cols-[1.3fr_1fr] lg:pb-0">
       <div className="space-y-6">
         <Card className="overflow-hidden">
-          <div className="bg-brand-gradient p-6 text-white">
-            <p className="text-sm font-semibold text-white/80">{room.visibility === "public" ? "Public room" : "Private room"} · {game.name}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-4">
-              <p className="font-mono text-4xl font-extrabold tracking-[0.2em] sm:text-5xl" data-testid="room-code">
+          <div className="relative overflow-hidden p-6" style={{ background: theme.deep, color: theme.ink }}>
+            <div className="pointer-events-none absolute inset-0 opacity-30" aria-hidden>
+              <GameArt gameId={room.gameId} className="size-full scale-125 blur-xl" />
+            </div>
+            <span className="absolute inset-x-0 bottom-0 h-1" style={{ background: theme.accent }} aria-hidden />
+            <p className="relative text-xs font-black tracking-[0.25em] uppercase opacity-75">{room.visibility === "public" ? "Public room" : "Private room"} · {game.name}</p>
+            <div className="relative mt-2 flex flex-wrap items-center gap-4">
+              <p className="font-mono text-4xl font-black tracking-[0.2em] sm:text-5xl" style={{ color: theme.accent, textShadow: "0 3px 0 rgb(0 0 0 / 0.4)" }} data-testid="room-code">
                 {room.code}
               </p>
-              <Button variant="secondary" size="sm" className="border-0 bg-white/20 text-white hover:bg-white/30" onClick={() => copy("code")} icon={copied === "code" ? <Check className="size-4" /> : <Copy className="size-4" />}>
+              <Button variant="secondary" size="sm" className="border-0 bg-white/15 text-inherit hover:bg-white/25" onClick={() => copy("code")} icon={copied === "code" ? <Check className="size-4" /> : <Copy className="size-4" />}>
                 {copied === "code" ? "Copied" : "Copy code"}
               </Button>
             </div>
@@ -78,13 +91,21 @@ export function Lobby({
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg font-bold">
-              Players <span className="text-ink-faint">{room.players.length}/{room.maxPlayers}</span>
+              <span>{room.players.length} / {room.maxPlayers} players joined</span>
             </h2>
             {!enough && <Badge tone="sun">Need {room.minPlayers - room.players.length} more</Badge>}
           </div>
           <ul className="space-y-2" data-testid="player-list">
             {room.players.map((p) => (
-              <li key={p.id} className={cn("flex items-center gap-3 rounded-2xl border border-line bg-surface-2 p-3", !p.connected && "opacity-60")}>
+              <motion.li
+                layout
+                key={p.id}
+                initial={{ opacity: 0, x: -24, scale: 0.96 }}
+                animate={{ opacity: !p.connected ? 0.6 : 1, x: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                className="flex items-center gap-3 rounded-2xl border-2 bg-surface-2 p-3 transition-colors"
+                style={{ borderColor: p.ready || p.isHost ? theme.accent : "var(--line)", boxShadow: p.ready ? `0 0 0 3px ${theme.accent}22` : undefined }}
+              >
                 <Avatar name={p.name} color={p.color} size={40} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">
@@ -127,12 +148,7 @@ export function Lobby({
                     )}
                   </div>
                 )}
-              </li>
-            ))}
-            {Array.from({ length: Math.max(0, Math.min(room.maxPlayers, 6) - room.players.length) }, (_, i) => (
-              <li key={`empty-${i}`} className="flex items-center gap-3 rounded-2xl border border-dashed border-line p-3 text-sm text-ink-faint">
-                <span className="size-10 rounded-full border-2 border-dashed border-line" /> Waiting for player…
-              </li>
+              </motion.li>
             ))}
           </ul>
         </Card>
@@ -155,7 +171,8 @@ export function Lobby({
           )}
         </Card>
 
-        <Card className="space-y-3 p-5">
+        <Card className="fixed inset-x-0 bottom-0 z-30 space-y-2 rounded-b-none border-t-2 bg-surface p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgb(0_0_0/0.25)] lg:static lg:space-y-3 lg:rounded-2xl lg:p-5 lg:shadow-none" data-testid="lobby-actions">
+          {room.status === "finished" && grace !== null && <p className="text-center text-xs text-ink-muted">Start a rematch within {Math.max(0, Math.ceil(grace / 60_000))} min to keep this room. Readiness alone does not extend it.</p>}
           {room.autoStartAt && <p className="rounded-xl bg-mint/15 p-3 text-center text-sm font-semibold">Everyone's ready — starting in a moment…</p>}
           {isHost ? (
             <>
@@ -163,7 +180,7 @@ export function Lobby({
                 size="lg"
                 className="w-full"
                 loading={starting}
-                disabled={!enough || !allReady}
+                disabled={!enough || !allReady || connection !== "connected"}
                 onClick={async () => {
                   setStarting(true);
                   await run(send("game:start"));
@@ -177,7 +194,7 @@ export function Lobby({
               </p>
             </>
           ) : (
-            <Button size="lg" variant={me?.ready ? "secondary" : "primary"} className="w-full" onClick={() => run(send("room:ready", { ready: !me?.ready }))}>
+            <Button size="lg" variant={me?.ready ? "secondary" : "primary"} className="w-full" loading={changingReady} disabled={connection !== "connected" || changingReady} onClick={async () => { setChangingReady(true); try { await run(send("room:ready", { ready: !me?.ready })); } finally { setChangingReady(false); } }}>
               {me?.ready ? "I'm not ready" : room.status === "finished" ? "Ready for a rematch" : "I'm ready"}
             </Button>
           )}
