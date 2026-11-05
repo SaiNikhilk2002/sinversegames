@@ -36,7 +36,10 @@ test.describe("reading unreliable API responses", () => {
 async function enter(page: Page, path: string, errors: string[]) {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(path);
+  // Wait for the session: navigating sooner would cancel the request that creates it.
+  const created = page.waitForResponse((r) => r.url().endsWith("/api/session") && r.request().method() === "POST");
   await enterName(page, "Backend Errors");
+  await created;
 }
 
 test.describe("broken backend responses in the real pages", () => {

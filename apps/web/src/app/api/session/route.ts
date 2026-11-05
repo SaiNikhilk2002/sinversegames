@@ -4,10 +4,11 @@ import { avatarColorSchema, displayNameSchema } from "@platform/shared";
 import { getDb, upsertPlayer } from "@platform/db";
 import { getSession, isSameOrigin, writeSession, publicPlayer } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { jsonRoute } from "@/lib/server/api-route";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+async function handleGET() {
   let player;try{player=await getSession();}catch{return NextResponse.json({error:"Player sessions are temporarily unavailable. Please retry."},{status:503,headers:{"cache-control":"no-store"}});}
   const db = player ? getDb() : null;
   const equipment = db && player ? await db.cosmeticEquipment.findMany({ where: { playerId: player.id } }).catch(() => []) : [];
@@ -18,7 +19,7 @@ export async function GET() {
 const bodySchema = z.object({ displayName: displayNameSchema, color: avatarColorSchema.optional() });
 
 /** Creates a guest identity, or renames the current one (the player id never changes). */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   if (!(await isSameOrigin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (!(await rateLimit("session", 20, 60_000))) {
     return NextResponse.json({ error: "Too many requests — try again in a minute" }, { status: 429 });
@@ -41,3 +42,6 @@ export async function POST(req: Request) {
   if(db && existing?.kind!=="registered")await db.player.updateMany({where:{id:player.id,kind:"GUEST"},data:{displayName:player.name,avatarColor:player.color}}).catch(()=>{});
   return NextResponse.json({ player:publicPlayer(player) });
 }
+
+export const GET = jsonRoute("session GET", handleGET);
+export const POST = jsonRoute("session POST", handlePOST);
