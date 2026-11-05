@@ -1,63 +1,57 @@
 # Next shipping roadmap
 
-Updated 2026-11-05. This is a plan. It authorizes no merge, deployment, migration or provider change.
+Updated 2026-11-06. This is a plan. It authorizes no merge, deployment, migration or provider change.
 
-**Not release ready. Production currently has a live outage for players with a session.**
+**Production's database is migrated and its API errors have cleared. The code on this branch is not deployed, and it is not release ready.**
+
+## Current state
+
+| Item | State |
+| --- | --- |
+| Production migrations | **Done.** All four applied, data identical. See the [report](PRODUCTION_MIGRATION_READINESS.md) |
+| Production API checks | **Passed,** using public requests and a made-up session only |
+| Database password | Rotated by the owner, as they reported |
+| Real player session and finished match in production | **Pending** |
+| Application code on this branch | **Not deployed.** Email sign-in, the realtime fix and JSON errors are not live |
+| Railway realtime changes | On this branch, **not released**. The per-packet database lookup is still live |
 
 ## Exact blockers
 
 | # | Blocker | State | Unblocks with |
 | --- | --- | --- | --- |
-| 1 | **Production HTTP 500s** on campaign, realtime token, wallet and solo start | Reproduced. Most likely cause: migrations missing in production. Applying them fixed it in local reproductions | Owner confirms with `prisma migrate status`, then an approved migration |
-| 2 | **Workers Build failing** on the branch | Cause unknown. Fix not confirmed | The build log |
-| 3 | Unknown production migration history | Not visible from here | `prisma migrate status` |
-| 4 | Local fixes not yet pushed | 3 local commits ahead of origin, as instructed | Owner approval to push |
+| 1 | **Workers Build failing** on this branch | Build `1bb8002f` for `123e76c` failed. Cause unknown. **Not fixed.** This push will trigger a new build | The build log and dashboard values |
+| 2 | **Linux OpenNext build not verified on the email code** | It last passed before the email work. WSL restarted during the build on the owner's laptop | A successful real Workers Build, or a repeat on a stable machine |
+| 3 | **Email has no provider** | Tested only against a local stand-in for Resend. Nothing has been really delivered | A Resend account, verified domain and Worker secrets, then a real-inbox test |
 
-## Evidence
+## Known test results to keep in mind
 
-**Available:**
+- `cricket-visual.spec.ts:524` is intermittent: about 1 run in 3 counts 31 textures instead of 32 after re-entry. One fewer isn't a leak. It's an exact-count timing check, and needs its own fix.
+- Against a remote database at about 248 ms per query, several game tests need longer time limits (`E2E_EXPECT_TIMEOUT=30000`), and a connection can occasionally exceed the 2.5 s limit. Tests from that run that failed once passed on repeat.
+- Color Clash failed once locally while a WSL build competed for memory, then passed 3 of 3 alone.
 
-- Read-only production requests reproduce the exact failure: database health `ok`, campaign and token return HTTP 500 with 0 bytes.
-- The unmodified code against a database missing the last two migrations gives the same responses.
-- After applying the real migrations locally, all routes recover, and legacy rows and coin balances are unchanged by checksum.
-- The real OpenNext Worker in local workerd behaves the same in both states.
-- Wrangler source and Cloudflare docs on the Worker name. Production's `e1888ad` build passed with the same name mismatch.
+## Evidence still required
 
-**Still required from Cloudflare and the owner:**
-
-1. Error lines from the log of build `1bb8002f`, and which stage failed.
+1. Error lines from the log of the Workers Build for this branch, and which stage failed.
 2. Dashboard values: Root directory, Build, Deploy and Preview commands, production branch.
-3. `prisma migrate status` output for production.
-4. Worker logs for one failing request, if the status output doesn't settle it.
-5. The result of opening `/api/session` in a normal browser.
-
-## Cuisine Quest diagnosis
-
-Session lookup reads columns and a table from `20261104030000_player_identity`. When that fails, `getSession()` throws, the route doesn't catch it, and the platform sends an empty 500. The browser then reports "Unexpected end of JSON input". This is not specific to Cuisine Quest. Full trace: [investigation](RELEASE_BLOCKER_INVESTIGATION.md).
-
-Local code now returns JSON errors and logs the real cause, but **the migration is what fixes production**. Not yet directly confirmed in production.
-
-## Migration readiness
-
-Ready to rehearse, not ready to run. Migrations 2 to 4 are additive, and old code should tolerate the new schema, so the database goes first. Open questions: production's real history, whether the migration needs Neon's direct URL, and lock time on real table sizes. Full plan: [migration readiness](PRODUCTION_MIGRATION_READINESS.md).
+3. Railway's deployed commit and region.
 
 ## Recommended release sequence
 
-1. **Owner gathers evidence:** the `/api/session` check, the build log and dashboard values, and `prisma migrate status`. All are read-only.
-2. **Fix production first:** take a backup, rehearse on a Neon branch, then apply the pending migrations to production with explicit approval. This requires no code release.
-3. **Verify recovery in production** using the migration report's checklist.
-4. **Fix the Workers Build** based on the actual log.
-5. **Push the local commits** when approved, and confirm a successful real Workers Build with a working Preview, using Preview-only secrets and a non-production database.
-6. **Before merging,** confirm the dashboard Deploy command is `pnpm cloudflare:deploy`.
-7. **Merge when approved,** then watch the production build and error logs.
-8. **Finish release verification:** Google consent, R2, physical devices, audio.
+1. **Verify production as a player:** a real session, wallet and profile, and a finished match that saves.
+2. **Read the Workers Build log** and fix the build from it. Don't claim it's fixed without a successful real build.
+3. **Set up Resend,** using [DEPLOYMENT.md](../DEPLOYMENT.md#email-sign-in-resend).
+4. **Confirm a working Preview,** with Preview-only secrets and a non-production database, and test real email: code, link and same player from both.
+5. **Before merging,** confirm the dashboard Deploy command is `pnpm cloudflare:deploy`.
+6. **Merge when approved,** then watch the production build and logs. Check Railway releases the realtime fix alongside it.
+7. **Finish release verification:** Google consent, R2, physical devices, audio.
 
 ## P0: release readiness
 
 | # | Item | Done when |
 | --- | --- | --- |
-| 1 | Production migrations | Applied with a backup, and the recovery checklist passes |
-| 2 | Production HTTP 500s | Campaign and token work with real cookies in production, and logs are clean |
+| 1 | Production migrations | **Done** 2026-11-05 |
+| 1a | Real email delivery | Code and link arrive in a real inbox and sign in to the same player |
+| 2 | Production HTTP 500s | Made-up session checks pass. Still needs real cookies in production, and clean logs |
 | 3 | Real Workers Build | The log shows the root config loaded, no `previews` error, OpenNext output uploaded and a working Preview URL |
 | 4 | Google OAuth consent | Real sign-in, sign-out and linking pass on desktop and a phone. Only a local fixture was tested |
 | 5 | Cloudflare R2 avatars | Real upload, read, replace and delete work with a private bucket. Only local files were tested |
@@ -98,4 +92,4 @@ In dependency order:
 
 ## Recommended next assignment
 
-Once the owner has the read-only evidence: **a supervised production migration with its recovery check, then the build fix from the real log.** More cricket features should wait until production is healthy and real-device results are in.
+**Fix the Workers Build from its real log, then configure and test real email.** More cricket features should wait until the release is out and real-device results are in.

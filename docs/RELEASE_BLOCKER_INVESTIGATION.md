@@ -1,6 +1,6 @@
 # Release blocker investigation
 
-Date: 2026-11-05. Nothing here was pushed, merged or deployed, and no production data, setting or secret changed. Production was contacted only with the read-only requests listed below.
+Date: 2026-11-05, updated 2026-11-06. This records the investigation as it happened. **Update:** the migrations were later applied to production with the owner's approval, and the empty 500s cleared in public checks. See [the migration report](PRODUCTION_MIGRATION_READINESS.md). The Cloudflare build failure below is still unresolved.
 
 ## 1. Cuisine Quest and token HTTP 500
 
@@ -8,7 +8,7 @@ Date: 2026-11-05. Nothing here was pushed, merged or deployed, and no production
 
 **Most likely cause: production's code expects migrations that its database does not have.** It affects far more than Cuisine Quest. Any request carrying a session cookie that reaches an unguarded `getSession()` call fails, including the realtime token, wallet and solo games.
 
-This is strongly supported but not directly confirmed, because nobody has yet read production's migration history or Worker logs.
+**Update:** the migration history is now read. The database has only `init`, and all objects from the three later migrations are absent. A read-only counter check very likely ties this database to the production Worker. See [migration readiness](PRODUCTION_MIGRATION_READINESS.md). Worker logs have still not been read.
 
 ### Request flow
 
@@ -61,11 +61,16 @@ Every production response in the table above was reproduced. After the two migra
 | Rate limiter | Unlikely. It is in-memory, with no database or fragile dependency |
 | Response serialization | Not the source. The body is empty because the route threw before any response was built |
 
+### Later finding: database lookup on every realtime packet
+
+Running the games against a remote copy of production exposed a separate problem. `apps/realtime/src/server.ts` looked up the account on every socket packet, including each drawing stroke and movement input, and treated any database error as invalid. Under load that means heavy database traffic, queued game input, and players disconnected by a brief database error. A Doodle Duel guess was lost this way at about 248 ms per query. Local databases hid it.
+
+This code is on `main`. It's fixed locally in `apps/realtime/src/account-guard.ts`: game packets no longer wait, accounts are rechecked in the background every 5 seconds, entry events still wait for a fresh answer, and only a definite "invalid" disconnects. **A revoked session can now keep sending game packets for up to about 5 seconds.** A new connection still needs a definite yes.
+
 ### What is not confirmed
 
 - The real error text. The old code discarded it, and the Worker logs were not read.
-- That migration 2 is missing. A failing query is consistent with that, but `CuisineProgress` could fail for another reason.
-- Whether `_prisma_migrations` exists in production, and the state of migration `20261104010000`.
+- That real player sessions recover. Public checks with a made-up session did, after the migration.
 - Worker logs: the new error lines were seen in the local Node server log, but the workerd run's captured log didn't include them, so their appearance in Cloudflare is unverified.
 
 **One browser check, no tools needed:** while signed in with the normal cookie, open `https://sinversegames.com/api/session`. A 503 with "Player sessions are temporarily unavailable" confirms this path for real users.

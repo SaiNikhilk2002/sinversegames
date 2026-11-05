@@ -46,12 +46,28 @@ Both must be **identical** on the Worker and on Railway. Never commit them.
 ## 2. Neon
 
 1. Create a project in the region closest to your Railway region, for example AWS us-east-1 with Railway us-east.
-2. Copy the **pooled** connection string. The host contains `-pooler`; keep `?sslmode=require`. This is `DATABASE_URL`.
-3. Apply migrations from your machine or CI:
-   ```bash
-   DATABASE_URL="postgresql://…-pooler…/neondb?sslmode=require" pnpm db:deploy
+2. Neon gives two connection strings for each branch, and each has one job:
+
+   | Connection | Host | Used by | Variable |
+   | --- | --- | --- | --- |
+   | **Pooled** | contains `-pooler` | The running app: Worker and Railway | `DATABASE_URL` in Cloudflare and Railway |
+   | **Direct** | same host without `-pooler` | Prisma migrations only | `DATABASE_URL` in one temporary terminal session |
+
+   Keep `?sslmode=require` on both. Prisma Migrate doesn't support Neon's pooler, so `prisma migrate deploy` must use the direct string. Prisma reads only `DATABASE_URL`, through `packages/db/prisma.config.ts`. A value already in the shell overrides the root `.env`. Never set the direct string in Cloudflare or Railway.
+3. Apply migrations **before** releasing code that needs them, on every release that adds files under `packages/db/prisma/migrations`. Workers Builds and Railway don't run migrations.
+
+   Back up first by creating a Neon branch from production, then rehearse on a second branch. The full procedure, including the verification queries and recovery steps, is in [the migration runbook](docs/PRODUCTION_MIGRATION_READINESS.md#runbook). In PowerShell, from the repository root, using Node 24.14.0:
+
+   ```powershell
+   $env:Path = "$env:LOCALAPPDATA\nvm\v24.14.0;$env:Path"
+   $env:DATABASE_URL = Read-Host "Direct URL"   # Read-Host keeps it out of shell history
+   if ($env:DATABASE_URL -like "*-pooler*") { throw "This is the pooled URL. Stop." }
+   pnpm --filter @platform/db exec prisma migrate status   # confirm the host and the pending list
+   pnpm --filter @platform/db exec prisma migrate deploy
+   Remove-Item Env:DATABASE_URL
    ```
-   Repeat on every release that adds files under `packages/db/prisma/migrations`.
+
+   Check the host printed by `migrate status` before running `deploy`. Use `pnpm exec`, not a bare `npx prisma`, which can download a different Prisma version.
 
 ## 3. Railway: realtime server
 
@@ -138,16 +154,35 @@ Add only new records; don't change zone-wide settings such as SSL mode, which yo
 
 Then make `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL` and `ALLOWED_ORIGINS` match these hostnames exactly.
 
+## Email sign-in (Resend)
+
+Email sign-in uses [Resend](https://resend.com/docs/api-reference/emails/send-email). Without these settings, the sign-in page says email is unavailable, and guest play and Google are unaffected.
+
+1. Create a Resend account, then add and verify a sending domain, such as `mail.sinversegames.com`. Add the DKIM and SPF records Resend shows you to Cloudflare DNS, exactly as generated. Leave any CNAME records **DNS only** (grey cloud). Resend says to add a DMARC record after verification.
+2. Create an API key limited to sending, and store it only as a Worker secret:
+
+   ```bash
+   cd apps/web
+   pnpm exec wrangler secret put RESEND_API_KEY
+   pnpm exec wrangler secret put EMAIL_FROM   # for example: SinverseGames <play@mail.sinversegames.com>
+   ```
+
+3. Check `AUTH_ORIGIN` is `https://sinversegames.com` exactly. Email links are built from it.
+4. Never set `EMAIL_API_URL` in production. It only accepts loopback addresses, for local tests, and any other value turns email sign-in off.
+5. Test with a real inbox: register with a code, sign out, return with a link, and check all four kinds of email arrive and display properly.
+
 ## 6. Environment matrix
 
 | Variable | Worker (runtime secret) | Worker (build variable) | Railway | Notes |
 | --- | --- | --- | --- | --- |
 | `AUTH_SECRET` | ✅ | | ✅ | identical, ≥32 chars |
 | `ADMIN_TOKEN` | ✅ | | ✅ | identical, ≥16 chars; enables `/admin` |
-| `DATABASE_URL` | ✅ | | ✅ | Neon pooled URL |
+| `DATABASE_URL` | ✅ | | ✅ | Neon **pooled** URL at runtime. Migrations use the direct URL, set only in a temporary terminal session |
 | `NEXT_PUBLIC_SITE_URL` | | ✅ | | |
 | `NEXT_PUBLIC_REALTIME_URL` | | ✅ | | also used by `/api/health` |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_BRAND_TAGLINE`, `NEXT_PUBLIC_BRAND_DESCRIPTION` | | optional | | see `.env.example`; platform/currency names are fixed |
+| `AUTH_ORIGIN` | ✅ | | | exact site origin; builds Google callbacks and email links |
+| `RESEND_API_KEY`, `EMAIL_FROM` | ✅ | | | email sign-in; leave unset to disable it |
 | `ALLOWED_ORIGINS` | | | ✅ | site origin(s) |
 | `PORT` | | | Railway-provided | |
 | tuning (`RECONNECT_GRACE_MS`, …) | | | optional | see `.env.example` |

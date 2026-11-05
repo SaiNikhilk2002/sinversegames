@@ -163,11 +163,19 @@ Performance figures are SwiftShader software-GPU only and vary with machine cond
 
 Workers Builds may run a bare `npx wrangler preview` at the repository root, so root `wrangler.jsonc` describes the same Worker as `apps/web/wrangler.jsonc`; `apps/web/e2e/cloudflare-config.spec.ts` keeps them in step. Change both together. `cf:build` also runs `populateCache local`. Keep `pnpm cloudflare:deploy` for production, never a bare `npx wrangler deploy`. The fix is unproven on Cloudflare until a real build runs after an authorized push.
 
-## Production release blockers (2026-11-05)
+## Production release state (2026-11-06)
 
-Live production returns empty HTTP 500s on routes using `getSession()`, most likely because migrations `20261104020000` and `20261104030000` are missing there while code on `main` expects them. See `docs/RELEASE_BLOCKER_INVESTIGATION.md` and `docs/PRODUCTION_MIGRATION_READINESS.md`. Never run a production migration without explicit approval. Neither Workers Builds nor Railway runs migrations, so a release that adds one must migrate the database before the code ships.
+Production's database has all four migrations, applied 2026-11-05 (`docs/PRODUCTION_MIGRATION_READINESS.md`). Never run a production migration without explicit approval. Neither Workers Builds nor Railway runs migrations, so a release that adds one must migrate the database first, over Neon's direct URL. The code on this branch isn't deployed until the owner says so.
 
 Wrap JSON API routes in `jsonRoute` (`lib/server/api-route.ts`), so failures reach clients as JSON and real causes reach server logs through `serverErrorSummary`, never with connection strings. Read client API responses with `readJson` or `expectJson` (`lib/read-json.ts`), since a platform error can have an empty or non-JSON body. Do not claim the Cloudflare failure is fixed without a successful real Workers Build.
+
+## Accounts, email and live connections
+
+There is one identity system, in this repository: no Better Auth or other auth library. `ExternalIdentity` connects Google and email to a permanent `Player.id`, and both create an `AccountSession`. Email codes and links both end in `linkEmail`, so one normalized address always opens one player. Never merge a guest into an address that already has a player. Pending email sign-ins use `OAuthAttempt` modes `emailotp` and `emaillnk`, which Google's callback must keep refusing. Never log codes, tokens or links. See `docs/PLAYER_IDENTITY_SETUP.md`.
+
+Migrations need Neon's direct URL, and the running app keeps the pooled one. The root `.env` may point at a real database, so any local server, build or test must set `DATABASE_URL` explicitly. Never run browser specs against a remote database unless the target proves its identity, as `e2e/email-auth.spec.ts` does.
+
+Never add a database lookup per realtime packet. `apps/realtime/src/account-guard.ts` lets game packets pass without waiting, rechecks accounts in the background, and disconnects only on a definite "invalid". Local databases hide this class of problem, because they answer instantly.
 
 ## Completion checklist
 
