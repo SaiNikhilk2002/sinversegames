@@ -1,0 +1,28 @@
+{
+  "$schema": "apps/web/node_modules/wrangler/config-schema.json",
+  // Lets Wrangler commands run from the repository root, which is where Workers
+  // Builds runs a bare `npx wrangler preview`. It describes the same Worker as
+  // apps/web/wrangler.jsonc, so keep the two in step
+  // (apps/web/e2e/cloudflare-config.spec.ts checks they match).
+  // Secrets are set with `wrangler secret put`, never here.
+  "name": "sinversegames-web",
+  "main": "apps/web/.open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": "apps/web/.open-next/assets",
+    "binding": "ASSETS"
+  },
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true },
+  "vars": {
+    "NODE_ENV": "production"
+  },
+  // Preview vars and bindings are separate from production. Supply Preview-only
+  // secrets through Previews Base, never production copies.
+  "previews": {
+    "vars": {
+      "NODE_ENV": "production"
+    }
+  }
+}
