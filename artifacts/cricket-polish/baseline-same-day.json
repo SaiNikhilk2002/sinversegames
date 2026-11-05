@@ -1,0 +1,8 @@
+{
+  "note": "Original renderer at 4ad166b, rebuilt and measured on 2026-11-05 on the same PC, build mode, browser and viewport as the polished renderer. 8 second sample each. SwiftShader software GPU, not physical-device evidence.",
+  "viewport": { "width": 1280, "height": 900 },
+  "medianFrameIntervalMs": { "low": 133.3, "medium": 166.6, "high": 300, "ultra": 316.7 },
+  "drawCalls": { "low": 434, "medium": 434, "high": 460, "ultra": 460 },
+  "triangles": { "low": 29894, "medium": 40894, "high": 60094, "ultra": 82094 },
+  "scriptMsPerFrame": { "low": 6.3, "medium": 5.4, "high": 7.6, "ultra": 7.6 }
+}

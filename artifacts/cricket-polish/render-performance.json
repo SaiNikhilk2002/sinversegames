@@ -1,0 +1,160 @@
+{
+  "gpu": "Headless Chromium SwiftShader software WebGL2 on this development PC; not physical-device GPU evidence",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "version": "156.0.8078.4",
+  "samples": [
+    {
+      "quality": "low",
+      "drawCalls": 45,
+      "triangles": 44254,
+      "textures": 31,
+      "geometries": 36,
+      "dpr": 0.75,
+      "frameIntervalMs": {
+        "frames": 151,
+        "median": 83.3,
+        "p95": 100,
+        "max": 100.1
+      }
+    },
+    {
+      "quality": "medium",
+      "drawCalls": 45,
+      "triangles": 84018,
+      "textures": 32,
+      "geometries": 36,
+      "dpr": 1,
+      "frameIntervalMs": {
+        "frames": 60,
+        "median": 200,
+        "p95": 216.7,
+        "max": 250.1
+      }
+    },
+    {
+      "quality": "high",
+      "drawCalls": 57,
+      "triangles": 137118,
+      "textures": 34,
+      "geometries": 36,
+      "dpr": 1,
+      "frameIntervalMs": {
+        "frames": 44,
+        "median": 266.7,
+        "p95": 283.4,
+        "max": 466.6
+      }
+    },
+    {
+      "quality": "ultra",
+      "drawCalls": 66,
+      "triangles": 228678,
+      "textures": 34,
+      "geometries": 36,
+      "dpr": 1,
+      "frameIntervalMs": {
+        "frames": 30,
+        "median": 400,
+        "p95": 433.3,
+        "max": 433.3
+      }
+    }
+  ],
+  "errors": [],
+  "mobile": [
+    {
+      "w": 320,
+      "h": 640,
+      "defaultQuality": "low",
+      "tacticalRenderer": "tactical",
+      "overflowX": 0,
+      "primary": {
+        "top": 556,
+        "bottom": 598,
+        "h": 42
+      },
+      "innerHeight": 640
+    },
+    {
+      "w": 360,
+      "h": 780,
+      "defaultQuality": "low",
+      "tacticalRenderer": "tactical",
+      "overflowX": 0,
+      "primary": {
+        "top": 699,
+        "bottom": 741,
+        "h": 42
+      },
+      "innerHeight": 780
+    },
+    {
+      "w": 390,
+      "h": 844,
+      "defaultQuality": "low",
+      "tacticalRenderer": "tactical",
+      "overflowX": 0,
+      "primary": {
+        "top": 763,
+        "bottom": 805,
+        "h": 42
+      },
+      "innerHeight": 844
+    },
+    {
+      "w": 430,
+      "h": 932,
+      "defaultQuality": "low",
+      "tacticalRenderer": "tactical",
+      "overflowX": 0,
+      "primary": {
+        "top": 851,
+        "bottom": 893,
+        "h": 42
+      },
+      "innerHeight": 932
+    },
+    {
+      "w": 844,
+      "h": 390,
+      "defaultQuality": "medium",
+      "tacticalRenderer": "tactical",
+      "overflowX": 0,
+      "primary": {
+        "top": 327,
+        "bottom": 373,
+        "h": 46
+      },
+      "innerHeight": 390
+    },
+    {
+      "w": 768,
+      "h": 1024,
+      "defaultQuality": "medium",
+      "tacticalRenderer": "tactical",
+      "overflowX": 0,
+      "primary": {
+        "top": 932,
+        "bottom": 978,
+        "h": 46
+      },
+      "innerHeight": 1024
+    },
+    {
+      "w": 1280,
+      "h": 800,
+      "defaultQuality": "medium",
+      "tacticalRenderer": "tactical",
+      "overflowX": 0,
+      "primary": {
+        "top": 708,
+        "bottom": 754,
+        "h": 46
+      },
+      "innerHeight": 800
+    }
+  ]
+}

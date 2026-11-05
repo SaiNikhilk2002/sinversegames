@@ -1,0 +1,125 @@
+{
+  "seen": {
+    "four": "ball 1",
+    "dot": "ball 2",
+    "wicket": "ball 3"
+  },
+  "log": [
+    {
+      "ball": 1,
+      "want": "six",
+      "kind": "four",
+      "wicket": null,
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": -0.18,
+        "tick": 156
+      },
+      "contactTick": 163
+    },
+    {
+      "ball": 2,
+      "want": "six",
+      "kind": "dot",
+      "wicket": null,
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": 0,
+        "tick": 180
+      },
+      "contactTick": 184
+    },
+    {
+      "ball": 3,
+      "want": "six",
+      "kind": "wicket",
+      "wicket": "caught",
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": 0.14,
+        "tick": 204
+      },
+      "contactTick": 209
+    },
+    {
+      "ball": 4,
+      "want": "six",
+      "kind": "wicket",
+      "wicket": "caught",
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": -0.52,
+        "tick": 204
+      },
+      "contactTick": 209
+    },
+    {
+      "ball": 5,
+      "want": "six",
+      "kind": "dot",
+      "wicket": null,
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": -0.6,
+        "tick": 204
+      },
+      "contactTick": -1
+    },
+    {
+      "ball": 6,
+      "want": "six",
+      "kind": "wicket",
+      "wicket": "caught",
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": -0.6,
+        "tick": 204
+      },
+      "contactTick": 210
+    },
+    {
+      "bowled": 1,
+      "said": "DOT · 0/0 after 0.1"
+    },
+    {
+      "bowled": 2,
+      "said": "DOT · 0/0 after 0.2"
+    },
+    {
+      "bowled": 3,
+      "said": "DOT · 0/0 after 0.3"
+    },
+    {
+      "bowled": 4,
+      "said": "DOT · 0/0 after 0.4"
+    },
+    {
+      "bowled": 5,
+      "said": "DOT · 0/0 after 0.5"
+    },
+    {
+      "bowled": 6,
+      "said": "DOT · 0/0 after 1.0"
+    }
+  ],
+  "errors": [],
+  "graphics": "medium"
+}

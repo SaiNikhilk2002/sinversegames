@@ -1,6 +1,6 @@
 # SinverseGames: first 50 games
 
-The plan for the first 50 games. The original seven games count toward the historical 50-game plan; Cuisine Quest adds an eighth implemented game through the separate expansion selection below. Every game is original (names, rules presentation, art and code); genres are fair game, specific existing games are not.
+The plan for the first 50 games. The original seven games count toward the historical 50-game plan; Cuisine Quest adds an eighth implemented game through the separate expansion selection below. Sinverse Cricket now adds a ninth development game as a bounded custom-duel slice; its larger sports roadmap is tracked separately in [SINVERSE_CRICKET_ROADMAP.md](SINVERSE_CRICKET_ROADMAP.md). Every game is original (names, rules presentation, art and code); genres are fair game, specific existing games are not.
 
 Each game reuses one of four engine kinds that already exist, so most new games are content plus a UI on top of proven infrastructure:
 

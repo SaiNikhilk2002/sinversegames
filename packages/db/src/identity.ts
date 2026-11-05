@@ -1,6 +1,7 @@
 import type { PrismaClient } from "./generated/prisma/client";
 import {
   ACCOUNT_SESSION_MS,
+  EMAIL_PROVIDER,
   hashSecret,
   randomSecret,
   usernameSchema,
@@ -8,6 +9,7 @@ import {
 } from "@platform/shared";
 import { lockPlayer } from "./wallet";
 
+const NEW_PLAYER_NAME = "New adventurer";
 export class AccountError extends Error {
   constructor(public code: string) {
     super(code);
@@ -101,7 +103,7 @@ export async function linkGoogle(
         player = await tx.player.create({
           data: {
             id: `p_${randomSecret().slice(0, 32)}`,
-            displayName: "New adventurer",
+            displayName: NEW_PLAYER_NAME,
             avatarColor: "#8d86df",
             kind: "REGISTERED",
           },
@@ -122,6 +124,84 @@ export async function linkGoogle(
       throw new AccountError("session_changed");
     throw error;
   }
+}
+/**
+ * Called only after the address has been verified. Both email methods land here,
+ * so an address always resolves to one player, whichever method was used first.
+ * A guest is linked only when its own browser finished verification (see actorId
+ * in the email routes). A known address never absorbs or overwrites a guest.
+ */
+export async function linkEmail(
+  db: PrismaClient,
+  email: string,
+  actorId: string | null,
+) {
+  const attempt = () =>
+    db.$transaction(async (tx) => {
+      const actor = actorId
+        ? await tx.player.findUnique({ where: { id: actorId }, select: { id: true } })
+        : null;
+      if (actor) await lockPlayer(tx, actor.id);
+      const identity = await tx.externalIdentity.findUnique({
+        where: { provider_subject: { provider: EMAIL_PROVIDER, subject: email } },
+        include: { player: true },
+      });
+      if (identity) {
+        if (
+          identity.player.bannedUntil &&
+          identity.player.bannedUntil.getTime() > Date.now()
+        )
+          throw new AccountError("suspended");
+        return { player: identity.player, created: false };
+      }
+      let player = actor
+        ? await tx.player.findUniqueOrThrow({ where: { id: actor.id } })
+        : null;
+      if (player?.bannedUntil && player.bannedUntil.getTime() > Date.now())
+        throw new AccountError("suspended");
+      if (player?.kind === "REGISTERED") throw new AccountError("already_linked");
+      if (!player)
+        player = await tx.player.create({
+          data: {
+            id: `p_${randomSecret().slice(0, 32)}`,
+            displayName: NEW_PLAYER_NAME,
+            avatarColor: "#8d86df",
+            kind: "REGISTERED",
+          },
+        });
+      await tx.externalIdentity.create({
+        data: { provider: EMAIL_PROVIDER, subject: email, playerId: player.id },
+      });
+      await tx.accountSession.deleteMany({ where: { playerId: player.id } });
+      return {
+        player: await tx.player.update({
+          where: { id: player.id },
+          data: { kind: "REGISTERED" },
+        }),
+        created: true,
+      };
+    });
+  try {
+    return await attempt();
+  } catch (error) {
+    if ((error as { code?: string }).code !== "P2002") throw error;
+    // Two simultaneous verifications of a new address: the other one won, so
+    // this one signs in to the player it created.
+    try {
+      return await attempt();
+    } catch (retry) {
+      if ((retry as { code?: string }).code === "P2002")
+        throw new AccountError("identity_collision");
+      throw retry;
+    }
+  }
+}
+export async function verifiedEmailFor(db: PrismaClient, playerId: string) {
+  const identity = await db.externalIdentity.findUnique({
+    where: { playerId_provider: { playerId, provider: EMAIL_PROVIDER } },
+    select: { subject: true },
+  });
+  return identity?.subject ?? null;
 }
 export async function claimUsername(
   db: PrismaClient,
@@ -146,7 +226,12 @@ export async function claimUsername(
         throw new AccountError("rename_cooldown");
       return tx.player.update({
         where: { id: playerId },
-        data: { username, usernameChangedAt: now },
+        data: {
+          username,
+          usernameChangedAt: now,
+          // Replace only the placeholder: a name the player chose stays as it is.
+          ...(player.displayName === NEW_PLAYER_NAME ? { displayName: username } : {}),
+        },
       });
     });
   } catch (error) {

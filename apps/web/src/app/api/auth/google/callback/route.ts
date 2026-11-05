@@ -51,6 +51,8 @@ export async function GET(request: Request) {
     const attempt = await db.oAuthAttempt.findUnique({ where: { stateHash } });
     if (
       !attempt ||
+      // This table also holds pending email sign-ins, which never complete here.
+      (attempt.mode !== "link" && attempt.mode !== "signin") ||
       attempt.consumedAt ||
       attempt.expiresAt.getTime() <= Date.now() ||
       attempt.browserHash !== (await hashSecret(browser)) ||

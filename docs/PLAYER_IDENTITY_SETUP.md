@@ -1,6 +1,41 @@
 # Player identity external setup and local commands
 
-No dashboard action, production migration, secret creation or deployment was performed. Do not paste credentials into chat. Configure each environment through its own ignored local environment or host secret manager.
+This document performs no dashboard action, secret creation or deployment. Production migrations were applied separately on 2026-11-05. Google, R2 and Resend still need live verification. Do not paste credentials into chat. Configure each environment through its own ignored local environment or host secret manager.
+
+## How accounts work
+
+There is one identity system, built in this repository. It doesn't use Better Auth or any other auth library. A player has a permanent `Player.id`, and `ExternalIdentity` connects sign-in methods to it. Google and email both create the same kind of `AccountSession`.
+
+### Email sign-in: code or link
+
+A player enters their email and chooses either method. Both are handled by `lib/server/email-auth.ts`, and both end in `linkEmail` (`packages/db/src/identity.ts`), so one address always opens one player, whichever method came first.
+
+| | Code | Link |
+| --- | --- | --- |
+| Secret | 6 random digits | 256-bit random token, in the URL fragment |
+| Stored as | HMAC with `AUTH_SECRET`, scoped to the attempt | SHA-256 hash |
+| Expires | 10 minutes | 15 minutes |
+| Use | Once | Once |
+| Works in | Only the browser that asked for it | Any browser. A different browser must confirm first, and can't link a guest |
+| Wrong guesses | 5 per code, then it's cancelled; 20 per address per hour | Not applicable |
+
+Sending is limited to 1 email per minute per address for each method, 6 per hour per address, and 30 per hour per IP. Verifying is limited to 30 attempts per minute per IP. The reply to a send request doesn't reveal whether an address has an account.
+
+**Why a link can ask for confirmation:** mail scanners open links, and a link sent to someone by an attacker could otherwise sign them in to the attacker's account. Opening a link in the browser that asked for it signs in straight away. Anywhere else, the page shows the masked address and asks first. Nothing is used up until then.
+
+**Guests:** a guest who verifies a new address, in the same browser, keeps their player ID and all progress. A guest who verifies an address that already has a player switches to that player, and the guest stays separate. Nothing merges automatically. After linking, the old guest cookie stops working.
+
+**Google and email are separate.** Google's verified email isn't stored, so the same person signing in both ways gets two players. Linking them needs its own design.
+
+**Storage:** the address is kept in `ExternalIdentity.subject` to send sign-in email and security notices. The privacy policy says so. Pending attempts use the existing `OAuthAttempt` table with modes `emailotp` and `emaillnk`, and limits use `IdentityRateLimit`. **It needs no migration beyond those already applied to production.**
+
+**Changing `AUTH_SECRET`** cancels any code waiting to be used, and nothing else about email accounts, because addresses aren't derived from it.
+
+**Emails:** code, link, welcome and two security notices (a new browser signing in, other browsers signed out), in `packages/shared/src/identity/email-templates.ts`. Codes, tokens and links must never be logged. Resend setup is in [DEPLOYMENT.md](../DEPLOYMENT.md#email-sign-in-resend).
+
+**Local tests:** `e2e/email-provider.ts` is a stand-in for Resend's API on 127.0.0.1:4401. The app's real sending code runs against it, but nothing is delivered, so it doesn't prove real delivery. Set `RESEND_API_KEY=local-email-fixture`, `EMAIL_FROM` and `EMAIL_API_URL=http://127.0.0.1:4401/emails`.
+
+**Operations:** periodically remove expired `IdentityRateLimit` rows. Sending deletes expired attempts as it goes.
 
 ## Google Cloud Console
 

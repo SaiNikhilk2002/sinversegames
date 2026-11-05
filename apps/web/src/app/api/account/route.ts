@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AccountError, claimUsername } from "@platform/db";
-import { usernameSchema } from "@platform/shared";
+import { EMAIL_PROVIDER, usernameSchema } from "@platform/shared";
 import {
   accountContext,
   accountJson,
@@ -17,7 +17,7 @@ export async function GET() {
     const row = await db.player.findUniqueOrThrow({
       where: { id: player.id },
       include: {
-        identities: { select: { provider: true } },
+        identities: { select: { provider: true, subject: true } },
         sessions: {
           where: { expiresAt: { gt: new Date() } },
           orderBy: { createdAt: "desc" },
@@ -29,6 +29,9 @@ export async function GET() {
       googleAvailable: !!googleConfig(),
       avatarAvailable: await avatarStorageAvailable(),
       linked: row.identities.some((i) => i.provider === "google"),
+      // Only the signed-in player reaches this response. Google subjects stay private.
+      email:
+        row.identities.find((i) => i.provider === EMAIL_PROVIDER)?.subject ?? null,
       username: row.username,
       usernameChangedAt: row.usernameChangedAt,
       onboardingAt: row.onboardingAt,

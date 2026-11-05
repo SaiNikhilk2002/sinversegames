@@ -91,7 +91,7 @@ export async function accountContext(
   if (registered && player.kind !== "registered")
     return {
       error: accountJson(
-        { error: "Link Google before managing this account." },
+        { error: "Save this player with email or Google before managing this account." },
         403,
       ),
     };

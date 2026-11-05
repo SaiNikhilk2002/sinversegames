@@ -13,6 +13,7 @@ export const GAME_IDS = [
   "mahjong-garden",
   "bumper-blitz",
   "cuisine-quest",
+  "sinverse-cricket",
 ] as const;
 export type GameId = (typeof GAME_IDS)[number];
 
@@ -21,7 +22,7 @@ export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail"
 export type MultiplayerGameId = (typeof MULTIPLAYER_GAME_IDS)[number];
 
 /** Single-player games: played in the browser, scores verified by replaying the move log on the server. */
-export const SOLO_GAME_IDS = ["kitchen-rush", "cascade-solitaire", "mahjong-garden", "cuisine-quest"] as const;
+export const SOLO_GAME_IDS = ["kitchen-rush", "cascade-solitaire", "mahjong-garden", "cuisine-quest", "sinverse-cricket"] as const;
 export type SoloGameId = (typeof SOLO_GAME_IDS)[number];
 
 export const GAME_CATEGORIES = {
@@ -35,6 +36,7 @@ export const GAME_CATEGORIES = {
   word: "Word games",
   strategy: "Strategy",
   casual: "Casual",
+  sports: "Sports",
 } as const;
 export type GameCategory = keyof typeof GAME_CATEGORIES;
 
@@ -296,6 +298,26 @@ export const GAMES: readonly GameMeta[] = [
       { title: "Power up", body: "Turbo makes you faster, Heavy hits harder and Shield blocks one knock." },
     ],
     keywords: ["bumper cars game", "arena brawler online", "multiplayer arena game", "knockout game online"],
+  },
+  {
+    id: "sinverse-cricket", slug: "sinverse-cricket", kind: "solo", name: "Sinverse Cricket",
+    tagline: "Read the ball. Find the gap. Own the final over.",
+    description: "An original 3D cricket duel. Bat, bowl and chase across two innings, then replay the real ball flight. One- and two-over custom matches against tactical AI.",
+    longDescription: [
+      "Play as Harbour Lights or Ember Kites under the lights of Lantern Oval or beside Tideglass Park. Call the toss and take control of both batting and bowling in a complete custom short-format duel.",
+      "Choose your shot, direction, power, footwork and bat face. Swing against a moving ball; contact, bounce, fielding and boundary crossings determine the outcome. Bowling combines line, length, release timing, pace and eight seam/spin variations.",
+      "Review delivery snapshots from different cameras, slow the action and scrub the trajectory. A playable tactical view is available when WebGL2 is unavailable. Local geometry and synthesized audio use no real-player likenesses or official cricket branding.",
+      "This is the first playable cricket slice. T20, ODI, Test, tournaments, career and synchronous multiplayer are later phases. Match results are replay-verified through the existing player, leaderboard and Sin Coins systems; no separate cricket wallet.",
+    ],
+    categories: ["sports", "strategy", "arcade"], minPlayers: 1, maxPlayers: 1, avgDurationMinutes: [3, 7],
+    modes: ["solo", "daily"], featured: true, popular: false, addedAt: "2026-11-05",
+    theme: { from: "#102d3a", to: "#42d5b4", ink: "#eaf6ed" },
+    howToPlay: [
+      { title: "Set the fixture", body: "Choose a team, venue, difficulty and one or two overs. Call the toss and choose your preferred innings." },
+      { title: "Read the delivery", body: "Choose a shot, aim and power. Press Space or Swing as the ball reaches the crease. Footwork and bat face change contact." },
+      { title: "Build a bowling plan", body: "Set line, length and variation. Release near the centre of the moving meter; late oversteps cost a no-ball and free hit." },
+      { title: "Watch the field", body: "Request a run only when the gap is there. Throws and runner positions decide run-outs. Review any completed delivery before continuing." },
+    ], keywords: ["cricket simulation", "3d cricket", "original cricket game", "batting bowling game", "short cricket match"],
   },
 ];
 

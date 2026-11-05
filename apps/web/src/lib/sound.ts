@@ -24,6 +24,7 @@ function applyVolumes() {
   if (!ctx || !fxBus || !musicBus) return;
   const s = getSettings();
   const t = ctx.currentTime;
+  master?.gain.setTargetAtTime(s.sound ? 0.9 * s.masterVolume : 0, t, 0.05);
   fxBus.gain.setTargetAtTime(s.sound ? s.volume : 0, t, 0.05);
   musicBus.gain.setTargetAtTime(s.sound && s.music ? s.musicVolume * 0.55 : 0, t, 0.08);
 }
@@ -95,6 +96,7 @@ function tone(notes: Note[], type: OscillatorType = "sine", gainScale = 1, bus =
     osc.connect(gain).connect(bus);
     osc.start(t0 + at);
     osc.stop(t0 + at + dur + 0.02);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
 }
 
@@ -119,6 +121,7 @@ function burst(opts: { at?: number; dur: number; filter: BiquadFilterType; freq:
   src.connect(f).connect(g).connect(fxBus);
   src.start(t0, Math.random() * 1.5);
   src.stop(t0 + opts.dur + 0.05);
+  src.onended = () => { src.disconnect(); f.disconnect(); g.disconnect(); };
 }
 
 /** A bell-like partial stack (counter bell, perfect-cook ding, stars). */
@@ -127,6 +130,34 @@ function bell(freq: number, at = 0, gainScale = 1, dur = 0.9) {
 }
 
 export const sfx = {
+  cricketBat: (strength: number) => { burst({dur:0.09,filter:"bandpass",freq:1600,q:1.8,gain:0.18+Math.max(0,Math.min(1,strength))*.25,sweepTo:700});tone([[190,0,.055],[340,.012,.035]],"triangle",.4); },
+  cricketStumps: () => { for(let n=0;n<3;n++)burst({at:n*.025,dur:.065,filter:"bandpass",freq:850+n*420,gain:.22}); },
+  cricketEdge: () => {
+    burst({ dur: 0.05, filter: "highpass", freq: 3200, gain: 0.28 });
+    tone([[520, 0, 0.03]], "triangle", 0.25);
+  },
+  cricketBlock: () => {
+    burst({ dur: 0.06, filter: "bandpass", freq: 900, q: 1.1, gain: 0.26 });
+    tone([[150, 0, 0.05]], "triangle", 0.3);
+  },
+  cricketGlove: () => burst({ dur: 0.07, filter: "lowpass", freq: 1100, gain: 0.3 }),
+  cricketPickup: () => burst({ dur: 0.05, filter: "bandpass", freq: 1400, q: 0.8, gain: 0.14 }),
+  cricketBoard: () => {
+    burst({ dur: 0.14, filter: "lowpass", freq: 700, gain: 0.34, sweepTo: 180 });
+    tone([[92, 0, 0.12]], "triangle", 0.5);
+  },
+  /** A swell of crowd noise; `level` from a polite ripple to a full roar. */
+  crowdSwell: (level: number) => {
+    const k = Math.max(0.1, Math.min(1, level));
+    burst({ dur: 0.8 + k * 1.4, filter: "bandpass", freq: 900 + k * 700, q: 0.35, gain: 0.08 + k * 0.28, attack: 0.18 });
+    burst({ at: 0.06, dur: 0.6 + k * 1.2, filter: "bandpass", freq: 2200, q: 0.5, gain: 0.04 + k * 0.13, attack: 0.25 });
+  },
+  crowdGroan: () => burst({ dur: 1.0, filter: "bandpass", freq: 620, q: 0.7, gain: 0.15, attack: 0.1, sweepTo: 320 }),
+  cricketAppeal: () => {
+    burst({ dur: 0.55, filter: "bandpass", freq: 1250, q: 1.3, gain: 0.2, attack: 0.05, sweepTo: 1600 });
+    tone([[392, 0, 0.32], [523, 0.08, 0.3]], "sawtooth", 0.1);
+  },
+  cricketStep: () => burst({dur:.045,filter:"lowpass",freq:350,gain:.055}),
   // Shared across games.
   yourTurn: () => tone([[660, 0, 0.12], [880, 0.1, 0.18]], "triangle"),
   card: () => {
@@ -283,9 +314,9 @@ export interface Loop {
   stop(): void;
 }
 
-type LoopKind = "sizzle" | "fry" | "simmer" | "room" | "wind";
+type LoopKind = "sizzle" | "fry" | "simmer" | "room" | "wind" | "crowd";
 
-const LOOP_GAIN: Record<LoopKind, number> = { sizzle: 0.18, fry: 0.14, simmer: 0.1, room: 0.05, wind: 0.06 };
+const LOOP_GAIN: Record<LoopKind, number> = { sizzle: 0.18, fry: 0.14, simmer: 0.1, room: 0.05, wind: 0.06, crowd: 0.12 };
 
 /**
  * Creates a looping noise texture on the effects bus. Silent (and cheap)
@@ -299,7 +330,7 @@ export function createLoop(kind: LoopKind): Loop {
   const build = (ac: AudioContext) => {
     gain = ac.createGain();
     gain.gain.value = 0;
-    gain.connect(fxBus!);
+    gain.connect(kind === "crowd" ? master! : fxBus!);
     const src = ac.createBufferSource();
     src.buffer = noise(ac);
     src.loop = true;
@@ -324,7 +355,7 @@ export function createLoop(kind: LoopKind): Loop {
     }
     // Crackle: a fast random-ish tremolo makes noise read as oil and fat rather than hiss.
     const trem = ac.createGain();
-    const smooth = kind === "room" || kind === "wind";
+    const smooth = kind === "room" || kind === "wind" || kind === "crowd";
     trem.gain.value = smooth ? 0.8 : 0.55;
     const lfo = ac.createOscillator();
     lfo.type = smooth ? "sine" : "square";

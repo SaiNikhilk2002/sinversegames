@@ -1,7 +1,8 @@
 import { usernameSchema } from "@platform/shared";
 import { accountContext, accountJson } from "@/lib/server/account";
+import { jsonRoute } from "@/lib/server/api-route";
 export const dynamic = "force-dynamic";
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const ctx = await accountContext("username-check", false);
   if (ctx.error) return ctx.error;
   const parsed = usernameSchema.safeParse(
@@ -21,3 +22,5 @@ export async function GET(request: Request) {
     available: !row || row.id === ctx.player.id,
   });
 }
+
+export const GET = jsonRoute("account username GET", handleGET);

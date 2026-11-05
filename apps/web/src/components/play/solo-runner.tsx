@@ -16,6 +16,7 @@ import { useToast } from "../ui/toast";
 import { usePlayer } from "@/lib/player";
 import { readSoloSnapshot, removeSoloSnapshot, saveSoloSnapshot, type SoloSnapshot } from "@/lib/solo-recovery";
 
+import { expectJson, readJson } from "@/lib/read-json";
 interface Run {
   token: string;
   seed: number;
@@ -47,8 +48,8 @@ function useBest(gameId: SoloGameId, refresh: number) {
   useEffect(() => {
     let alive = true;
     fetch(`/api/solo/best?game=${gameId}`)
-      .then((r) => r.json())
-      .then((b: BestResponse) => alive && setBest(b))
+      .then((r) => expectJson<BestResponse>(r, "Personal bests are unavailable."))
+      .then((b) => alive && setBest(b))
       .catch(() => alive && setBest(null));
     return () => {
       alive = false;
@@ -126,8 +127,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
       setBusy(true);
       try {
         const res = await fetch("/api/solo/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ gameId, config }), signal: AbortSignal.timeout(12_000) });
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error ?? "Couldn't start the game");
+        const body = await expectJson<Run & { config: Record<string, unknown> }>(res, "Couldn't start the game. Please try again.");
         setLastConfig(body.config);
         setPhase({ kind: "playing", run: body as Run });
         if (client.recoverable) { const snapshot: SoloSnapshot = { stage: "playing", run: body as Run, log: [] }; checkpoint(snapshot); setPending(snapshot); }
@@ -149,7 +149,10 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
       if (client.recoverable) { checkpoint(snapshot); setPending(snapshot); }
       try {
         const res = await fetch("/api/solo/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: run.token, log }), signal: AbortSignal.timeout(15_000) });
-        const body = (await res.json()) as SubmitResponse;
+        const parsed = await readJson<SubmitResponse>(res);
+        // A 503 with a verified result means it couldn't be saved yet. Anything else has no result to show.
+        if (!("details" in parsed)) throw new Error(parsed.error ?? "Your score couldn't be verified");
+        const body = parsed as SubmitResponse;
         if (!res.ok && res.status !== 503) throw new Error(body.error ?? "Your score couldn't be verified");
         if (summary.completed) sfx.win();
         setPhase({ kind: "done", summary, result: body, error: body.error ?? (client.recoverable && !body.saved ? "Your score is verified, but campaign saving is unavailable. Retry saving before continuing." : null) });
@@ -285,7 +288,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
           <Trophy className="size-4" /> Leaderboard
         </Link>
       </div>
-      {client.recoverable ? <div className={cn("mt-8", busy && "opacity-80")}><client.Setup onStart={start} busy={busy} /></div> : <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {client.recoverable || client.fullWidthSetup ? <div className={cn("mt-8", busy && "opacity-80")}><client.Setup onStart={start} busy={busy} /></div> : <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card className={cn("p-6", busy && "opacity-80")}>
           <client.Setup onStart={start} busy={busy} />
         </Card>

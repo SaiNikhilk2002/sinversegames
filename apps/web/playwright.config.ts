@@ -14,7 +14,8 @@ const env = { DATABASE_URL: process.env.E2E_DATABASE_URL ?? "postgresql://platfo
 export default defineConfig({
   testDir: "./e2e",
   timeout: 120_000,
-  expect: { timeout: 10_000 },
+  // E2E_EXPECT_TIMEOUT is for running against a remote database, where each query is far slower.
+  expect: { timeout: Number(process.env.E2E_EXPECT_TIMEOUT ?? 10_000) },
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,

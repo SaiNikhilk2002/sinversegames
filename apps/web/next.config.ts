@@ -45,6 +45,12 @@ const nextConfig: NextConfig = {
     outputFileTracingIncludes: {
       "/**": ["../../node_modules/.pnpm/pg@*/node_modules/pg-cloudflare/**", "../../node_modules/.pnpm/pg-cloudflare@*/**"],
     },
+    // Three is loaded only by the browser scene. Its package ships example
+    // decoder WASM files which broad tracing otherwise copies into the Worker.
+    // Client chunks remain in .open-next/assets and are not excluded here.
+    outputFileTracingExcludes: {
+      "/**": ["../../node_modules/.pnpm/three@*/node_modules/three/**", "node_modules/three/**"],
+    },
   }),
   async headers() {
     return [

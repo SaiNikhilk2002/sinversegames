@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { gameIdSchema, roomCodeSchema } from "@platform/shared";
 import { createReport, getDb, REPORT_REASONS, upsertPlayer } from "@platform/db";
+import { jsonRoute } from "@/lib/server/api-route";
 import { getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
 
@@ -13,7 +14,7 @@ const schema = z.object({
   details: z.string().trim().max(1000).optional(),
 });
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   if (!(await isSameOrigin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const player = await getSession();
   if (!player) return NextResponse.json({ error: "Join with a name first" }, { status: 401 });
@@ -26,3 +27,5 @@ export async function POST(req: Request) {
   await createReport(db, { reporterId: player.id, ...parsed.data });
   return NextResponse.json({ ok: true });
 }
+
+export const POST = jsonRoute("reports POST", handlePOST);

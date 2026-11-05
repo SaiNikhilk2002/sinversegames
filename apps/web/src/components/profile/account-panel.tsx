@@ -1,15 +1,18 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, Cloud, ImagePlus, ShieldCheck, UserRound } from "lucide-react";
+import { Check, Cloud, ImagePlus, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { usernameSchema } from "@platform/shared";
 import { usePlayer, reloadPlayer } from "@/lib/player";
 import { Button, Card, Input, Spinner } from "../ui/primitives";
 import { NameForm } from "../play/name-gate";
 import { CosmeticAvatar } from "./cosmetic-avatar";
+import { EmailSignIn } from "./email-sign-in";
 
+import { expectJson } from "@/lib/read-json";
 interface Account {
   linked: boolean;
+  email: string | null;
   username: string | null;
   usernameChangedAt: string | null;
   onboardingAt: string | null;
@@ -91,8 +94,10 @@ function GoogleButton({
 }
 export function AccountPanel({
   googleConfigured,
+  emailConfigured,
 }: {
   googleConfigured: boolean;
+  emailConfigured: boolean;
 }) {
   const { player, loading, error: sessionError } = usePlayer();
   const [data, setData] = useState<Account | null>(null);
@@ -131,6 +136,8 @@ export function AccountPanel({
       setStatus(
         "Google connected. Your original player and progress are saved.",
       );
+    if (auth === "email")
+      setStatus("Email verified. Your player is saved. Finish your profile below.");
   }, []);
   useEffect(() => {
     if (!file) {
@@ -191,7 +198,7 @@ export function AccountPanel({
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#d4cdeb]">
           Keep your Sin Coins, hard-earned badges and chef's passport together.
-          Google connects to your existing player; your progress stays yours.
+          Email or Google connects to your existing player; your progress stays yours.
         </p>
       </header>
       {error && (
@@ -232,12 +239,23 @@ export function AccountPanel({
         </div>
       ) : sessionError ? null : !player ? (
         <div className="grid gap-5 md:grid-cols-2">
+          <Card className="p-6 md:col-span-2">
+            <Mail className="mb-3 text-brand-400" />
+            <h2 className="font-display text-2xl font-bold">
+              Sign up or sign in with email
+            </h2>
+            <p className="my-4 text-sm text-ink-muted">
+              Get a code or a one-tap link. Either way, the same email always opens
+              the same player, wallet and campaign on any device.
+            </p>
+            <EmailSignIn enabled={emailConfigured} guest={false} />
+          </Card>
           <Card className="p-6">
             <UserRound className="mb-3 text-brand-400" />
             <h2 className="font-display text-2xl font-bold">Play as a guest</h2>
             <p className="my-4 text-sm text-ink-muted">
               No registration required. Clearing cookies or changing devices
-              before linking Google can lose access to this guest.
+              before saving your player can lose access to this guest.
             </p>
             <NameForm
               submitLabel="Continue as guest"
@@ -286,15 +304,22 @@ export function AccountPanel({
                   <h2 className="font-display text-xl font-bold">
                     {player.kind === "guest"
                       ? "Save this guest"
-                      : "Google connected"}
+                      : data?.email
+                        ? "Email verified"
+                        : "Google connected"}
                   </h2>
-                  <p className="my-3 text-sm text-ink-muted">
+                  <p className="my-3 break-words text-sm text-ink-muted">
                     {player.kind === "guest"
-                      ? "Keep playing freely. Connect Google to recover this exact player on another device. Cookie-only guests cannot recover after losing their cookie."
-                      : "Your provider connects to the same permanent player ID. We don't store Google access or refresh tokens."}
+                      ? "Keep playing freely. Save this exact player with email or Google to recover it on another device. Cookie-only guests cannot recover after losing their cookie."
+                      : data?.email
+                        ? `Signed in as ${data.email}. Use this email with a code or a link on any device to return to this same player.`
+                        : "Your provider connects to the same permanent player ID. We don't store Google access or refresh tokens."}
                   </p>
                   {player.kind === "guest" && (
                     <>
+                      <div className="mb-5">
+                        <EmailSignIn enabled={emailConfigured} guest />
+                      </div>
                       <GoogleButton mode="link" enabled={googleConfigured} />
                       <div className="mt-3">
                         <GoogleButton
@@ -303,9 +328,9 @@ export function AccountPanel({
                         />
                       </div>
                       <p className="mt-3 text-xs text-ink-muted">
-                        Sign in switches to the player already connected to
-                        Google. Guest progress stays separate; no automatic
-                        merge or wallet transfer.
+                        Signing in with an email or Google account that already
+                        has a player switches to that player. Guest progress
+                        stays separate; no automatic merge or wallet transfer.
                       </p>
                       {!googleConfigured && (
                         <p className="mt-3 text-sm text-ink-muted">
@@ -431,8 +456,7 @@ export function AccountPanel({
                             body: file,
                             signal: AbortSignal.timeout(20000),
                           });
-                          const result = await response.json();
-                          if (!response.ok) throw Error(result.error);
+                          await expectJson(response, "Your picture couldn't be saved. Please try again.");
                           setFile(null);
                           await load();
                           await reloadPlayer();
@@ -556,8 +580,10 @@ export function AccountPanel({
                     >
                       <p className="mb-3 text-sm">
                         {player.kind === "guest"
-                          ? "Leaving an unlinked guest can make its progress inaccessible. Connect Google first to save it."
-                          : "Your progress stays saved. Sign in with the same Google account to return."}
+                          ? "Leaving an unlinked guest can make its progress inaccessible. Save it with email or Google first."
+                          : data?.email
+                            ? "Your progress stays saved. Sign in with the same email to return."
+                            : "Your progress stays saved. Sign in with the same Google account to return."}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Button
@@ -623,7 +649,9 @@ export function AccountPanel({
               </p>
               <p className="mt-4 text-sm text-ink-muted">
                 {player.kind === "registered"
-                  ? "Google linked"
+                  ? data?.email
+                    ? "Email verified"
+                    : "Google linked"
                   : "Guest player"}
               </p>
               <Link

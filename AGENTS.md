@@ -4,7 +4,7 @@
 
 ## Project and structure
 
-SinverseGames is a pnpm workspace for eight browser games. Preserve the existing implementation and architecture.
+SinverseGames is a pnpm workspace for nine browser games. Preserve the existing implementation and architecture.
 
 - `apps/web`: Next.js App Router, TypeScript, React, Tailwind, Cloudflare Workers via OpenNext.
 - `apps/realtime`: always-on Node Socket.IO service on Railway; authoritative rooms, matchmaking, clocks, and game state.
@@ -12,7 +12,7 @@ SinverseGames is a pnpm workspace for eight browser games. Preserve the existing
 - `packages/engines`: deterministic game engines with injected time/RNG; multiplayer views redact private information; solo runs are replay-verified.
 - `packages/db`: Prisma 7, Neon PostgreSQL, schema, migrations, repositories, progression.
 - `docs`: architecture/quality reports and roadmap; `artifacts`: existing screenshots and recordings, which must be preserved.
-- Multiplayer: Color Clash, Doodle Duel, Token Trail, Bumper Blitz. Solo: Cuisine Quest, Kitchen Rush, Cascade Solitaire, Mahjong Garden.
+- Multiplayer: Color Clash, Doodle Duel, Token Trail, Bumper Blitz. Solo: Sinverse Cricket, Cuisine Quest, Kitchen Rush, Cascade Solitaire, Mahjong Garden.
 
 Read `README.md`, `ARCHITECTURE.md`, `DEPLOYMENT.md`, `GAME_RULES.md`, and the relevant reports. Next.js dependencies include local guides under `apps/web/node_modules/next/dist/docs`; read relevant guides before changing web code. Root documentation is historical evidence, not authorization to deploy.
 
@@ -138,6 +138,44 @@ The supplied build log succeeds through Next.js/OpenNext, then the external Work
 Root cloudflare:preview:deploy delegates to web cf:preview:deploy: prepare OpenNext static assets with populateCache local, then installed pinned Wrangler 4.155.0 preview --config wrangler.jsonc. Both existing production scripts and cf:preview stay unchanged. cloudflare:preview:check uses populateCache local plus fixed wrangler deploy --dry-run for the same common Worker/assets payload; beta preview itself has no dry-run flag in this pinned version. Validate the previews block separately, preserve .open-next/worker.js and .open-next/assets, and verify cache files are included. The current static-assets cache adapter needs local file copies only; review this before changing backends.
 
 Dashboard root /; Build command pnpm cloudflare:build; Preview command pnpm cloudflare:preview:deploy; production deploy pnpm cloudflare:deploy. Preview secrets/data bindings belong to Preview-only Base/branch configuration and previews, never automatic production copies. No provider secrets, dashboard changes, production/Preview publishing, DNS changes, DB migrations, push or merge are authorized by this local fix. Read DEPLOYMENT.md and docs/CLOUDFLARE_PREVIEW_QA_REPORT.md for root-cause evidence, verification and remaining remote limits. Keep Node 24.14.0, pnpm 11.15.1, locked Wrangler 4.155.0 and the exact lockfile. Acceptance: fresh Linux frozen install, both Prisma clients, all five typechecks, Node production builds, Linux OpenNext build, pinned Preview schema, 38 byte-equal cache assets, dry-run packaging and five 200 local workerd responses passed. The owned local server is stopped, lockfile hash is unchanged, and no actual Preview/production publishing or dashboard mutation ran. The dry-run validates common payload packaging, not the remote Preview API/Base settings.
+
+## Sinverse Cricket first vertical slice (2026-11-05)
+
+The user explicitly authorized an original cricket flagship foundation, beginning at clean current HEAD 920b22d on the existing takeover branch. Build the best complete, genuinely playable solo vertical slice; do not claim all nine product phases or full T20/ODI/Test/career/tournament/multiplayer completion. Local commits are established above and permitted; no delegation, push, merge, deployment, production migration/secret/DNS change, paid provisioning, purchased/ripped assets or Toolyaro changes. Read docs/SINVERSE_CRICKET_GAME_DESIGN.md, SINVERSE_CRICKET_ARCHITECTURE.md, SINVERSE_CRICKET_RULES.md, SINVERSE_CRICKET_ASSET_GUIDE.md, SINVERSE_CRICKET_QA_REPORT.md and SINVERSE_CRICKET_ROADMAP.md.
+
+Current slice implements version-1 custom one/two-over duels: toss, two innings, batting/bowling, extras/free hits, selected geometric dismissals, scorebook, deterministic field/ball/running, original procedural 3D/tactical renderer and recorded-frame replay. Domain uses 120 Hz steps with bounded strict input logs, server replay and existing signed solo API. Reuse permanent Player, profiles, Match/PlayerGameStats, achievements and append-only Sin Coins ledger; do not create another identity, wallet or realtime stack. Ties are neutral in cricket win/loss accounting. Only successful eligible duels use existing solo completion rewards and the shared cap. No schema/migration is added.
+
+Three.js 0.187.0 (MIT) is the only new direct runtime dependency; matching types are dev-only. Keep Three/DOM/audio out of domain/server verification and load the renderer only for a 3D match. Assets, fictional rosters/kits/grounds, procedural rigs and audio are original; licensing metadata fails back to original content without explicit permission/scope/expiry. This is not legal certification. Master audio gain defaults preserve existing behavior; crowd has an independent level through the shared graph. Preserve all eight existing game implementations and original assertions.
+
+Acceptance: all 235 unit/integration tests (200 original + 35 cricket), 50 PostgreSQL cases (45 original + 5 cricket), all five typechecks, Node production builds, and 38 browser cases (35 original + 3 cricket) pass. Full browser run: 19.1 minutes, no skips/retries; after the final render-only shadow optimization all three cricket cases pass again in 2.4 minutes. Fresh Linux frozen install with both Prisma clients, OpenNext/dry-run packaging, 41 byte-equal cache files and seven local workerd responses pass. Cloudflare-only server trace exclusions keep unused Three source/decoder WASM out of the Worker; the browser renderer remains lazy static assets. Final payload 6,162.21 KiB gzip; no upload. New lock intentionally adds exact Three/dev types only, 53 added lines and zero deletions; frozen SHA-256 c1bb3ef586c5f1bdd07c85ff045fca81c5ad7a7b1a0c31f55d1cdf161a4db4bb. Preservation checks cover 245 original files, including all original games/tests and 153 artifacts. Root manuals are byte-identical. Seven viewport widths, pause/focus/context-loss/replay and renderer re-entry pass. Final measured High draw calls 460 (initial 596 fixed); triangles/textures remain within budgets. Headless software GPU misses physical-device frame-rate targets; real mobile/Safari/gamepad/assistive-tech performance and production animation polish remain unverified. All owned QA servers are stopped. Read the QA report for retained failures/evidence and the explicit unsupported laws/formats/tournament/career/multiplayer scope. No real Google/R2 or actual cricket multiplayer verification is implied.
+
+Implementation checkpoint: c01a8b4c46bf50f222a9ae8e228b8b03f8e9282c; acceptance documentation follows in a separate local commit. No push, merge or deployment.
+
+## Sinverse Cricket visual polish (2026-11-05)
+
+Presentation only: no cricket outcome, physics, scoring, verification or reward changes. Renderer modules are `animation.ts`, `character.ts`, `director.ts`, `stadium.ts` and `scene.ts`; keep the first and third free of scene access so they stay unit testable. Never let presentation write to a `Delivery`. `contactPoint` is presentation-only and stays out of the digest. Slow motion may scale only wall-clock time. Art stays procedural, fictional and code-generated, with Three.js as the only rendering dependency.
+
+`apps/web/e2e/cricket-visual.spec.ts` covers animation, camera, resources and gameplay isolation. Evidence capture is on demand: `CRICKET_EVIDENCE=1 npx playwright test e2e/cricket-evidence.spec.ts` with optional `CRICKET_GRAPHICS`, `CRICKET_PHASE=bowling` and `CRICKET_EVIDENCE_DIR`. `cricket.spec.ts` overwrites tracked images in `artifacts/cricket/`, the "before" evidence: run `git restore artifacts/cricket` afterwards. Do not wrap long browser runs in a shell `timeout`, since killing the browser shows up as "Page crashed".
+
+Performance figures are SwiftShader software-GPU only and vary with machine conditions, so compare builds side by side on the same day. No physical device has been tested: do not claim device verification, 60 FPS or console quality. Full results are in `docs/SINVERSE_CRICKET_VISUAL_POLISH_QA_REPORT.md`.
+
+## Cloudflare root Wrangler config (2026-11-05)
+
+Workers Builds may run a bare `npx wrangler preview` at the repository root, so root `wrangler.jsonc` describes the same Worker as `apps/web/wrangler.jsonc`; `apps/web/e2e/cloudflare-config.spec.ts` keeps them in step. Change both together. `cf:build` also runs `populateCache local`. Keep `pnpm cloudflare:deploy` for production, never a bare `npx wrangler deploy`. The fix is unproven on Cloudflare until a real build runs after an authorized push.
+
+## Production release state (2026-11-06)
+
+Production's database has all four migrations, applied 2026-11-05 (`docs/PRODUCTION_MIGRATION_READINESS.md`). Never run a production migration without explicit approval. Neither Workers Builds nor Railway runs migrations, so a release that adds one must migrate the database first, over Neon's direct URL. The code on this branch isn't deployed until the owner says so.
+
+Wrap JSON API routes in `jsonRoute` (`lib/server/api-route.ts`), so failures reach clients as JSON and real causes reach server logs through `serverErrorSummary`, never with connection strings. Read client API responses with `readJson` or `expectJson` (`lib/read-json.ts`), since a platform error can have an empty or non-JSON body. Do not claim the Cloudflare failure is fixed without a successful real Workers Build.
+
+## Accounts, email and live connections
+
+There is one identity system, in this repository: no Better Auth or other auth library. `ExternalIdentity` connects Google and email to a permanent `Player.id`, and both create an `AccountSession`. Email codes and links both end in `linkEmail`, so one normalized address always opens one player. Never merge a guest into an address that already has a player. Pending email sign-ins use `OAuthAttempt` modes `emailotp` and `emaillnk`, which Google's callback must keep refusing. Never log codes, tokens or links. See `docs/PLAYER_IDENTITY_SETUP.md`.
+
+Migrations need Neon's direct URL, and the running app keeps the pooled one. The root `.env` may point at a real database, so any local server, build or test must set `DATABASE_URL` explicitly. Never run browser specs against a remote database unless the target proves its identity, as `e2e/email-auth.spec.ts` does.
+
+Never add a database lookup per realtime packet. `apps/realtime/src/account-guard.ts` lets game packets pass without waiting, rechecks accounts in the background, and disconnects only on a definite "invalid". Local databases hide this class of problem, because they answer instantly.
 
 ## Completion checklist
 

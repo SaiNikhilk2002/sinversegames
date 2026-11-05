@@ -63,6 +63,21 @@ test("identity: a database session failure preserves the cookie and cannot repla
     );
     expect(response.status()).toBe(503);
     expect(response.headers()["set-cookie"]).toBeUndefined();
+    // These once returned a 500 with an empty body, which browsers report as a JSON parse error.
+    const origin = { origin: "http://localhost:3200" };
+    for (const failing of [
+      await context.request.get("http://localhost:3200/api/cuisine-quest/campaign"),
+      await context.request.post("http://localhost:3200/api/session/token", { headers: origin }),
+      await context.request.get("http://localhost:3200/api/wallet"),
+      await context.request.get("http://localhost:3200/api/solo/best?game=cuisine-quest"),
+      await context.request.post("http://localhost:3200/api/solo/start", { headers: origin, data: { gameId: "cuisine-quest", config: { level: 1 } } }),
+    ]) {
+      expect(failing.status()).toBe(503);
+      const text = await failing.text();
+      expect(JSON.parse(text).error).toBe("Player sessions are temporarily unavailable. Please retry.");
+      // The client learns nothing about the database behind the failure.
+      expect(text).not.toMatch(/postgres|prisma|AccountSession|stack/i);
+    }
     expect(
       await hashSecret(
         (await context.cookies()).find((cookie) => cookie.name === "pw_session")

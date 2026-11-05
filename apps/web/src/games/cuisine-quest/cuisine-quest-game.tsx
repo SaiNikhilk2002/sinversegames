@@ -10,6 +10,7 @@ import { updateSettings, useSettings } from "@/lib/settings";
 import type { SoloGameProps, SoloSetupProps } from "../solo-types";
 import { CustomerPortrait, FoodArt, IngredientArt, KitchenBackdrop, PreparationArt } from "./art";
 import { QUEST_SONGS } from "./music";
+import { expectJson } from "@/lib/read-json";
 import "./cuisine-quest.css";
 
 const Stars = ({ count, label = true }: { count: number; label?: boolean }) => <span className="cq-stars" aria-label={label ? `${count} of 3 stars` : undefined}>{[1,2,3].map(n => <Star key={n} size={18} fill={n <= count ? "currentColor" : "none"} opacity={n <= count ? 1 : .3} />)}</span>;
@@ -17,14 +18,15 @@ const emptyCampaign: CuisineCampaign = { levels: CUISINES.map(c => ({ level: c.l
 
 export function CuisineQuestSetup({ onStart, busy }: SoloSetupProps) {
   const [campaign, setCampaign] = useState(emptyCampaign); const [level, setLevel] = useState(1);
-  const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true); const [loaded, setLoaded] = useState(false); const [error, setError] = useState<string | null>(null);
   const [board, setBoard] = useState<{ name: string; score: number; stars: number }[] | null>(null);
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const response = await fetch("/api/cuisine-quest/campaign", { cache: "no-store", signal: AbortSignal.timeout(8000) }); const data = await response.json();
-      if (!response.ok || !data.available) throw new Error(data.error ?? "Campaign saving is unavailable.");
-      setCampaign(data); setLevel(Math.min(7, data.completed + 1));
+      const response = await fetch("/api/cuisine-quest/campaign", { cache: "no-store", signal: AbortSignal.timeout(8000) });
+      const data = await expectJson<typeof emptyCampaign & { available?: boolean; error?: string }>(response, "Campaign saving is unavailable.");
+      if (!data.available) throw new Error(data.error ?? "Campaign saving is unavailable.");
+      setCampaign(data); setLoaded(true); setLevel(Math.min(7, data.completed + 1));
     } catch (e) { setError(e instanceof Error ? e.message : "Campaign couldn't be loaded."); }
     finally { setLoading(false); }
   }, []);
@@ -36,7 +38,7 @@ export function CuisineQuestSetup({ onStart, busy }: SoloSetupProps) {
   }, [level]);
   const cuisine = CUISINES[level - 1]!; const progress = campaign.levels[level - 1]!;
   return <section className="cq-map" data-testid="cq-campaign" aria-label="Cuisine Quest campaign">
-    <div className="cq-map-heading"><div><p className="cq-eyebrow">A passport to good food</p><h2>Seven kitchens.<br />Your signature.</h2></div><div className="cq-passport"><Compass size={28} /><strong data-testid="cq-total-stars">{campaign.totalStars} / 21</strong><span>{campaign.completed}/7 cuisines · {campaign.mastered} mastered</span></div></div>
+    <div className="cq-map-heading"><div><p className="cq-eyebrow">A passport to good food</p><h2>Seven kitchens.<br />Your signature.</h2></div><div className="cq-passport"><Compass size={28} /><strong data-testid="cq-total-stars">{loaded ? campaign.totalStars : "—"} / 21</strong><span>{loaded ? `${campaign.completed}/7 cuisines · ${campaign.mastered} mastered` : error ? "Progress not loaded" : "Loading your passport"}</span></div></div>
     {loading && <p role="status">Opening your chef's passport…</p>}
     {error && <p className="cq-map-error" role="alert">{error} <button onClick={() => void load()}>Retry campaign</button></p>}
     <div className="cq-route" role="radiogroup" aria-label="Cuisine journey">{CUISINES.map(c => {

@@ -58,6 +58,11 @@ export function SiteHeader() {
           >
             <Settings2 className="size-5" />
           </button>
+          {!inGame && player?.kind !== "registered" && (
+            <Link href="/account" className="hidden rounded-xl bg-[#ff4f8b] px-3.5 py-2 text-sm font-bold text-white transition hover:brightness-110 sm:inline-flex">
+              Sign up
+            </Link>
+          )}
           {player && (
             <Link href="/profile" className="hidden items-center gap-2 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-sm font-semibold lg:flex">
               <CosmeticAvatar name={player.name} color={player.color} frameId={player.cosmetics?.frame} size={24} avatarKey={player.avatarKey} />
@@ -86,6 +91,11 @@ export function SiteHeader() {
             className="overflow-hidden border-t border-line bg-bg md:hidden"
           >
             <div className="px-4 py-3">
+              {player?.kind !== "registered" && (
+                <Link href="/account" className="mb-2 flex items-center justify-center rounded-xl bg-[#ff4f8b] px-3 py-3 font-bold text-white">
+                  Sign up or sign in
+                </Link>
+              )}
               {NAV.map(({ href, label, icon: Icon }) => (
                 <Link key={href} href={href} aria-current={pathname.startsWith(href) ? "page" : undefined} className={cn("flex items-center gap-3 rounded-xl px-3 py-3 font-bold hover:bg-surface-2", pathname.startsWith(href) && "bg-surface-2")}>
                   <Icon className="size-5 text-[#ff4f8b]" /> {label}

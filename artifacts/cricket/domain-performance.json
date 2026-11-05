@@ -1,0 +1,18 @@
+{
+  "runtime": "v24.14.0",
+  "seededCompleteDuels": 100,
+  "serverReplayMs": {
+    "median": 2.6871000000001004,
+    "p95": 7.331300000000056,
+    "max": 15.403300000000058
+  },
+  "maxInputCount": 15,
+  "deliverySamples": {
+    "count": 1215,
+    "maxFrames": 506,
+    "maxSnapshotJsonBytes": 315089,
+    "sixDeliveryJsonUpperBound": 1890534,
+    "deliveryCapHits": 0
+  },
+  "scope": "CPU timing is this machine, not a Cloudflare CPU-limit guarantee; replay JSON size is a serialized size, not total retained heap."
+}

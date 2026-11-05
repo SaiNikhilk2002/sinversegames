@@ -65,7 +65,7 @@ export default async function ProfilePage() {
           </div>
         </div>
       </Card>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"><p className="max-w-xl text-sm text-ink-muted">{session.kind==="guest"?"Save your player with Google to recover coins, badges and your chef's passport on another device. Guests can keep playing freely.":"Your player is connected. Manage your username, picture and active sessions."}</p><Link href="/account" className="rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white">{session.kind==="guest"?"Save my player":"Account settings"}</Link></div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"><p className="max-w-xl text-sm text-ink-muted">{session.kind==="guest"?"Save your player with email or Google to recover coins, badges and your chef's passport on another device. Guests can keep playing freely.":"Your player is connected. Manage your username, picture and active sessions."}</p><Link href="/account" className="rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white">{session.kind==="guest"?"Save my player":"Account settings"}</Link></div>
 
       {!db && (
         <p className="mt-6 rounded-2xl border border-sun/40 bg-sun/10 p-4 text-sm">

@@ -1,6 +1,6 @@
 # Game rules
 
-Eight games below are implemented. Cuisine Quest adds a seven-level campaign; nine other expansion concepts remain design-only in [docs/GAME_CATALOGUE.md](docs/GAME_CATALOGUE.md). Validated normal completions lasting at least 30 seconds and scoring positively can earn Sin Coins (solo must complete); the economy/caps are in [docs/SIN_COINS_ECONOMY.md](docs/SIN_COINS_ECONOMY.md). Currency never alters game rules or scoring.
+Nine games below are implemented. Cuisine Quest adds a seven-level campaign; nine other expansion concepts remain design-only in [docs/GAME_CATALOGUE.md](docs/GAME_CATALOGUE.md). Validated normal completions lasting at least 30 seconds and scoring positively can earn Sin Coins (solo must complete); the economy/caps are in [docs/SIN_COINS_ECONOMY.md](docs/SIN_COINS_ECONOMY.md). Currency never alters game rules or scoring.
 
 Multiplayer results offer readiness/host-controlled rematches in the same room with a fresh server match identifier and fully reset game state. Finished rooms have a five-minute default grace period; inactivity and readiness alone do not keep a finished room alive. Doodle drawing uses a plain white canvas and a separate circular size preview; the preview is never part of the transmitted/saved drawing. Lobbies show joined players and safe-area mobile readiness controls.
 
@@ -349,3 +349,8 @@ Complete spatial plating and choose the ticket's herbs/lemon/sesame finish. Serv
 The engine recomputes score up to 10,000: 45% completion, 30% preparation/cooking precision, 15% customer satisfaction, 10% mistake-adjusted served accuracy. No served plates means zero. Stars require a finished shift: one at 5+ plates and 5,200; two at 6+ and 7,000; three at all seven, 8,500 and 85% precision. Satisfaction combines food quality (70%) and remaining patience (30%). Logs must end with a valid finish seal; the server rejects impossible, malformed, backwards, oversized and unrealistically fast replays.
 
 The first successful completion of each cuisine can earn normal 2+10 Sin Coins if eligible (30+ seconds, positive score). Repeat completions do not repeat these coins. A new per-cuisine personal best above an existing positive best can earn 3; new eligible achievements 5 each, all within the shared 80/UTC-day cap. Achievements include seven cuisine masteries, first perfect plate, three stars, perfect shift, no-burn service, seven-plate speed service within 120 seconds, and completing all seven kitchens. Failed shifts do not unlock the next cuisine or grant rewards. Duplicate/uncertain saves return the original receipt and never repeat awards.
+
+
+## Sinverse Cricket
+
+A custom one/two-over solo duel with two innings, eleven fictional players per side, fixed-step batting/bowling/fielding and server-replayed results. It is not full T20, ODI or Test cricket. [Versioned rules and explicit simplifications](docs/SINVERSE_CRICKET_RULES.md) ? [Controls and design](docs/SINVERSE_CRICKET_GAME_DESIGN.md) ? [QA](docs/SINVERSE_CRICKET_QA_REPORT.md).

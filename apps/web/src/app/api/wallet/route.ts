@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { COSMETIC_CATEGORIES } from "@platform/shared";
 import { activeBan, equipCosmetic, getDb, getWallet, purchaseCosmetic, WalletError } from "@platform/db";
+import { jsonRoute } from "@/lib/server/api-route";
 import { getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "cache-control": "no-store" } });
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const player = await getSession();
   if (!player) return json({ error: "Choose a name to view your wallet." }, 401);
   if (!(await rateLimit("wallet-read", 90, 60_000))) return json({ error: "Please try again shortly." }, 429);
@@ -29,7 +30,7 @@ const intent = z.discriminatedUnion("action", [
   z.object({ action: z.literal("equip"), category: z.enum(COSMETIC_CATEGORIES), itemId: z.string().min(1).max(64).nullable() }).strict(),
 ]);
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   if (!(await isSameOrigin())) return json({ error: "Forbidden" }, 403);
   const player = await getSession();
   if (!player) return json({ error: "Choose a name before using the store." }, 401);
@@ -63,3 +64,6 @@ export async function POST(request: Request) {
     return json({ error: "The store couldn't confirm this request. Refresh your wallet before retrying." }, 503);
   } finally { reader?.releaseLock(); }
 }
+
+export const GET = jsonRoute("wallet GET", handleGET);
+export const POST = jsonRoute("wallet POST", handlePOST);

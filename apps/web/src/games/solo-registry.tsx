@@ -13,6 +13,12 @@ const loading = () => (
 
 /** Single-player game clients, code-split like the multiplayer ones. */
 export const SOLO_CLIENTS: Record<SoloGameId, SoloClient> = {
+  "sinverse-cricket": {
+    Setup: dynamic(() => import("./sinverse-cricket/cricket-game").then(m => m.CricketSetup), { ssr: false, loading }),
+    Game: dynamic(() => import("./sinverse-cricket/cricket-game").then(m => m.CricketGame), { ssr: false, loading }),
+    ResultDetails: dynamic(() => import("./sinverse-cricket/cricket-game").then(m => m.CricketResultDetails), { ssr: false }),
+    fullWidthSetup: true,
+  },
   "cuisine-quest": {
     Setup: dynamic(() => import("./cuisine-quest/cuisine-quest-game").then(m => m.CuisineQuestSetup), { ssr: false, loading }),
     Game: dynamic(() => import("./cuisine-quest/cuisine-quest-game").then(m => m.CuisineQuestGame), { ssr: false, loading }),

@@ -1,0 +1,150 @@
+{
+  "browser": "156.0.8078.4",
+  "gpu": "Headless Chromium SwiftShader software WebGL2; not physical-device GPU evidence",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "bundle": [
+    {
+      "file": "3wz-r02amwdsa.js",
+      "bytes": 577750,
+      "gzip": 144358
+    }
+  ],
+  "rendererChunkAbsentOnInitialRoute": true,
+  "samples": [
+    {
+      "quality": "low",
+      "attrs": {
+        "data-testid": "sinverse-cricket",
+        "data-renderer": "webgl2",
+        "data-ball-tick": "0",
+        "data-ball-x": "0",
+        "data-ball-y": "0",
+        "data-ball-z": "0",
+        "data-live": "false",
+        "data-batting": "true",
+        "data-seq": "0",
+        "data-phase": "toss",
+        "data-release": "0",
+        "data-draw-calls": "434",
+        "data-triangles": "29894",
+        "data-textures": "20",
+        "data-geometries": "434",
+        "data-dpr": "1"
+      },
+      "frameIntervalsMs": {
+        "median": 66.59999999999945,
+        "p95": 66.70000000000073
+      },
+      "samples": 44
+    },
+    {
+      "quality": "medium",
+      "attrs": {
+        "data-testid": "sinverse-cricket",
+        "data-renderer": "webgl2",
+        "data-ball-tick": "0",
+        "data-ball-x": "0",
+        "data-ball-y": "0",
+        "data-ball-z": "0",
+        "data-live": "false",
+        "data-batting": "true",
+        "data-seq": "0",
+        "data-phase": "toss",
+        "data-release": "0",
+        "data-draw-calls": "434",
+        "data-triangles": "40894",
+        "data-textures": "20",
+        "data-geometries": "434",
+        "data-dpr": "1"
+      },
+      "frameIntervalsMs": {
+        "median": 83.30000000000109,
+        "p95": 100
+      },
+      "samples": 32
+    },
+    {
+      "quality": "high",
+      "attrs": {
+        "data-testid": "sinverse-cricket",
+        "data-renderer": "webgl2",
+        "data-ball-tick": "0",
+        "data-ball-x": "0",
+        "data-ball-y": "0",
+        "data-ball-z": "0",
+        "data-live": "false",
+        "data-batting": "true",
+        "data-seq": "0",
+        "data-phase": "toss",
+        "data-release": "0",
+        "data-draw-calls": "460",
+        "data-triangles": "60094",
+        "data-textures": "22",
+        "data-geometries": "434",
+        "data-dpr": "1"
+      },
+      "frameIntervalsMs": {
+        "median": 133.40000000000146,
+        "p95": 150.09999999999854
+      },
+      "samples": 20
+    },
+    {
+      "quality": "ultra",
+      "attrs": {
+        "data-testid": "sinverse-cricket",
+        "data-renderer": "webgl2",
+        "data-ball-tick": "0",
+        "data-ball-x": "0",
+        "data-ball-y": "0",
+        "data-ball-z": "0",
+        "data-live": "false",
+        "data-batting": "true",
+        "data-seq": "0",
+        "data-phase": "toss",
+        "data-release": "0",
+        "data-draw-calls": "460",
+        "data-triangles": "82094",
+        "data-textures": "22",
+        "data-geometries": "434",
+        "data-dpr": "1"
+      },
+      "frameIntervalsMs": {
+        "median": 150,
+        "p95": 166.70000000000073
+      },
+      "samples": 18
+    },
+    {
+      "quality": "low",
+      "attrs": {
+        "data-testid": "sinverse-cricket",
+        "data-renderer": "webgl2",
+        "data-ball-tick": "0",
+        "data-ball-x": "0",
+        "data-ball-y": "0",
+        "data-ball-z": "0",
+        "data-live": "false",
+        "data-batting": "true",
+        "data-seq": "0",
+        "data-phase": "toss",
+        "data-release": "0",
+        "data-draw-calls": "434",
+        "data-triangles": "29894",
+        "data-textures": "20",
+        "data-geometries": "434",
+        "data-dpr": "1"
+      },
+      "frameIntervalsMs": {
+        "median": 50,
+        "p95": 66.70000000000437
+      },
+      "samples": 46
+    }
+  ],
+  "canvasRemovedOnLeave": true,
+  "pageErrors": []
+}

@@ -21,7 +21,7 @@ Two independently deployable services share TypeScript packages:
 | Path | Purpose |
 | --- | --- |
 | `packages/shared` | Brand config, **game registry** (metadata), wire protocol (event names, envelopes, error codes, Zod payload schemas), name sanitising, JWT helpers. |
-| `packages/engines` | Pure, transport-free **game engines** and the `GameEngine` contract. No I/O; randomness and time are injected. Browser-safe subpath exports (`/color-clash/client`, `/doodle-duel/client`, `/token-trail`, `/bumper-blitz`) expose views and constants without engine internals or the word bank. `/solo` (plus `/kitchen-rush`, `/cascade-solitaire`, `/mahjong-garden`, `/cuisine-quest`) holds the deterministic single-player rules, which run both in the browser and in the score-verifying Worker. |
+| `packages/engines` | Pure, transport-free **game engines** and the `GameEngine` contract. No I/O; randomness and time are injected. Browser-safe subpath exports (`/color-clash/client`, `/doodle-duel/client`, `/token-trail`, `/bumper-blitz`) expose views and constants without engine internals or the word bank. `/solo` (plus `/kitchen-rush`, `/cascade-solitaire`, `/mahjong-garden`, `/cuisine-quest`, `/sinverse-cricket`) holds the deterministic single-player rules, which run both in the browser and in the score-verifying Worker. |
 | `packages/db` | Prisma schema and migrations, client factory (`getDb()` returns `null` without `DATABASE_URL`), repositories, progression rules (XP, achievements, rewards). |
 | `apps/web` | Next.js App Router: discovery and SEO pages, play hub, room UI, game clients, profile, leaderboard, legal pages, admin, API routes. |
 | `apps/realtime` | Socket.IO server: authentication, rooms, matchmaking, rate limits, timers, persistence of results, admin/metrics HTTP. |
@@ -54,7 +54,7 @@ Discovery pages, SEO, the sitemap, the play hub, lobby, matchmaking, results, pe
 
 ## Single-player games: verified runs
 
-Single-player games (Cuisine Quest, Kitchen Rush, Cascade Solitaire, Mahjong Garden) run entirely in the browser: no game server and no per-move network traffic. A browser can't be trusted to report its own score, so the score is never sent. Instead:
+Single-player games (Cuisine Quest, Kitchen Rush, Cascade Solitaire, Mahjong Garden, Sinverse Cricket) run entirely in the browser: no game server and no per-move network traffic. A browser can't be trusted to report its own score, so the score is never sent. Instead:
 
 1. **Start:** `POST /api/solo/start` picks a random seed on the server and returns a **run token**: an HS256 JWT binding player, game, seed, config and a run id (`jti`).
 2. **Play:** the browser deals from that seed with the game's deterministic rules (`packages/engines`, `@platform/engines/solo`) and records a timestamped move log.
@@ -164,3 +164,8 @@ A single small Node instance comfortably handles hundreds of concurrent rooms: r
 2. **Socket.IO Redis adapter** only becomes necessary if one room's sockets must span processes. That isn't needed with sharding, so Redis isn't part of the first release.
 3. **Matchmaking** across instances needs a shared queue (Redis lists).
 4. **Restart resilience:** engine state is plain JSON-serialisable data, so periodic snapshots to Redis would allow resuming matches after a deploy.
+
+
+## Sinverse Cricket vertical slice
+
+[Cricket architecture](docs/SINVERSE_CRICKET_ARCHITECTURE.md) separates deterministic 120 Hz physics, explicit duel scorekeeping and seeded AI from presentation. Direct Three.js is lazily loaded in the browser; Canvas2D is a playable fallback. The existing signed solo run, server replay, Match/PlayerGameStats, achievements and coin ledger are reused. No new identity, wallet, schema, migration or realtime stack. Snapshot replays remain local to the open match. Full formats, career, tournament and synchronous cricket multiplayer are future phases; see [QA](docs/SINVERSE_CRICKET_QA_REPORT.md).
