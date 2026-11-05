@@ -163,6 +163,12 @@ Performance figures are SwiftShader software-GPU only and vary with machine cond
 
 Workers Builds may run a bare `npx wrangler preview` at the repository root, so root `wrangler.jsonc` describes the same Worker as `apps/web/wrangler.jsonc`; `apps/web/e2e/cloudflare-config.spec.ts` keeps them in step. Change both together. `cf:build` also runs `populateCache local`. Keep `pnpm cloudflare:deploy` for production, never a bare `npx wrangler deploy`. The fix is unproven on Cloudflare until a real build runs after an authorized push.
 
+## Production release blockers (2026-11-05)
+
+Live production returns empty HTTP 500s on routes using `getSession()`, most likely because migrations `20261104020000` and `20261104030000` are missing there while code on `main` expects them. See `docs/RELEASE_BLOCKER_INVESTIGATION.md` and `docs/PRODUCTION_MIGRATION_READINESS.md`. Never run a production migration without explicit approval. Neither Workers Builds nor Railway runs migrations, so a release that adds one must migrate the database before the code ships.
+
+Wrap JSON API routes in `jsonRoute` (`lib/server/api-route.ts`), so failures reach clients as JSON and real causes reach server logs through `serverErrorSummary`, never with connection strings. Read client API responses with `readJson` or `expectJson` (`lib/read-json.ts`), since a platform error can have an empty or non-JSON body. Do not claim the Cloudflare failure is fixed without a successful real Workers Build.
+
 ## Completion checklist
 
 Report whether both instruction files were updated, byte-for-byte synchronization verified, tests/builds recorded, technical decisions documented, remaining issues recorded, and exact Git/branch state. Report limitations honestly and separate confirmed causes from unverified production hypotheses. Never claim production is fixed based only on local tests.
