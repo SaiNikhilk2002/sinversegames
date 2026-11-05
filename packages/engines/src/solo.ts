@@ -4,6 +4,7 @@ import { cascadeSolitaire } from "./cascade-solitaire/engine";
 import { kitchenRush } from "./kitchen-rush/engine";
 import { mahjongGarden } from "./mahjong-garden/engine";
 import { cuisineQuest } from "./cuisine-quest/engine";
+import { sinverseCricket } from "./sinverse-cricket";
 
 /**
  * Single-player games. Browser-safe (no Node.js APIs): imported by the game
@@ -14,6 +15,7 @@ export { seededRng } from "./core/seeded";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const SOLO_GAMES: Record<SoloGameId, SoloGameDefinition<any, any>> = {
+  "sinverse-cricket": sinverseCricket,
   "cuisine-quest": cuisineQuest,
   "kitchen-rush": kitchenRush,
   "cascade-solitaire": cascadeSolitaire,

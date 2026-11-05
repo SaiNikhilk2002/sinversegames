@@ -19,6 +19,7 @@ Single player (server-verified scores, daily leaderboards):
 - **Kitchen Rush**: a time-management cooking game with 12 levels and a tutorial.
 - **Cascade Solitaire**: Klondike-rules patience with undo, hints and draw 1/3.
 - **Mahjong Garden**: tile matching on three always-solvable layouts.
+- **Sinverse Cricket**: original 3D one/two-over duels with batting, bowling, two innings, scorecards and real-event replay; a playable tactical fallback supports unavailable WebGL2. [Design and scope](docs/SINVERSE_CRICKET_GAME_DESIGN.md) ? [QA](docs/SINVERSE_CRICKET_QA_REPORT.md).
 
 Earn **Sin Coins** from eligible server-verified play and spend them on profile frames and nameplates in the cosmetic studio at `/store`. Wallet history and owned styles persist in PostgreSQL; guest access still depends on this browser's cookie. Optional Google linking/sign-in, username onboarding, revocable account sessions and normalized avatar upload are now implemented; real Google/R2 use awaits owner configuration. Nine further expansion games remain unimplemented. Cuisine Quest is the first implemented expansion game; see [its design](docs/CUISINE_QUEST_DESIGN.md) and [current validation](docs/CUISINE_QUEST_QA_REPORT.md). See [the expansion plan](docs/GAME_EXPANSION_PLAN.md) and [current QA/status](docs/EXPANSION_QA_REPORT.md).
 
@@ -60,7 +61,7 @@ pnpm dev                     # terminal 2: web on http://localhost:3200, realtim
 
 Open http://localhost:3200, pick a game, choose a name, create a private room, and open the invite link in a second browser (or a private window) to play.
 
-Without `DATABASE_URL`, the original seven games remain playable and Cuisine Quest offers first-kitchen practice. Saving and later campaign kitchens require the database; profiles, stats and leaderboards show "unavailable".
+Without `DATABASE_URL`, the original seven games and Sinverse Cricket remain playable, and Cuisine Quest offers first-kitchen practice. Saving and later campaign kitchens require the database; profiles, stats and leaderboards show "unavailable".
 
 ### Ports
 

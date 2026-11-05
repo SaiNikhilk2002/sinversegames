@@ -188,3 +188,8 @@ For local economy tests, create/migrate `sinversegames_expansion_test` on localh
 ## Player identity release prerequisite
 
 Before a separately approved release, follow [PLAYER_IDENTITY_SETUP.md](docs/PLAYER_IDENTITY_SETUP.md): apply additive migration `20261104030000_player_identity`, configure exact AUTH_ORIGIN and Google Web client secrets on the web service, bind a private R2 bucket as AVATARS, and verify REALTIME_INTERNAL_URL plus matching AUTH_SECRET. The Node image now retains frozen production dependencies for Sharp/libvips; image normalization does not run on Workers. No IDENTITY_TEST_MODE or filesystem avatar path belongs in a provider environment. Real Google consent, apex/www cookie behavior, R2 put/get/delete and registered socket revocation require deployment verification. No dashboard/deployment action was performed by this implementation.
+
+
+## Cricket client/Worker packaging (2026-11-05)
+
+The original 3D cricket client loads Three.js only for a 3D match. Cloudflare-only `outputFileTracingExcludes` in `apps/web/next.config.ts` prevents broad tracing from copying Three examples/decoder WASM into server-functions; static renderer chunks remain available under `.open-next/assets`. Preserve this boundary when changing rendering imports. Final Linux dry-run payload: 23,212.16 KiB total / 6,162.21 KiB gzip, versus 6,552.93 KiB before that pruning. This is a local package measurement, not an upload or a plan change. [Cricket QA and limits](docs/SINVERSE_CRICKET_QA_REPORT.md) records the fresh frozen install, local Worker checks and full regressions. Existing preview/production commands and bindings are unchanged; no deployment is authorized by these checks.

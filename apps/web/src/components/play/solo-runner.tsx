@@ -285,7 +285,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
           <Trophy className="size-4" /> Leaderboard
         </Link>
       </div>
-      {client.recoverable ? <div className={cn("mt-8", busy && "opacity-80")}><client.Setup onStart={start} busy={busy} /></div> : <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {client.recoverable || client.fullWidthSetup ? <div className={cn("mt-8", busy && "opacity-80")}><client.Setup onStart={start} busy={busy} /></div> : <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card className={cn("p-6", busy && "opacity-80")}>
           <client.Setup onStart={start} busy={busy} />
         </Card>

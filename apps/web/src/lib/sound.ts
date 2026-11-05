@@ -24,6 +24,7 @@ function applyVolumes() {
   if (!ctx || !fxBus || !musicBus) return;
   const s = getSettings();
   const t = ctx.currentTime;
+  master?.gain.setTargetAtTime(s.sound ? 0.9 * s.masterVolume : 0, t, 0.05);
   fxBus.gain.setTargetAtTime(s.sound ? s.volume : 0, t, 0.05);
   musicBus.gain.setTargetAtTime(s.sound && s.music ? s.musicVolume * 0.55 : 0, t, 0.08);
 }
@@ -95,6 +96,7 @@ function tone(notes: Note[], type: OscillatorType = "sine", gainScale = 1, bus =
     osc.connect(gain).connect(bus);
     osc.start(t0 + at);
     osc.stop(t0 + at + dur + 0.02);
+    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
   }
 }
 
@@ -119,6 +121,7 @@ function burst(opts: { at?: number; dur: number; filter: BiquadFilterType; freq:
   src.connect(f).connect(g).connect(fxBus);
   src.start(t0, Math.random() * 1.5);
   src.stop(t0 + opts.dur + 0.05);
+  src.onended = () => { src.disconnect(); f.disconnect(); g.disconnect(); };
 }
 
 /** A bell-like partial stack (counter bell, perfect-cook ding, stars). */
@@ -127,6 +130,9 @@ function bell(freq: number, at = 0, gainScale = 1, dur = 0.9) {
 }
 
 export const sfx = {
+  cricketBat: (strength: number) => { burst({dur:0.09,filter:"bandpass",freq:1600,q:1.8,gain:0.18+Math.max(0,Math.min(1,strength))*.25,sweepTo:700});tone([[190,0,.055],[340,.012,.035]],"triangle",.4); },
+  cricketStumps: () => { for(let n=0;n<3;n++)burst({at:n*.025,dur:.065,filter:"bandpass",freq:850+n*420,gain:.22}); },
+  cricketStep: () => burst({dur:.045,filter:"lowpass",freq:350,gain:.055}),
   // Shared across games.
   yourTurn: () => tone([[660, 0, 0.12], [880, 0.1, 0.18]], "triangle"),
   card: () => {
@@ -283,9 +289,9 @@ export interface Loop {
   stop(): void;
 }
 
-type LoopKind = "sizzle" | "fry" | "simmer" | "room" | "wind";
+type LoopKind = "sizzle" | "fry" | "simmer" | "room" | "wind" | "crowd";
 
-const LOOP_GAIN: Record<LoopKind, number> = { sizzle: 0.18, fry: 0.14, simmer: 0.1, room: 0.05, wind: 0.06 };
+const LOOP_GAIN: Record<LoopKind, number> = { sizzle: 0.18, fry: 0.14, simmer: 0.1, room: 0.05, wind: 0.06, crowd: 0.12 };
 
 /**
  * Creates a looping noise texture on the effects bus. Silent (and cheap)
@@ -299,7 +305,7 @@ export function createLoop(kind: LoopKind): Loop {
   const build = (ac: AudioContext) => {
     gain = ac.createGain();
     gain.gain.value = 0;
-    gain.connect(fxBus!);
+    gain.connect(kind === "crowd" ? master! : fxBus!);
     const src = ac.createBufferSource();
     src.buffer = noise(ac);
     src.loop = true;
@@ -324,7 +330,7 @@ export function createLoop(kind: LoopKind): Loop {
     }
     // Crackle: a fast random-ish tremolo makes noise read as oil and fat rather than hiss.
     const trem = ac.createGain();
-    const smooth = kind === "room" || kind === "wind";
+    const smooth = kind === "room" || kind === "wind" || kind === "crowd";
     trem.gain.value = smooth ? 0.8 : 0.55;
     const lfo = ac.createOscillator();
     lfo.type = smooth ? "sine" : "square";

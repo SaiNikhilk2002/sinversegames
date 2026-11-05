@@ -53,3 +53,8 @@ All solo clients require a tutorial, ready/start, pausable play, results/persona
 - **Arcforge Rally:** each round starts from the same seeded arena for every player. Aim/charge is clamped and simulated server-side; shot intent contains a vector and release, not hit targets or score. Moving target phase is determined by server time with a wide enough aiming window for ordinary network delay. Five rounds, three shots each; later rounds add reflectors and narrower paths. Ties use precision, then fewer shots; persistent ties share place. Tournament hooks are design only until anti-abuse and season identity exist.
 
 All use existing matchmaker/private rooms/readiness and a fresh server match UUID, restricted input envelope, reconnect/sync, finish/rematch and expiry. Tests must play a complete multi-player match and assert invalid intents, hidden data, duplicate/stale session input, results agreement and mobile controls. None of these designs is registered at runtime yet.
+
+
+## Additional implemented sports slice: Sinverse Cricket
+
+Sinverse Cricket is a ninth live development game outside the original ten-concept expansion selection above. It implements custom solo one/two-over duels, original procedural 3D and tactical presentation, two innings, batting/bowling, fielding, scorecards and real-event replay. [Design](SINVERSE_CRICKET_GAME_DESIGN.md) ? [Rules](SINVERSE_CRICKET_RULES.md) ? [QA](SINVERSE_CRICKET_QA_REPORT.md). Full formats, tournaments, career and multiplayer remain future phases.

@@ -1,0 +1,21 @@
+{
+  "baseline": "920b22d0485b40d0a1316cdf0ffd78a04b3be6ea",
+  "groups": {
+    "originalEngines": 24,
+    "originalGameClients": 26,
+    "originalTests": 29,
+    "originalArtifacts": 153,
+    "schemaMigrations": 6,
+    "deployment": 7
+  },
+  "uniqueProtectedFiles": 245,
+  "errors": 0,
+  "manualsByteIdentical": true,
+  "priorLockStanzaHeadingsRetained": 1847,
+  "lockfileDiff": {
+    "insertions": 53,
+    "deletions": 0
+  },
+  "newLockSha256": "c1bb3ef586c5f1bdd07c85ff045fca81c5ad7a7b1a0c31f55d1cdf161a4db4bb",
+  "note": "Git blob hashes include repository clean filters for text line endings; original binary evidence is hashed without text conversion. Lockfile intentionally adds exact Three and dev-type dependencies only."
+}

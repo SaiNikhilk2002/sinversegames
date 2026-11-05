@@ -40,6 +40,9 @@ const total = (stats: StatsSnapshot[], k: "gamesPlayed" | "wins") => stats.reduc
 const forGame = (stats: StatsSnapshot[], id: string) => stats.find((s) => s.gameId === id);
 
 export const ACHIEVEMENTS: AchievementDef[] = [
+  { key: "cricket-first-six", title: "Over the lights", description: "Clear the rope for six in a verified Sinverse Cricket duel.", unlocked: (_s, m) => m.gameId === "sinverse-cricket" && Number(m.details.sixes) > 0 },
+  { key: "cricket-breakthrough", title: "The breakthrough", description: "Take a wicket in a verified Sinverse Cricket duel.", unlocked: (_s, m) => m.gameId === "sinverse-cricket" && Number(m.details.wicketsTaken) > 0 },
+  { key: "cricket-duel-winner", title: "Own the final over", description: "Win a complete Sinverse Cricket duel.", unlocked: (_s, m) => m.gameId === "sinverse-cricket" && m.isWinner },
   { key: "first-match", title: "First steps", description: "Finish your first match.", unlocked: (s) => total(s, "gamesPlayed") >= 1 },
   { key: "first-win", title: "Winner winner", description: "Win a match.", unlocked: (s) => total(s, "wins") >= 1 },
   { key: "regular", title: "Regular", description: "Finish 10 matches.", unlocked: (s) => total(s, "gamesPlayed") >= 10 },

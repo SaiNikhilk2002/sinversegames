@@ -1,0 +1,74 @@
+{
+  "runtimeVersions": [
+    "v24.14.0",
+    "11.15.1"
+  ],
+  "bundle": {
+    "staticCacheFilesCompared": 41,
+    "cacheBytesMatch": true,
+    "rendererAssets": [
+      {
+        "file": "_next/static/chunks/3wz-r02amwdsa.js",
+        "bytes": 577750,
+        "gzip": 144358
+      }
+    ],
+    "rendererFoundInServer": [],
+    "dryRunFiles": [
+      "2e73490af149a14d5a7a3a30c37a78feb986c7d9-mappings.wasm",
+      "47c63839cce8dbe558e2c9a23ff30ca5f14d73de-0ysl_db_src_generated_prisma-workerd_internal_query_compiler_fast_bg_0athij3ijk6je.wasm",
+      "47c63839cce8dbe558e2c9a23ff30ca5f14d73de-query_compiler_fast_bg.wasm",
+      "8a4c78e86e13dbf6e741a84f526dd79481b679db-Geist-Regular.ttf.bin",
+      "README.md",
+      "a5d4d0ae9bf0a18b666f06b1864089d3fe4057cc-yoga.wasm",
+      "a7e702bc5ba9227243abda7977c8096f59478d3f-resvg.wasm",
+      "b44628eed61f52493189082f6d0faf49892bfac6-llhttp.wasm",
+      "worker.js",
+      "worker.js.map"
+    ],
+    "entry": "apps/web/.open-next/worker.js",
+    "wrangler": "4.155.0",
+    "noUpload": true
+  },
+  "runtime": {
+    "runtime": "local workerd",
+    "responses": [
+      {
+        "route": "/",
+        "status": 200
+      },
+      {
+        "route": "/account",
+        "status": 200
+      },
+      {
+        "route": "/privacy",
+        "status": 200
+      },
+      {
+        "route": "/play/sinverse-cricket",
+        "status": 200
+      },
+      {
+        "route": "/sinverse-cricket/cover.svg",
+        "status": 200
+      },
+      {
+        "route": "/cuisine-quest/cover.svg",
+        "status": 200
+      },
+      {
+        "route": "/api/session",
+        "status": 200
+      }
+    ],
+    "databaseAccess": false,
+    "externalUpload": false
+  },
+  "packaging": {
+    "totalKiB": 23212.16,
+    "gzipKiB": 6162.21,
+    "initialGzipKiB": 6552.93
+  },
+  "lockfileUnchanged": true
+}

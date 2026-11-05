@@ -6,6 +6,8 @@ import { useSyncExternalStore } from "react";
 export interface Settings {
   theme: "system" | "light" | "dark";
   sound: boolean;
+  /** Overall level; existing installations default to full master gain. */
+  masterVolume: number;
   /** Effects volume, 0–1. */
   volume: number;
   music: boolean;
@@ -14,7 +16,7 @@ export interface Settings {
 }
 
 const KEY = "platform:settings";
-const DEFAULTS: Settings = { theme: "dark", sound: true, volume: 0.6, music: true, musicVolume: 0.5, reducedMotion: false };
+const DEFAULTS: Settings = { theme: "dark", sound: true, masterVolume: 1, volume: 0.6, music: true, musicVolume: 0.5, reducedMotion: false };
 
 let current: Settings = DEFAULTS;
 let loaded = false;

@@ -1,0 +1,40 @@
+{
+  "layouts": [
+    {
+      "width": 320,
+      "overflow": 0
+    },
+    {
+      "width": 360,
+      "overflow": 0
+    },
+    {
+      "width": 390,
+      "overflow": 0
+    },
+    {
+      "width": 430,
+      "overflow": 0
+    },
+    {
+      "width": 768,
+      "overflow": 0
+    },
+    {
+      "width": 1280,
+      "overflow": 0
+    },
+    {
+      "width": 1920,
+      "overflow": 0
+    }
+  ],
+  "shortScreen": {
+    "width": 320,
+    "height": 640
+  },
+  "touch": true,
+  "reducedMotion": true,
+  "contextLossFallback": true,
+  "pageErrors": []
+}

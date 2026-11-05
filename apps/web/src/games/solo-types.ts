@@ -29,6 +29,7 @@ export interface SoloSetupProps {
 
 /** Client half of a single-player game: a setup screen and the game itself. */
 export interface SoloClient {
+  fullWidthSetup?: boolean;
   Setup: ComponentType<SoloSetupProps>;
   Game: ComponentType<SoloGameProps<any>>;
   recoverable?: boolean;
