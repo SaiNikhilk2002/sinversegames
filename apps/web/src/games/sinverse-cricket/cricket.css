@@ -1238,3 +1238,8 @@
     font-size: 10px;
   }
 }
+/* The site uses viewport-fit=cover, so keep controls clear of notches and the home bar. */
+.cr-stage {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+}

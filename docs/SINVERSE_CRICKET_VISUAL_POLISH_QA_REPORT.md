@@ -115,7 +115,7 @@ Measured in Chromium device emulation ([data](../artifacts/cricket-polish/render
 | 768 × 1024 tablet | 0 | 932 to 978 |
 | 1280 × 800 | 0 | 708 to 754 |
 
-Screens under 640 px wide default to Low. The tactical 2D view remains the fallback, and its score no longer sits under the camera selector. No explicit safe-area padding was added: the game relies on the browser keeping the page inside the safe area, which needs checking on a notched phone.
+Screens under 640 px wide default to Low. The tactical 2D view remains the fallback, and its score no longer sits under the camera selector. The site uses `viewport-fit=cover`, so safe-area padding was added. With emulated insets, a portrait notch and home bar (47 and 34 px) and landscape insets (47 px sides, 21 px bottom) leave every control clear with no overflow ([portrait](../artifacts/cricket-polish/mobile/390x844-safe-area.png), [landscape](../artifacts/cricket-polish/mobile/844x390-safe-area.png)). This is emulation and still needs checking on a real phone.
 
 **No physical devices were tested.** Before relying on this, try on real hardware:
 
@@ -140,7 +140,7 @@ Low, Medium, High and Ultra are explicit configurations, with an optional Auto m
 | PostgreSQL, local `_test` databases | 50 pass in 4 files |
 | Browser, full suite on the production build | **64 pass, 1 skipped, 0 fail**, 21.9 minutes |
 
-The skipped test is the on-demand evidence capture, which passed separately twice. New browser tests: 23 cricket-visual and 3 Cloudflare config. Other browser files, all passing: cricket 3, Cuisine Quest 4, Color Clash 2, Doodle Duel 1, expansion 2, identity 3, identity outage 1, multiplayer 3, platform 5, reliability 8, solo games 6. No test was weakened. Identity browser tests used the documented local fixture provider, not real Google sign-in.
+The skipped test is the on-demand evidence capture, which passed separately twice. The safe-area CSS came after the full run: on that final build, only the 3 cricket browser tests were rerun, and they pass. New browser tests: 23 cricket-visual and 3 Cloudflare config. Other browser files, all passing: cricket 3, Cuisine Quest 4, Color Clash 2, Doodle Duel 1, expansion 2, identity 3, identity outage 1, multiplayer 3, platform 5, reliability 8, solo games 6. No test was weakened. Identity browser tests used the documented local fixture provider, not real Google sign-in.
 
 Gameplay regression coverage: identical digest and outcome with frame capture, slow motion and varied frame rates; an independent engine model agrees with the on-screen score across Low, Ultra, Tactical and Medium; replay, scrub, camera change, pause and skip do not alter match state; nothing loads from other hosts.
 
@@ -225,6 +225,7 @@ Branch `codex/takeover-and-reliability-audit`, starting from `4ad166b`.
 
 - `c4bf3c1` feat: raise Sinverse Cricket visual fidelity without changing play
 - `bea2ce9` fix: make bare wrangler preview work from the repository root
-- A following local commit records this documentation.
+- `d6649a7` docs: record Sinverse Cricket visual polish and Cloudflare fix results
+- A final local commit adds the safe-area fix and this note.
 
 Nothing was pushed, merged or deployed.
