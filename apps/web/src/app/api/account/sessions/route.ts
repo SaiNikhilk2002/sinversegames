@@ -1,9 +1,12 @@
 import { cookies } from "next/headers";
 import { z } from "zod";
+import { verifiedEmailFor } from "@platform/db";
 import { accountContext, accountJson, smallJson } from "@/lib/server/account";
+import { notifyOtherSessionsSignedOut } from "@/lib/server/email-auth";
 import { SESSION_COOKIE } from "@/lib/server/session";
+import { jsonRoute } from "@/lib/server/api-route";
 export const dynamic = "force-dynamic";
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const ctx = await accountContext("session-revoke", true, false);
   if (ctx.error) return ctx.error;
   const parsed = z
@@ -24,6 +27,10 @@ export async function POST(request: Request) {
       },
     });
   }
+  if (parsed.data.action === "revoke-others") {
+    const email = await verifiedEmailFor(ctx.db, ctx.player.id).catch(() => null);
+    if (email) await notifyOtherSessionsSignedOut(email);
+  }
   if (parsed.data.action !== "revoke-others")
     (await cookies()).set(SESSION_COOKIE, "", {
       path: "/",
@@ -34,3 +41,5 @@ export async function POST(request: Request) {
     });
   return accountJson({ ok: true });
 }
+
+export const POST = jsonRoute("account sessions POST", handlePOST);

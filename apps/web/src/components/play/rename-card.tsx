@@ -16,7 +16,7 @@ export function CreateProfile() {
         <h1 className="mb-1 font-display text-2xl font-bold">Create your player profile</h1>
         <p className="mb-6 text-ink-muted">Pick a name to start tracking your games, wins and achievements.</p>
         <NameForm submitLabel="Create profile" onSaved={() => router.refresh()} />
-        <Link href="/account" className="mt-4 inline-block text-sm font-semibold text-brand-400">Already connected Google? Sign in</Link>
+        <Link href="/account" className="mt-4 inline-block text-sm font-semibold text-brand-400">Already have an account? Sign in</Link>
       </Card>
     </div>
   );

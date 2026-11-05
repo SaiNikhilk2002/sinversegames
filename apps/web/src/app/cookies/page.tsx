@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: "Cookies", description: `How ${brand.
 
 export default function CookiesPage() {
   return (
-    <ProsePage title="Cookies & local storage" updated="4 November 2026" intro="Essential player cookies, optional Google connection protection, and settings on your device.">
+    <ProsePage title="Cookies & local storage" updated="5 November 2026" intro="Essential player cookies, optional sign-in protection, and settings on your device.">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
@@ -35,6 +35,12 @@ export default function CookiesPage() {
               <td className="py-2 pr-4">Essential cookie (httpOnly)</td>
               <td className="py-2 pr-4">Binds an optional Google connection attempt to this browser. Cleared on callback.</td>
               <td className="py-2">Up to 10 minutes</td>
+            </tr>
+            <tr>
+              <td className="py-2 pr-4 font-mono">sg_email_auth</td>
+              <td className="py-2 pr-4">Essential cookie (httpOnly)</td>
+              <td className="py-2 pr-4">Binds an optional email sign-in attempt to this browser. Cleared once you&apos;re signed in.</td>
+              <td className="py-2">Up to 30 minutes</td>
             </tr>
             <tr>
               <td className="py-2 pr-4 font-mono">platform:solo:…</td>
