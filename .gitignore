@@ -17,3 +17,11 @@ next-env.d.ts
 .wrangler
 .dev.vars*
 !.dev.vars.example
+
+# Every local environment file. Only the template is tracked.
+.env
+.env.*
+!.env.example
+*.dpapi
+*.dump
+*.sql.gz
