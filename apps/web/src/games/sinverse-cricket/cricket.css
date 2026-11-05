@@ -571,46 +571,66 @@
   font-size: 10px;
   color: #c8d8ce;
 }
+/* A low strip along the bottom edge: the replay is the point, so the controls stay off the action. */
 .cr-replay {
   position: absolute;
   left: 50%;
-  bottom: 12px;
+  bottom: 8px;
   transform: translateX(-50%);
-  width: min(520px, 94%);
-  background: #0c2336ed;
+  width: min(760px, 96%);
+  background: #0c2336e0;
   border: 1px solid #c1d8c56b;
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 5px 12px;
   display: grid;
-  gap: 6px;
+  gap: 2px;
 }
-.cr-replay > div {
+.cr-replay-head,
+.cr-replay-foot {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
+}
+.cr-replay-head select {
+  flex: 1;
+  min-width: 0;
+}
+.cr-replay-marks {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.cr-replay-marks button {
+  border: 1px solid #c1d8c53d;
+  border-radius: 6px;
+  padding: 0 10px;
 }
 .cr-replay strong {
   font-size: 12px;
   color: #e2d0a2;
+  white-space: nowrap;
 }
 .cr-replay button {
   font-size: 11px;
   background: transparent;
   border: 0;
   color: #c9f1e1;
-  min-height: 32px;
+  min-height: 28px;
+  white-space: nowrap;
+}
+.cr-replay-marks button {
+  border: 1px solid #c1d8c53d;
 }
 .cr-replay select {
-  min-height: 30px;
+  min-height: 28px;
   font-size: 10px;
+  width: auto;
 }
 .cr-replay input {
   width: 100%;
   accent-color: #7cdfc3;
-}
-.cr-replay > div select {
-  width: auto;
 }
 .cr-players {
   display: flex;
@@ -1115,20 +1135,23 @@
     font-size: 11px;
   }
   .cr-replay {
-    padding: 7px 10px;
-    gap: 3px;
-    bottom: 8px;
+    padding: 4px 8px;
+    gap: 1px;
+    bottom: 4px;
   }
   .cr-replay strong {
-    font-size: 11px;
+    display: none;
   }
   .cr-replay button {
     font-size: 10px;
-    min-height: 26px;
+    min-height: 32px;
+  }
+  .cr-replay-marks button {
+    padding: 0 6px;
   }
   .cr-replay select {
-    min-height: 26px;
-    font-size: 9px;
+    min-height: 32px;
+    font-size: 10px;
   }
 }
 @media (max-height: 620px) and (max-width: 700px) {
@@ -1170,5 +1193,48 @@
     scroll-behavior: auto !important;
     transition: none !important;
     animation: none !important;
+  }
+}
+/* The tactical view has no 3D camera or lighting to choose, and its score needs the room. */
+.cr-scene-options.is-tactical #cr-camera,
+.cr-scene-options.is-tactical #cr-lighting {
+  display: none;
+}
+/* Phone held sideways: every control stays on screen with the ground still in view. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .cr-top {
+    height: 30px;
+  }
+  .cr-score {
+    min-height: 0;
+    padding-block: 2px;
+  }
+  .cr-score-team p,
+  .cr-target p,
+  .cr-target small {
+    display: none;
+  }
+  .cr-players {
+    display: none;
+  }
+  .cr-field {
+    min-height: 96px;
+  }
+  .cr-controls {
+    padding-top: 2px;
+    padding-bottom: 0;
+    row-gap: 2px;
+  }
+  .cr-controls > label > span:first-child {
+    font-size: 10px;
+  }
+  .cr-actions {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .cr-footer {
+    min-height: 0;
+    padding-block: 1px;
+    font-size: 10px;
   }
 }

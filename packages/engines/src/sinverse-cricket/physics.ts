@@ -85,6 +85,18 @@ export function integrateBall(
   return bounced;
 }
 
+/** Height of the bat's contact zone for each shot (also read by the renderer's rig). */
+export const SHOT_HEIGHTS = {
+  defend: 0.32,
+  straight: 0.48,
+  cover: 0.55,
+  "on-drive": 0.5,
+  cut: 1.12,
+  pull: 1.25,
+  sweep: 0.18,
+  loft: 0.55,
+} as const;
+
 export type Contact = {
   velocity: Vec;
   quality: number;
@@ -102,19 +114,9 @@ export function batContact(
   const phase = tick - shot.tick,
     angle = (shot.direction * Math.PI) / 180;
   if (phase < 0 || phase > 22) return null;
-  const heights = {
-    defend: 0.32,
-    straight: 0.48,
-    cover: 0.55,
-    "on-drive": 0.5,
-    cut: 1.12,
-    pull: 1.25,
-    sweep: 0.18,
-    loft: 0.55,
-  };
   const batX = Math.sin(angle) * 0.45 + shot.face * 0.55;
   const lateral = Math.abs(pos.x - batX),
-    vertical = Math.abs(pos.y - heights[shot.kind]);
+    vertical = Math.abs(pos.y - SHOT_HEIGHTS[shot.kind]);
   if (lateral > 0.34 || vertical > (shot.kind === "sweep" ? 0.36 : 0.47))
     return null;
   const timing = phase - 8;
@@ -185,6 +187,8 @@ export class Delivery {
   groundAfterHit = false;
   edge = false;
   contactTick = -1;
+  /** Where the ball met the bat. For presentation only: never read by the simulation or the digest. */
+  contactPoint: Vec | null = null;
   contactQuality = 0;
   timing = 0;
   noBall = false;
@@ -577,6 +581,7 @@ export class Delivery {
             this.hit = true;
             this.edge = contact.edge;
             this.contactTick = this.tick;
+            this.contactPoint = vec(this.pos.x, this.pos.y, this.pos.z);
             this.contactQuality = contact.quality;
             this.timing = contact.timing;
             this.velocity = contact.velocity;

@@ -33,7 +33,8 @@ import {
   type Song,
 } from "@/lib/sound";
 import { getSettings, updateSettings, useSettings } from "@/lib/settings";
-import type { CameraName, Quality, SceneDriver, SceneFeed } from "./scene";
+import { CAMERA_LABELS, QualityGovernor, crowdEnergy, presentationRate, ropeRatio, type CameraName } from "./director";
+import type { Lighting, Quality, SceneDriver, SceneFeed } from "./scene";
 import "./cricket.css";
 
 const DEFAULT_BOWL: BowlingInput = {
@@ -55,6 +56,10 @@ const CAMERAS: CameraName[] = [
   "batter",
   "bowler",
   "side",
+  "behind",
+  "keeper",
+  "slip",
+  "boundary",
   "aerial",
   "track",
 ];
@@ -290,11 +295,13 @@ export function CricketSetup({ onStart, busy }: SoloSetupProps) {
 function CricketViewport({
   config,
   quality,
+  lighting,
   onQuality,
   driver,
 }: {
   config: CricketConfig;
   quality: Quality | "tactical";
+  lighting: Lighting | "ground";
   onQuality: (v: Quality | "tactical") => void;
   driver: React.RefObject<SceneDriver | null>;
 }) {
@@ -329,9 +336,15 @@ function CricketViewport({
         } else {
           const module = await import("./scene");
           if (cancelled) return;
-          instance = module.createCricketScene(element, config, quality, () => {
-            if (!cancelled) onQuality("tactical");
-          });
+          instance = module.createCricketScene(
+            element,
+            config,
+            quality,
+            () => {
+              if (!cancelled) onQuality("tactical");
+            },
+            lighting,
+          );
           setStatus("3D ground ready");
         }
         driver.current = instance;
@@ -351,11 +364,11 @@ function CricketViewport({
       if (driver.current === instance) driver.current = null;
       instance?.dispose();
     };
-  }, [config, quality, onQuality, driver]);
+  }, [config, quality, lighting, onQuality, driver]);
   return (
     <>
       <canvas
-        key={quality}
+        key={`${quality}-${lighting}`}
         ref={canvas}
         className="cr-canvas"
         aria-label={
@@ -418,6 +431,10 @@ type Runtime = {
   contactHeard: boolean;
   lastStep: number;
   error: string;
+  /** A boundary or wicket replay waits for the live reaction to play out first. */
+  replayAt: number;
+  endedAt: number;
+  pickupHeard: boolean;
 };
 function actorNumbers(m: CricketMatch) {
   const i = m.current;
@@ -462,10 +479,15 @@ export function CricketGame({
     contactHeard: false,
     lastStep: 0,
     error: "",
+    replayAt: 0,
+    endedAt: 0,
+    pickupHeard: false,
   }));
   const [, setRevision] = useState(0),
     refresh = useCallback(() => setRevision((v) => v + 1), []),
     [quality, setQuality] = useState<Quality | "tactical">("medium"),
+    [autoQuality, setAutoQuality] = useState(false),
+    [lighting, setLighting] = useState<Lighting | "ground">("ground"),
     [camera, setCamera] = useState<CameraName>("broadcast"),
     [simple, setSimple] = useState(true),
     [advanced, setAdvanced] = useState(false),
@@ -492,6 +514,7 @@ export function CricketGame({
       crowdVolume,
       cinema,
       reduced: false,
+      autoQuality: false,
     });
   const reduced =
     settings.reducedMotion ||
@@ -504,6 +527,7 @@ export function CricketGame({
     crowdVolume,
     cinema,
     reduced,
+    autoQuality,
   };
   const actions = useRef({
     primary: () => {},
@@ -529,7 +553,13 @@ export function CricketGame({
   );
   const primary = () => {
     unlockAudio();
-    if (r.paused || r.error || r.replay) return;
+    if (r.paused || r.error) return;
+    if (r.replay) {
+      // The primary action always moves the match on, so a replay can be skipped at once.
+      r.replay = null;
+      refresh();
+      return;
+    }
     if (m.phase === "toss") {
       m.toss({ k: "toss", call, decision, t: Math.floor(r.elapsed) });
       setFeedback(
@@ -550,6 +580,7 @@ export function CricketGame({
       return;
     }
     if (m.phase !== "ready") return;
+    r.replayAt = 0;
     if (r.delivery && !r.settled) {
       if (m.humanBatting && r.delivery.swingBat(shot)) {
         sfx.whoosh();
@@ -584,6 +615,7 @@ export function CricketGame({
       r.field = nextField;
       r.settled = false;
       r.contactHeard = false;
+      r.pickupHeard = false;
       r.lastStep = 0;
       r.acc = 0;
       setFeedback(
@@ -612,8 +644,9 @@ export function CricketGame({
       tick: 0,
       playing: true,
       speed: 0.5,
-      camera: "track",
+      camera: "director",
     };
+    r.replayAt = 0;
     refresh();
   };
   actions.current = {
@@ -639,8 +672,14 @@ export function CricketGame({
       fpsAt = last,
       frames = 0;
     let previousPad: boolean[] = [];
+    const governor = new QualityGovernor();
     const frame = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
+      // Only sustained slow frames change quality, and never during a menu or a hidden tab.
+      if (preferences.current.autoQuality && !r.paused && !document.hidden && preferences.current.quality !== "tactical") {
+        const next = governor.sample(now - last, now, preferences.current.quality as Quality);
+        if (next) setQuality(next);
+      }
       last = now;
       if (!r.paused) {
         r.elapsed += dt * 1000;
@@ -657,7 +696,9 @@ export function CricketGame({
           }
         } else if (r.delivery && !r.settled) {
           const d = r.delivery;
-          r.acc += dt * (preferences.current.simple ? 0.65 : 1);
+          // Slow motion stretches wall-clock time only; the same ticks run either way.
+          const rate = presentationRate({ hit: d.hit, groundAfterHit: d.groundAfterHit, y: d.pos.y, vy: d.velocity.y, x: d.pos.x, z: d.pos.z, venue: config.venue, finished: !!d.outcome, reduced: preferences.current.reduced });
+          r.acc += dt * (preferences.current.simple ? 0.65 : 1) * rate;
           let steps = 0;
           while (r.acc >= STEP && !d.outcome && steps < 14) {
             d.step();
@@ -666,10 +707,16 @@ export function CricketGame({
           }
           if (d.hit && !r.contactHeard) {
             r.contactHeard = true;
-            sfx.cricketBat(d.contactQuality);
+            if (d.edge) sfx.cricketEdge();
+            else if (d.shot?.kind === "defend") sfx.cricketBlock();
+            else sfx.cricketBat(d.contactQuality);
             setFeedback(
               `${d.edge ? "Edge" : d.contactQuality > 0.82 ? "Pure contact" : d.timing < -3 ? "Early" : d.timing > 3 ? "Late" : "Good timing"} · ${d.shot ? LABELS[d.shot.kind] : "shot"}`,
             );
+          }
+          if (!r.pickupHeard && d.fielders.some((f) => f.action === "pickup")) {
+            r.pickupHeard = true;
+            sfx.cricketPickup();
           }
           if (d.tick < RELEASE_TICK && d.tick - r.lastStep > 18) {
             sfx.cricketStep();
@@ -710,34 +757,62 @@ export function CricketGame({
                       ? "FOUR. Through the field and to the rope."
                       : `${d.outcome.label} · ${m.current.runs}/${m.current.wickets} after ${oversText(m.current.balls)}`,
               );
-              if (d.outcome.wicket) {
+              const w = d.outcome.wicket;
+              if (w === "bowled" || w === "stumped" || w === "run-out") {
                 sfx.cricketStumps();
-              } else if (d.outcome.boundary) {
+                sfx.crowdSwell(0.8);
+              } else if (w) {
+                sfx.cricketAppeal();
+                sfx.crowdSwell(0.7);
+              } else if (d.outcome.boundary === 6) {
+                sfx.crowdSwell(1);
                 sfx.correct();
-              }
+              } else if (d.outcome.boundary === 4) {
+                sfx.cricketBoard();
+                sfx.crowdSwell(0.6);
+              } else if (d.fielders[10]!.action === "catch" && !d.hit) sfx.cricketGlove();
+              else if (d.edge) sfx.crowdGroan();
               if (
                 preferences.current.cinema &&
                 !preferences.current.reduced &&
                 (d.outcome.boundary || d.outcome.wicket)
               )
-                r.replay = {
-                  index: r.replays.length - 1,
-                  tick: Math.max(0, d.tick - 180),
-                  playing: true,
-                  speed: 0.5,
-                  camera: "track",
-                };
+                r.replayAt = r.elapsed + (d.outcome.boundary === 6 ? 2300 : 1700);
             }
             r.settled = true;
+            r.endedAt = r.elapsed;
             refresh();
           }
+        } else if (r.replayAt && r.elapsed >= r.replayAt) {
+          // The reaction has played out; show the real delivery again from before contact.
+          r.replayAt = 0;
+          const entry = r.replays.at(-1);
+          if (entry)
+            r.replay = {
+              index: r.replays.length - 1,
+              tick: Math.max(0, (entry.delivery.contactTick > 0 ? entry.delivery.contactTick : entry.delivery.tick) - 90),
+              playing: true,
+              speed: 0.5,
+              camera: "director",
+            };
+          refresh();
         }
       }
       const settings = getSettings();
       if (!r.paused && settings.sound) {
+        const live = r.delivery;
         r.crowd?.set(
           preferences.current.crowdVolume *
-            (r.delivery?.outcome?.boundary === 6 ? 1 : 0.32),
+            Math.max(
+              0.28,
+              crowdEnergy({
+                outcome: live?.outcome ?? null,
+                deadAge: live?.outcome ? Math.max(0, (r.elapsed - r.endedAt) / 1000) : -1,
+                ballRatio: live?.hit ? ropeRatio(live.pos, config.venue) : 0,
+                inAir: !!live?.hit && !live.groundAfterHit,
+                reduced: preferences.current.reduced,
+              }),
+            ),
         );
         if (settings.music && !r.music && audioReady()) {
           playMusic(SONG);
@@ -754,6 +829,7 @@ export function CricketGame({
         team = m.current?.team ?? config.team,
         human = m.current ? m.humanBatting : true,
         numbers = actorNumbers(m);
+      let source: Delivery = r.delivery ?? r.initial;
       if (r.replay) {
         const entry = r.replays[r.replay.index];
         if (entry) {
@@ -786,6 +862,7 @@ export function CricketGame({
             ),
             runner: a.runner + (b.runner - a.runner) * u,
           };
+          source = entry.delivery;
           visualShot = entry.delivery.shot;
           visualOutcome = entry.delivery.outcome;
           team = entry.team;
@@ -812,6 +889,19 @@ export function CricketGame({
             score,
             time: r.elapsed / 1000,
             actorNumbers: numbers,
+            contactTick: source.hit ? source.contactTick : -1,
+            contactPoint: source.hit ? source.contactPoint : null,
+            edge: source.edge,
+            variation: source.bowling.variation,
+            replay: !!r.replay,
+            result:
+              m.phase === "finished" && !r.replay && m.current
+                ? m.target && m.current.runs >= m.target
+                  ? "batting-won"
+                  : m.target
+                    ? "fielding-won"
+                    : null
+                : null,
           });
           frames++;
         }
@@ -844,6 +934,11 @@ export function CricketGame({
           element.dataset.textures = String(metrics.textures);
           element.dataset.geometries = String(metrics.geometries);
           element.dataset.dpr = String(metrics.dpr);
+          element.dataset.shot = metrics.shot ?? "";
+          element.dataset.contactError = metrics.contactError?.toFixed(3) ?? "";
+          element.dataset.releaseError = metrics.releaseError?.toFixed(3) ?? "";
+          element.dataset.gripError = metrics.gripError?.toFixed(3) ?? "";
+          element.dataset.footSlip = metrics.footSlip?.toFixed(3) ?? "";
         }
       }
       try {
@@ -934,8 +1029,9 @@ export function CricketGame({
         ?.focus();
   }, [panel]);
 
-  const primaryLabel =
-    m.phase === "toss"
+  const primaryLabel = r.replay
+    ? "Skip replay"
+    : m.phase === "toss"
       ? "Call the toss"
       : m.phase === "interval"
         ? "Begin the chase"
@@ -1041,6 +1137,7 @@ export function CricketGame({
         <CricketViewport
           config={config}
           quality={quality}
+          lighting={lighting}
           onQuality={setQuality}
           driver={driver}
         />
@@ -1049,7 +1146,7 @@ export function CricketGame({
           {r.replay ? "REPLAY" : live ? "LIVE DELIVERY" : "AT THE CREASE"}
           {i?.freeHit && <b className="cr-free-hit">FREE HIT</b>}
         </div>
-        <div className="cr-scene-options">
+        <div className={`cr-scene-options${quality === "tactical" ? " is-tactical" : ""}`}>
           <label className="sr-only" htmlFor="cr-camera">
             Camera
           </label>
@@ -1067,20 +1164,41 @@ export function CricketGame({
           >
             {CAMERAS.map((c) => (
               <option value={c} key={c}>
-                {c[0]!.toUpperCase() + c.slice(1)} camera
+                {CAMERA_LABELS[c]} camera
               </option>
             ))}
+            {r.replay && <option value="director">{CAMERA_LABELS.director}</option>}
           </select>
           <select
             aria-label="Graphics"
-            value={quality}
-            onChange={(e) => setQuality(e.target.value as typeof quality)}
+            value={autoQuality ? "auto" : quality}
+            onChange={(e) => {
+              if (e.target.value === "auto") {
+                setAutoQuality(true);
+                if (quality === "tactical") setQuality("medium");
+              } else {
+                setAutoQuality(false);
+                setQuality(e.target.value as typeof quality);
+              }
+            }}
           >
+            <option value="auto">Auto graphics{autoQuality ? ` (${quality})` : ""}</option>
             <option value="low">Low graphics</option>
             <option value="medium">Medium graphics</option>
             <option value="high">High graphics</option>
             <option value="ultra">Ultra graphics</option>
             <option value="tactical">Tactical 2D</option>
+          </select>
+          <select
+            id="cr-lighting"
+            aria-label="Lighting"
+            value={lighting}
+            onChange={(e) => setLighting(e.target.value as typeof lighting)}
+          >
+            <option value="ground">Ground default</option>
+            <option value="day">Day</option>
+            <option value="evening">Evening</option>
+            <option value="night">Night</option>
           </select>
         </div>
         {m.phase === "toss" && (
@@ -1177,8 +1295,28 @@ export function CricketGame({
         )}
         {r.replay && (
           <div className="cr-replay">
-            <div>
+            <div className="cr-replay-head">
               <strong>Actual delivery replay</strong>
+              <select
+                aria-label="Replay delivery"
+                value={r.replay.index}
+                onChange={(e) => {
+                  r.replay = {
+                    index: Number(e.target.value),
+                    tick: 0,
+                    playing: true,
+                    speed: 0.5,
+                    camera: "director",
+                  };
+                  refresh();
+                }}
+              >
+                {r.replays.map((entry, n) => (
+                  <option value={n} key={n}>
+                    {entry.label}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={() => {
                   r.replay = null;
@@ -1189,26 +1327,6 @@ export function CricketGame({
                 Return to match ×
               </button>
             </div>
-            <select
-              aria-label="Replay delivery"
-              value={r.replay.index}
-              onChange={(e) => {
-                r.replay = {
-                  index: Number(e.target.value),
-                  tick: 0,
-                  playing: true,
-                  speed: 0.5,
-                  camera: "track",
-                };
-                refresh();
-              }}
-            >
-              {r.replays.map((entry, n) => (
-                <option value={n} key={n}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
             <input
               aria-label="Replay position"
               type="range"
@@ -1221,7 +1339,29 @@ export function CricketGame({
                 refresh();
               }}
             />
-            <div>
+            <div className="cr-replay-foot">
+              <div className="cr-replay-marks" role="group" aria-label="Jump to event">
+                {(
+                  [
+                    ["Release", RELEASE_TICK],
+                    ["Contact", r.replays[r.replay.index]!.delivery.hit ? r.replays[r.replay.index]!.delivery.contactTick : -1],
+                    ["End", r.replays[r.replay.index]!.delivery.tick - 30],
+                  ] as const
+                ).map(([label, at]) =>
+                  at < 0 ? null : (
+                    <button
+                      key={label}
+                      onClick={() => {
+                        r.replay!.tick = Math.max(0, at - 12);
+                        r.replay!.playing = true;
+                        refresh();
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
+              </div>
               <button
                 onClick={() => {
                   r.replay!.playing = !r.replay!.playing;
@@ -1487,9 +1627,8 @@ export function CricketGame({
                   onClick={primary}
                   disabled={
                     r.paused ||
-                    !!r.replay ||
                     !!r.error ||
-                    (live && (!batting || !!r.delivery?.shot))
+                    (!r.replay && live && (!batting || !!r.delivery?.shot))
                   }
                   data-testid="cricket-primary"
                 >

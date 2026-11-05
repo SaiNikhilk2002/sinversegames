@@ -4,22 +4,52 @@ import {
   RELEASE_TICK,
   STEP,
   STUMPS_Z,
-  TEAMS,
-  VENUES,
   type CricketConfig,
+  type Fielder,
   type Frame,
   type Outcome,
   type ShotInput,
+  type Variation,
 } from "@platform/engines/sinverse-cricket";
+import {
+  BAT,
+  CH,
+  CLIPS,
+  DELIVERY,
+  IMPACT_TICKS,
+  RELEASE_ROOT,
+  RIG,
+  RUN_UP,
+  FootPlanter,
+  applyGait,
+  applyShotBody,
+  batPose,
+  blendPose,
+  bowlingStyle,
+  clamp01,
+  creaseZ,
+  makePose,
+  nominalImpact,
+  runUpProgress,
+  sampleClip,
+  selectBowler,
+  selectFielder,
+  selectKeeper,
+  selectNonStriker,
+  selectStriker,
+  selectUmpire,
+  type ClipName,
+  type MatchMoment,
+  type Pose,
+  type Selection,
+  type Vec3,
+} from "./animation";
+import { applyPose, batPoint, buildAthlete, handCentre, holdBat, paintKit, paintRoughness, placeBat, type Athlete, type Role } from "./character";
+import { crowdEnergy, direct, ropeRatio, type CameraName } from "./director";
+import { LIGHTS, QUALITY, buildStadium, lightingFor, type Lighting, type QualityName } from "./stadium";
 
-export type Quality = "low" | "medium" | "high" | "ultra";
-export type CameraName =
-  | "broadcast"
-  | "batter"
-  | "bowler"
-  | "side"
-  | "aerial"
-  | "track";
+export type Quality = QualityName;
+export type { CameraName, Lighting };
 export type SceneFeed = {
   frame: Frame;
   shot: ShotInput | null;
@@ -31,6 +61,14 @@ export type SceneFeed = {
   score: string;
   time: number;
   actorNumbers?: number[];
+  /** Tick of actual bat contact, known from the simulation (-1 if none yet). */
+  contactTick?: number;
+  /** Where the ball met the bat, so a slow frame rate cannot move the visual contact. */
+  contactPoint?: { x: number; y: number; z: number } | null;
+  edge?: boolean;
+  variation?: Variation | null;
+  replay?: boolean;
+  result?: MatchMoment["result"];
 };
 export interface SceneDriver {
   draw(feed: SceneFeed): void;
@@ -41,878 +79,275 @@ export interface SceneDriver {
     textures: number;
     geometries: number;
     dpr: number;
+    shot?: string;
+    /** Metres between the bat's sweet spot and the ball at actual contact. */
+    contactError?: number;
+    /** Metres between the bowling hand and the simulated release point. */
+    releaseError?: number;
+    /** Metres between each hand and its point on the handle (worst of the last swing). */
+    gripError?: number;
+    /** Metres a planted foot slid (worst recent). */
+    footSlip?: number;
+    excite?: number;
   };
 }
-const ladder = {
-  low: { dpr: 1, crowd: 450, shadows: 0 },
-  medium: { dpr: 1.25, crowd: 1000, shadows: 0 },
-  high: { dpr: 1.5, crowd: 1900, shadows: 1024 },
-  ultra: { dpr: 2, crowd: 3000, shadows: 2048 },
-};
 const v3 = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
-const smooth = (x: number) => {
-  const t = T.MathUtils.clamp(x, 0, 1);
-  return t * t * (3 - 2 * t);
-};
+const ACTORS = 14,
+  STRIKER = 0,
+  NON_STRIKER = 1,
+  BOWLER = 11,
+  KEEPER = 12,
+  UMPIRE = 13;
 
-/** Original cross-section lofts, shaped for shoulders, calves and fabric silhouettes. */
-function loft(rings: [number, number, number][], segments = 10) {
-  const vertices: number[] = [],
-    uv: number[] = [],
-    indices: number[] = [];
-  rings.forEach(([y, x, z], r) => {
-    for (let n = 0; n <= segments; n++) {
-      const a = (n / segments) * Math.PI * 2;
-      vertices.push(Math.sin(a) * x, y, Math.cos(a) * z);
-      uv.push(n / segments, r / (rings.length - 1));
-    }
-  });
-  for (let r = 0; r < rings.length - 1; r++)
-    for (let n = 0; n < segments; n++) {
-      const a = r * (segments + 1) + n,
-        b = a + segments + 1;
-      indices.push(a, b, a + 1, a + 1, b, b + 1);
-    }
-  const g = new T.BufferGeometry();
-  g.setAttribute("position", new T.Float32BufferAttribute(vertices, 3));
-  g.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
-  g.setIndex(indices);
-  g.computeVertexNormals();
-  return g;
-}
-function canvasTexture(
-  width: number,
-  height: number,
-  paint: (c: CanvasRenderingContext2D) => void,
-) {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw Error("Texture canvas unavailable");
-  paint(ctx);
-  const texture = new T.CanvasTexture(canvas);
-  texture.colorSpace = T.SRGBColorSpace;
-  return texture;
-}
-function cloth(team: number, number: number) {
-  const t = TEAMS[team]!;
-  return canvasTexture(256, 256, (c) => {
-    c.fillStyle = t.dark;
-    c.fillRect(0, 0, 256, 256);
-    c.fillStyle = t.color;
-    for (let n = -4; n < 8; n++) {
-      c.beginPath();
-      c.moveTo(n * 57, 0);
-      c.lineTo(n * 57 + 45, 0);
-      c.lineTo(n * 57 + 170, 256);
-      c.lineTo(n * 57 + 142, 256);
-      c.fill();
-    }
-    c.fillStyle = t.accent;
-    c.fillRect(0, 46, 256, 6);
-    c.fillStyle = "rgba(255,255,255,.09)";
-    for (let y = 0; y < 256; y += 3) c.fillRect(0, y, 256, 1);
-    c.fillStyle = "#ffffff";
-    c.textAlign = "center";
-    c.font = "bold 54px sans-serif";
-    c.fillText(String(number), 128, 181);
-    c.font = "bold 12px sans-serif";
-    c.fillText(t.players[(number - 1) % 11]!.toUpperCase(), 128, 119);
-    c.font = "bold 13px sans-serif";
-    c.fillText(t.short, 128, 72);
-  });
-}
-function material(color: T.ColorRepresentation, roughness = 0.8) {
-  return new T.MeshStandardMaterial({ color, roughness });
-}
-function mesh(
-  parent: T.Object3D,
-  g: T.BufferGeometry,
-  m: T.Material,
-  x = 0,
-  y = 0,
-  z = 0,
-) {
-  const node = new T.Mesh(g, m);
-  node.position.set(x, y, z);
-  node.castShadow = false;
-  node.receiveShadow = true;
-  parent.add(node);
-  return node;
-}
-function bone(parent: T.Object3D, x: number, y: number, z: number) {
-  const b = new T.Bone();
-  b.position.set(x, y, z);
-  parent.add(b);
-  return b;
-}
-type Limb = { upper: T.Bone; lower: T.Bone; hand: T.Bone };
-type Athlete = {
-  root: T.Group;
-  pelvis: T.Bone;
-  chest: T.Bone;
-  arms: Limb[];
-  legs: Limb[];
-  bat: T.Group | null;
-  phase: number;
-  previous: T.Vector3;
-  torso: T.Mesh;
-  trousers: T.Mesh[];
+type Actor = {
+  a: Athlete;
+  planter: FootPlanter;
+  target: Pose;
+  from: Pose;
+  out: Pose;
+  clip: string;
+  fadeAt: number;
+  action: Fielder["action"];
+  actionTick: number;
+  prev: T.Vector3;
+  prevTick: number;
+  speed: number;
+  facing: number;
   number: number;
   team: number;
+  kit: T.Texture | null;
+  kitCanvas: HTMLCanvasElement | null;
 };
 
-function athlete(
-  role: "bat" | "field" | "keeper" | "bowl",
-  number: number,
-  team: number,
-  detailed: boolean,
-): Athlete {
-  const root = new T.Group(),
-    pelvis = bone(root, 0, 0.93, 0),
-    chest = bone(pelvis, 0, 0.11, 0);
-  const skin = material(
-    ["#986448", "#bd8e68", "#80513c", "#d3a17b"][number % 4]!,
-    0.92,
-  );
-  const shirt = new T.MeshStandardMaterial({
-    map: cloth(team, number),
-    roughness: 0.92,
-  });
-  const pants = material(TEAMS[team]!.dark),
-    white = material("#eee9db"),
-    rubber = material("#343744"),
-    metal = material("#535f6c", 0.25);
-  const torso = mesh(
-    chest,
-    loft([
-      [0, 0.14, 0.09],
-      [0.13, 0.17, 0.105],
-      [0.34, 0.225, 0.115],
-      [0.44, 0.21, 0.1],
-      [0.48, 0.09, 0.075],
-    ]),
-    shirt,
-  );
-  mesh(
-    pelvis,
-    loft([
-      [-0.13, 0.135, 0.1],
-      [0, 0.15, 0.11],
-      [0.12, 0.14, 0.09],
-    ]),
-    pants,
-  );
-  const neck = bone(chest, 0, 0.48, 0);
-  mesh(neck, new T.CylinderGeometry(0.06, 0.075, 0.12, 8), skin, 0, 0.035, 0);
-  const head = mesh(
-    neck,
-    new T.SphereGeometry(0.13, 12, 10),
-    skin,
-    0,
-    0.2,
-    0.005,
-  );
-  head.scale.set(0.82, 1.12, 0.88);
-  mesh(neck, new T.SphereGeometry(0.025, 6, 5), skin, 0, 0.19, 0.11).scale.set(
-    0.65,
-    1.1,
-    1,
-  );
-  for (const side of [-1, 1])
-    mesh(
-      neck,
-      new T.SphereGeometry(0.01, 5, 4),
-      rubber,
-      side * 0.043,
-      0.226,
-      0.1,
-    );
-  const hair = mesh(
-    neck,
-    new T.SphereGeometry(0.134, 12, 6, 0, Math.PI * 2, 0, 1.45),
-    rubber,
-    0,
-    0.222,
-    0,
-  );
-  hair.scale.set(0.85, 1, 0.91);
-  if (role === "bat") {
-    const helmet = mesh(
-      neck,
-      new T.SphereGeometry(0.15, 16, 8, 0, Math.PI * 2, 0, 1.7),
-      material(TEAMS[team]!.dark, 0.4),
-      0,
-      0.23,
-      -0.005,
-    );
-    helmet.scale.set(1, 1, 0.97);
-    mesh(
-      neck,
-      new T.BoxGeometry(0.27, 0.014, 0.19),
-      material(TEAMS[team]!.color),
-      0,
-      0.235,
-      0.08,
-    );
-    if (detailed)
-      for (let row = 0; row < 3; row++) {
-        const curve = new T.QuadraticBezierCurve3(
-          v3(-0.13, 0.2 - row * 0.033, 0.1),
-          v3(0, 0.19 - row * 0.033, 0.18),
-          v3(0.13, 0.2 - row * 0.033, 0.1),
-        );
-        mesh(neck, new T.TubeGeometry(curve, 8, 0.004, 4, false), metal);
-      }
-  } else {
-    mesh(
-      neck,
-      new T.SphereGeometry(0.137, 12, 6, 0, Math.PI * 2, 0, 1.55),
-      material(TEAMS[team]!.dark),
-      0,
-      0.235,
-      0,
-    );
-    mesh(
-      neck,
-      new T.BoxGeometry(0.19, 0.012, 0.17),
-      material(TEAMS[team]!.color),
-      0,
-      0.245,
-      0.09,
-    );
-  }
-  const arms: Limb[] = [],
-    legs: Limb[] = [],
-    trousers: T.Mesh[] = [];
-  for (const side of [-1, 1]) {
-    const upper = bone(chest, side * 0.225, 0.39, 0),
-      lower = bone(upper, 0, -0.31, 0),
-      hand = bone(lower, 0, -0.28, 0);
-    mesh(
-      upper,
-      loft([
-        [0, 0.07, 0.075],
-        [-0.1, 0.065, 0.067],
-        [-0.16, 0.05, 0.052],
-      ]),
-      shirt,
-    );
-    mesh(
-      upper,
-      loft([
-        [-0.14, 0.049, 0.052],
-        [-0.23, 0.048, 0.045],
-        [-0.31, 0.038, 0.038],
-      ]),
-      skin,
-    );
-    mesh(
-      lower,
-      loft([
-        [0, 0.039, 0.04],
-        [-0.12, 0.044, 0.04],
-        [-0.28, 0.029, 0.031],
-      ]),
-      skin,
-    );
-    mesh(
-      hand,
-      loft([
-        [0.02, 0.036, 0.025],
-        [-0.07, 0.041, 0.025],
-        [-0.11, 0.029, 0.02],
-      ]),
-      role === "bat" || role === "keeper" ? white : skin,
-    );
-    if (detailed && (role === "bat" || role === "keeper"))
-      for (let finger = 0; finger < 4; finger++)
-        mesh(
-          hand,
-          new T.CapsuleGeometry(0.009, 0.045, 2, 4),
-          white,
-          (finger - 1.5) * 0.018,
-          -0.06,
-          0.025,
-        );
-    upper.rotation.z = side * 0.09;
-    arms.push({ upper, lower, hand });
-    const hip = bone(pelvis, side * 0.09, -0.07, 0),
-      knee = bone(hip, 0, -0.43, 0),
-      ankle = bone(knee, 0, -0.43, 0);
-    trousers.push(
-      mesh(
-        hip,
-        loft([
-          [0.02, 0.086, 0.09],
-          [-0.18, 0.075, 0.08],
-          [-0.43, 0.055, 0.059],
-        ]),
-        pants,
-      ),
-    );
-    trousers.push(
-      mesh(
-        knee,
-        loft([
-          [0, 0.055, 0.061],
-          [-0.23, 0.05, 0.057],
-          [-0.43, 0.036, 0.04],
-        ]),
-        pants,
-      ),
-    );
-    const shoe = mesh(
-      ankle,
-      loft(
-        [
-          [-0.045, 0.055, 0.12],
-          [0.005, 0.061, 0.14],
-          [0.055, 0.045, 0.11],
-        ],
-        8,
-      ),
-      white,
-      0,
-      0.02,
-      0.045,
-    );
-    mesh(ankle, new T.BoxGeometry(0.12, 0.025, 0.26), rubber, 0, -0.035, 0.04);
-    if (role === "bat" || role === "keeper") {
-      const pad = mesh(
-        knee,
-        loft(
-          [
-            [0.05, 0.069, 0.04],
-            [-0.13, 0.078, 0.055],
-            [-0.34, 0.056, 0.04],
-          ],
-          10,
-        ),
-        white,
-        0,
-        0,
-        0.06,
-      );
-      if (detailed)
-        for (let stripe = 0; stripe < 3; stripe++)
-          mesh(
-            knee,
-            new T.BoxGeometry(0.014, 0.29, 0.012),
-            material("#d2d2bf"),
-            (stripe - 1) * 0.036,
-            -0.14,
-            0.117,
-          );
-      pad.castShadow = true;
-    }
-    legs.push({ upper: hip, lower: knee, hand: ankle });
-    shoe.receiveShadow = true;
-  }
-  let bat: T.Group | null = null;
-  if (role === "bat") {
-    bat = new T.Group();
-    arms[1]!.hand.add(bat);
-    bat.position.set(0, -0.025, 0.01);
-    const wood = canvasTexture(64, 256, (c) => {
-      c.fillStyle = "#dfc595";
-      c.fillRect(0, 0, 64, 256);
-      for (let n = 0; n < 16; n++) {
-        c.strokeStyle = `rgba(125,83,37,${0.05 + (n % 3) * 0.03})`;
-        c.beginPath();
-        c.moveTo(n * 4, 0);
-        c.bezierCurveTo(n * 4 + 8, 80, n * 4 - 5, 160, n * 4, 256);
-        c.stroke();
-      }
-      c.fillStyle = "#164b49";
-      c.fillRect(10, 90, 44, 60);
-      c.fillStyle = "#e9dbb5";
-      c.font = "bold 12px sans-serif";
-      c.textAlign = "center";
-      c.fillText("LIGHT", 32, 114);
-      c.fillText("GRAIN", 32, 132);
-    });
-    const blade = new T.MeshStandardMaterial({ map: wood, roughness: 0.65 });
-    mesh(
-      bat,
-      loft(
-        [
-          [-0.19, 0.018, 0.018],
-          [-0.26, 0.052, 0.025],
-          [-0.78, 0.055, 0.029],
-          [-0.87, 0.04, 0.025],
-          [-0.88, 0.01, 0.018],
-        ],
-        8,
-      ),
-      blade,
-    );
-    mesh(
-      bat,
-      new T.CylinderGeometry(0.014, 0.015, 0.23, 8),
-      material(TEAMS[team]!.color),
-      0,
-      -0.08,
-      0,
-    );
-  }
-  return {
-    root,
-    pelvis,
-    chest,
-    arms,
-    legs,
-    bat,
-    phase: 0,
-    previous: v3(),
-    torso,
-    trousers,
-    number,
-    team,
-  };
-}
-function legPose(limb: Limb, z: number, lift: number) {
-  const y = -0.855 + lift,
-    d = Math.min(0.858, Math.hypot(y, z)),
-    bend = Math.acos(T.MathUtils.clamp(d / 0.86, -1, 1));
-  limb.upper.rotation.x = -Math.atan2(z, -y) - bend;
-  limb.lower.rotation.x = bend * 2;
-  limb.hand.rotation.x = -limb.upper.rotation.x - limb.lower.rotation.x;
-}
-function gripLeft(a: Athlete) {
-  a.root.updateMatrixWorld(true);
-  const target = a.arms[1]!.hand.getWorldPosition(v3()).add(v3(0, 0.045, 0));
-  const arm = a.arms[0]!,
-    parent = arm.upper.parent!;
-  parent.worldToLocal(target);
-  const start = arm.upper.position.clone(),
-    dir = target.clone().sub(start),
-    d = Math.min(0.58, dir.length());
-  dir.normalize();
-  const pole = v3(-1, 0, 0);
-  pole.addScaledVector(dir, -pole.dot(dir)).normalize();
-  const along = (0.31 * 0.31 - 0.28 * 0.28 + d * d) / (2 * d),
-    height = Math.sqrt(Math.max(0, 0.31 * 0.31 - along * along));
-  const elbow = start
-    .clone()
-    .addScaledVector(dir, along)
-    .addScaledVector(pole, height);
-  arm.upper.quaternion.setFromUnitVectors(
-    v3(0, -1, 0),
-    elbow.clone().sub(start).normalize(),
-  );
-  const q = new T.Quaternion().setFromUnitVectors(
-    v3(0, -1, 0),
-    target.sub(elbow).normalize(),
-  );
-  arm.lower.quaternion.copy(arm.upper.quaternion).invert().multiply(q);
+function canvasOf(size: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  return canvas;
 }
 
-function terrace(
-  inner: number,
-  outer: number,
-  y0: number,
-  y1: number,
-  a0: number,
-  a1: number,
-) {
-  const p: number[] = [],
-    idx: number[] = [];
-  const steps = 16;
-  for (let n = 0; n <= steps; n++) {
-    const a = a0 + ((a1 - a0) * n) / steps;
-    p.push(
-      Math.sin(a) * inner,
-      y0,
-      Math.cos(a) * inner * 1.08,
-      Math.sin(a) * outer,
-      y1,
-      Math.cos(a) * outer * 1.08,
-    );
-  }
-  for (let n = 0; n < steps; n++) {
-    const i = n * 2;
-    idx.push(i, i + 1, i + 2, i + 1, i + 3, i + 2);
-  }
-  const g = new T.BufferGeometry();
-  g.setAttribute("position", new T.Float32BufferAttribute(p, 3));
-  g.setIndex(idx);
-  g.computeVertexNormals();
-  return g;
-}
-
-export function createCricketScene(
-  canvas: HTMLCanvasElement,
-  config: CricketConfig,
-  quality: Quality,
-  onLoss: () => void,
-): SceneDriver {
-  const settings = ladder[quality],
-    venue = VENUES[config.venue],
+export function createCricketScene(canvas: HTMLCanvasElement, config: CricketConfig, quality: Quality, onLoss: () => void, lightingChoice: Lighting | "ground" = "ground"): SceneDriver {
+  const q = QUALITY[quality],
+    light = LIGHTS[lightingFor(config.venue, lightingChoice)],
     scene = new T.Scene();
   const renderer = new T.WebGLRenderer({
     canvas,
-    antialias: quality !== "low",
+    antialias: q.antialias,
     powerPreference: quality === "low" ? "low-power" : "high-performance",
     alpha: false,
   });
-  const dpr = Math.min(window.devicePixelRatio || 1, settings.dpr);
+  let dpr = Math.min(window.devicePixelRatio || 1, q.dpr);
   renderer.setPixelRatio(dpr);
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = venue.night ? 1.05 : 1.1;
-  renderer.shadowMap.enabled = !!settings.shadows;
-  renderer.shadowMap.type = T.PCFSoftShadowMap;
-  scene.background = new T.Color(venue.night ? "#101e36" : "#9fced2");
-  scene.fog = new T.Fog(venue.night ? "#101e36" : "#c1d7d3", 90, 230);
-  const camera = new T.PerspectiveCamera(43, 1, 0.08, 360);
-  camera.position.set(-30, 22, 43);
-  const hemi = new T.HemisphereLight(
-    venue.night ? "#c5deec" : "#fff0c5",
-    "#214436",
-    venue.night ? 1 : 1.6,
-  );
-  scene.add(hemi);
-  const sun = new T.DirectionalLight(
-    venue.night ? "#e9f2ff" : "#fff0ce",
-    venue.night ? 2.4 : 2.8,
-  );
-  sun.position.set(-24, 45, 25);
-  sun.castShadow = !!settings.shadows;
-  sun.shadow.mapSize.set(settings.shadows || 256, settings.shadows || 256);
-  Object.assign(sun.shadow.camera, {
-    left: -28,
-    right: 28,
-    top: 30,
-    bottom: -30,
-    near: 1,
-    far: 100,
-  });
-  sun.shadow.bias = -0.0003;
-  sun.shadow.normalBias = 0.025;
+  renderer.toneMappingExposure = light.exposure;
+  renderer.shadowMap.enabled = !!q.shadows;
+  renderer.shadowMap.type = quality === "ultra" ? T.PCFSoftShadowMap : T.PCFShadowMap;
+  scene.background = new T.Color(light.fog);
+  scene.fog = new T.Fog(light.fog, 150, 430);
+
+  const camera = new T.PerspectiveCamera(40, 1, 0.08, 700);
+  camera.position.set(0.8, 2.75, 15.6);
+  scene.add(new T.HemisphereLight(light.hemiSky, light.hemiGround, light.hemi));
+  const sun = new T.DirectionalLight(light.key, light.keyI);
+  sun.position.set(...light.keyPos);
+  sun.castShadow = !!q.shadows;
+  if (q.shadows) {
+    sun.shadow.mapSize.set(q.shadows, q.shadows);
+    Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 30, bottom: -30, near: 1, far: 130 });
+    sun.shadow.bias = -0.0003;
+    sun.shadow.normalBias = 0.03;
+    sun.shadow.camera.updateProjectionMatrix();
+  }
   scene.add(sun);
-  sun.shadow.camera.updateProjectionMatrix();
-  const grass = canvasTexture(512, 512, (c) => {
-    c.fillStyle = "#3a7750";
-    c.fillRect(0, 0, 512, 512);
-    for (let s = 0; s < 16; s++) {
-      c.fillStyle = s % 2 ? "#428155" : "#357247";
-      c.fillRect(0, s * 32, 512, 32);
-    }
-    let seed = 41;
-    for (let n = 0; n < 11000; n++) {
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      const x = seed % 512;
-      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-      c.fillStyle = n % 2 ? "rgba(232,229,155,.07)" : "rgba(6,46,28,.1)";
-      c.fillRect(x, seed % 512, 1, 3);
-    }
+
+  const makeMat = (o: { color?: T.ColorRepresentation; map?: T.Texture; roughness?: number; metalness?: number; vertexColors?: boolean; side?: T.Side }) => {
+    const { roughness, metalness, ...rest } = o;
+    return q.standard ? new T.MeshStandardMaterial({ ...rest, roughness: roughness ?? 0.9, metalness: metalness ?? 0 }) : new T.MeshLambertMaterial(rest);
+  };
+  // Grass, seats and concrete fill most of the screen and gain little from physically based shading,
+  // so only Ultra pays for it there. Players keep the richer material from Medium up.
+  const makeEnvMat: typeof makeMat = (o) => {
+    if (q.envStandard) return makeMat(o);
+    const { roughness: _r, metalness: _m, ...rest } = o;
+    return new T.MeshLambertMaterial(rest);
+  };
+  const stadium = buildStadium(config, quality, lightingChoice, renderer.capabilities.getMaxAnisotropy(), makeEnvMat);
+  scene.add(stadium.group);
+
+  // Kit materials. Close actors have their own named shirts; outfielders share a team kit.
+  const roughnessCanvas = canvasOf(64);
+  paintRoughness(roughnessCanvas.getContext("2d")!);
+  const roughnessTex = new T.CanvasTexture(roughnessCanvas);
+  const kitMaterial = (map: T.Texture) =>
+    q.standard ? new T.MeshStandardMaterial({ map, roughnessMap: roughnessTex, roughness: 1, vertexColors: true }) : new T.MeshLambertMaterial({ map, vertexColors: true });
+  const teamKits = [0, 1].map((team) => {
+    const c = canvasOf(128);
+    paintKit(c.getContext("2d")!, team, 7, false);
+    const tex = new T.CanvasTexture(c);
+    tex.colorSpace = T.SRGBColorSpace;
+    return { tex, material: kitMaterial(tex) };
   });
-  grass.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-  const turf = new T.MeshStandardMaterial({ map: grass, roughness: 1 });
-  const ground = mesh(scene, new T.CircleGeometry(75, 96), turf, 0, -0.025, 0);
-  ground.rotation.x = -Math.PI / 2;
-  ground.scale.y = 1.08;
-  const pitchTexture = canvasTexture(256, 512, (c) => {
-    c.fillStyle = "#bba77d";
-    c.fillRect(0, 0, 256, 512);
-    for (let n = 0; n < 5000; n++) {
-      c.fillStyle = n % 3 ? "rgba(75,54,24,.07)" : "rgba(242,223,167,.1)";
-      c.fillRect((n * 137) % 256, (n * 73) % 512, 1 + (n % 3), 2);
-    }
-    c.fillStyle = "rgba(78,70,40,.2)";
-    c.beginPath();
-    c.ellipse(128, 85, 20, 47, 0, 0, 7);
-    c.ellipse(128, 427, 18, 47, 0, 0, 7);
-    c.fill();
-  });
-  const pitch = mesh(
-    scene,
-    new T.PlaneGeometry(3.05, STUMPS_Z * 2),
-    new T.MeshStandardMaterial({ map: pitchTexture, roughness: 1 }),
-    0,
-    0.002,
-    0,
-  );
-  pitch.rotation.x = -Math.PI / 2;
-  const paint = new T.MeshBasicMaterial({ color: "#e8e8d1" });
-  for (const sign of [-1, 1]) {
-    for (const z of [CREASE_Z, STUMPS_Z]) {
-      const line = mesh(
-        scene,
-        new T.PlaneGeometry(z === CREASE_Z ? 3.8 : 2.64, 0.045),
-        paint,
-        0,
-        0.012,
-        sign * z,
-      );
-      line.rotation.x = -Math.PI / 2;
-    }
-    for (const x of [-1.32, 1.32]) {
-      const line = mesh(
-        scene,
-        new T.PlaneGeometry(0.04, 2.6),
-        paint,
-        x,
-        0.014,
-        sign * (CREASE_Z + 0.2),
-      );
-      line.rotation.x = -Math.PI / 2;
-    }
-  }
-  class Rope extends T.Curve<T.Vector3> {
-    constructor() {
-      super();
-    }
-    override getPoint(t: number, target = new T.Vector3()) {
-      return target.set(
-        Math.sin(t * Math.PI * 2) * venue.radiusX,
-        0.09,
-        Math.cos(t * Math.PI * 2) * venue.radiusZ,
-      );
-    }
-  }
-  mesh(
-    scene,
-    new T.TubeGeometry(new Rope(), 192, 0.045, 5, true),
-    material("#e7ddbb"),
-  );
-  const rail = material("#172e3d"),
-    stone = material(venue.night ? "#344658" : "#d8cdb7"),
-    roof = material(venue.night ? "#93a6b2" : "#ebe3c9");
-  for (let sector = 0; sector < 12; sector++) {
-    const a0 = (sector * Math.PI) / 6 + 0.035,
-      a1 = ((sector + 1) * Math.PI) / 6 - 0.035;
-    mesh(scene, terrace(71, 91, 1, 12, a0, a1), stone);
-    mesh(scene, terrace(78, 94, 15, 16.5, a0, a1), roof);
-    const a = (a0 + a1) / 2;
-    for (const angle of [a0, a1]) {
-      const pillar = mesh(
-        scene,
-        new T.BoxGeometry(0.35, 15, 0.35),
-        rail,
-        Math.sin(angle) * 83,
-        7.5,
-        Math.cos(angle) * 83 * 1.08,
-      );
-      pillar.rotation.y = -angle;
-    }
-    if (sector % 3 === 1) {
-      const gate = mesh(
-        scene,
-        new T.BoxGeometry(7, 6, 1.2),
-        material(TEAMS[sector % 2]!.dark),
-        Math.sin(a) * 69,
-        3,
-        Math.cos(a) * 69 * 1.08,
-      );
-      gate.rotation.y = a;
-    }
-  }
-  const crowdG = new T.IcosahedronGeometry(0.34, 0),
-    crowdM = material("#d7cbb8"),
-    crowd = new T.InstancedMesh(crowdG, crowdM, settings.crowd);
-  const dummy = new T.Object3D();
-  const crowdBase: { x: number; y: number; z: number }[] = [];
-  for (let n = 0; n < settings.crowd; n++) {
-    const row = n % 12,
-      a = ((n * 0.61803398875) % 1) * Math.PI * 2,
-      r = 72 + row * 1.35;
-    const x = Math.sin(a) * r,
-      z = Math.cos(a) * r * 1.08,
-      y = 2 + row * 0.87;
-    crowdBase.push({ x, y, z });
-    dummy.position.set(x, y, z);
-    dummy.scale.set(0.7, 1.4, 0.65);
-    dummy.updateMatrix();
-    crowd.setMatrixAt(n, dummy.matrix);
-    crowd.setColorAt(
-      n,
-      new T.Color(
-        ["#d9c8ab", TEAMS[0].color, TEAMS[1].color, "#b5c0d0", "#29384f"][
-          n % 5
-        ]!,
-      ),
-    );
-  }
-  scene.add(crowd);
-  for (const z of [-70, 70]) {
-    mesh(scene, new T.BoxGeometry(14, 7, 0.5), material("#e5e4dc"), 0, 4, z);
-    const back = mesh(scene, new T.BoxGeometry(15, 0.35, 1), rail, 0, 7.6, z);
-    back.castShadow = false;
-  }
-  for (let n = 0; n < 4; n++) {
-    const angle = (n * Math.PI) / 2 + Math.PI / 4,
-      x = Math.sin(angle) * 67,
-      z = Math.cos(angle) * 74;
-    mesh(
-      scene,
-      new T.CylinderGeometry(0.18, 0.45, 28, 8),
-      material("#8295a0", 0.5),
-      x,
-      14,
-      z,
-    );
-    const head = mesh(scene, new T.BoxGeometry(9, 3, 0.45), rail, x, 27, z);
-    head.lookAt(0, 1, 0);
-    const lights = new T.MeshBasicMaterial({
-      color: venue.night ? "#f5f5db" : "#c4cccd",
-    });
-    for (let l = 0; l < 12; l++) {
-      const bulb = new T.Mesh(new T.PlaneGeometry(0.92, 0.58), lights);
-      bulb.position.set(
-        ((l % 6) - 2.5) * 1.3,
-        Math.floor(l / 6) * 1.1 - 0.5,
-        0.25,
-      );
-      head.add(bulb);
-    }
-    if (venue.night && (quality === "high" || quality === "ultra")) {
-      const light = new T.SpotLight("#d9edff", 1600, 140, 0.7, 0.8, 1.5);
-      light.position.set(x, 26, z);
-      light.target.position.set(0, 0, 0);
-      scene.add(light, light.target);
-    }
-  }
-  const adTexture = canvasTexture(1024, 128, (c) => {
-    c.fillStyle = "#0d3237";
-    c.fillRect(0, 0, 1024, 128);
-    c.fillStyle = "#7ee8c8";
-    c.font = "bold 45px sans-serif";
-    c.textAlign = "center";
-    c.fillText("SINVERSE   /   FIELDCRAFT", 512, 78);
-  });
-  const adMat = new T.MeshBasicMaterial({ map: adTexture, side: T.DoubleSide });
-  for (let n = 0; n < 18; n++) {
-    const a = (n * Math.PI) / 9,
-      p = mesh(
-        scene,
-        new T.PlaneGeometry(17, 1.1),
-        adMat,
-        Math.sin(a) * 65,
-        0.65,
-        Math.cos(a) * 70,
-      );
-    p.lookAt(0, 0.65, 0);
-  }
-  if (!venue.night) {
-    const ocean = mesh(
-      scene,
-      new T.PlaneGeometry(500, 250),
-      material("#4c9aab", 0.35),
-      0,
-      -0.08,
-      -200,
-    );
-    ocean.rotation.x = -Math.PI / 2;
-  }
-  const scoreboard = canvasTexture(512, 256, (c) => {
-    c.fillStyle = "#082632";
-    c.fillRect(0, 0, 512, 256);
-  });
-  const scoreMesh = mesh(
-    scene,
-    new T.PlaneGeometry(15, 7.5),
-    new T.MeshBasicMaterial({ map: scoreboard }),
-    0,
-    18,
-    -92,
-  );
-  scoreMesh.rotation.x = -0.06;
-  let oldScore = "";
-  const athletes: Athlete[] = [
-    athlete("bat", 1, config.team, true),
-    athlete("bat", 2, config.team, true),
-    ...Array.from({ length: 11 }, (_, n) =>
-      athlete(
-        n === 10 ? "keeper" : n === 9 ? "bowl" : "field",
-        n + 1,
-        1 - config.team,
-        n >= 9,
-      ),
-    ),
-  ];
-  athletes.forEach((a, n) => {
+  const actors: Actor[] = [];
+  for (let n = 0; n < ACTORS; n++) {
+    const role: Role = n <= NON_STRIKER ? "bat" : n === BOWLER ? "bowl" : n === KEEPER ? "keeper" : n === UMPIRE ? "umpire" : "field";
+    const close = n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
+    const team = n <= NON_STRIKER ? config.team : 1 - config.team;
+    let material: T.Material, kit: T.Texture | null = null, kitCanvas: HTMLCanvasElement | null = null;
+    if (close) {
+      kitCanvas = canvasOf(256);
+      paintKit(kitCanvas.getContext("2d")!, role === "umpire" ? -1 : team, n + 1, true);
+      kit = new T.CanvasTexture(kitCanvas);
+      kit.colorSpace = T.SRGBColorSpace;
+      material = kitMaterial(kit);
+    } else material = teamKits[team]!.material;
+    const a = buildAthlete(role, n + 1, team, close ? q.closeDetail : q.detail, material);
+    a.mesh.castShadow = !!q.shadows && (close || quality === "ultra");
     scene.add(a.root);
-    if (settings.shadows && (n < 2 || n >= 11))
-      a.root.traverse((node) => {
-        if (node === a.torso || a.trousers.includes(node as T.Mesh))
-          (node as T.Mesh).castShadow = true;
-      });
-  });
-  const shadowTexture = canvasTexture(64, 64, (c) => {
-    const gradient = c.createRadialGradient(32, 32, 3, 32, 32, 31);
-    gradient.addColorStop(0, "rgba(0,12,16,.34)");
-    gradient.addColorStop(1, "rgba(0,12,16,0)");
-    c.fillStyle = gradient;
-    c.fillRect(0, 0, 64, 64);
-  });
-  const shadowMaterial = new T.MeshBasicMaterial({
-    map: shadowTexture,
-    transparent: true,
-    depthWrite: false,
-  });
-  const shadows = athletes.map(() => {
-    const shadow = mesh(scene, new T.PlaneGeometry(1.3, 0.9), shadowMaterial);
-    shadow.rotation.x = -Math.PI / 2;
-    return shadow;
-  });
-  const stumpMat = material("#e5d3a1"),
-    bails: T.Mesh[] = [];
-  for (const z of [-STUMPS_Z, STUMPS_Z]) {
-    for (const x of [-0.0762, 0, 0.0762])
-      mesh(
-        scene,
-        new T.CylinderGeometry(0.017, 0.018, 0.7112, 8),
-        stumpMat,
-        x,
-        0.3556,
-        z,
-      );
+    actors.push({ a, planter: new FootPlanter(), target: makePose(), from: makePose(), out: makePose(), clip: "", fadeAt: -10, action: "ready", actionTick: 0, prev: v3(NaN), prevTick: -1, speed: 0, facing: 0, number: n + 1, team, kit, kitCanvas });
+  }
+
+  // Ground contact shadows for everyone and the ball: one instanced draw.
+  const blobTex = (() => {
+    const c = canvasOf(64),
+      x = c.getContext("2d")!,
+      g = x.createRadialGradient(32, 32, 3, 32, 32, 31);
+    g.addColorStop(0, "rgba(0,10,14,.5)");
+    g.addColorStop(1, "rgba(0,10,14,0)");
+    x.fillStyle = g;
+    x.fillRect(0, 0, 64, 64);
+    return new T.CanvasTexture(c);
+  })();
+  const blobGeo = new T.PlaneGeometry(1, 1);
+  blobGeo.rotateX(-Math.PI / 2);
+  const blobs = new T.InstancedMesh(blobGeo, new T.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }), ACTORS + 1);
+  blobs.frustumCulled = false;
+  scene.add(blobs);
+  const dummy = new T.Object3D();
+
+  // Stumps and bails.
+  const wood = makeMat({ color: "#e7d6a8", roughness: 0.6 });
+  const stumpGeo = new T.CylinderGeometry(0.0165, 0.0185, 0.7112, 8);
+  const nearStumps = new T.Group(),
+    farStumps = new T.Group(),
+    stumpMeshes: T.Mesh[] = [];
+  for (const [group, z] of [[farStumps, -STUMPS_Z], [nearStumps, STUMPS_Z]] as const) {
+    group.position.z = z;
+    scene.add(group);
+    for (const x of [-0.0762, 0, 0.0762]) {
+      const m = new T.Mesh(stumpGeo, wood);
+      m.position.set(x, 0.3556, 0);
+      m.castShadow = !!q.shadows;
+      group.add(m);
+      if (z > 0) stumpMeshes.push(m);
+    }
+  }
+  const bailGeo = new T.CylinderGeometry(0.008, 0.008, 0.081, 6);
+  const bails: T.Mesh[] = [];
+  for (const z of [-STUMPS_Z, STUMPS_Z])
     for (const x of [-0.038, 0.038]) {
-      const bail = mesh(
-        scene,
-        new T.CylinderGeometry(0.008, 0.008, 0.081, 6),
-        stumpMat,
-        x,
-        0.718,
-        z,
-      );
+      const bail = new T.Mesh(bailGeo, wood);
       bail.rotation.z = Math.PI / 2;
+      bail.position.set(x, 0.718, z);
+      scene.add(bail);
       if (z > 0) bails.push(bail);
     }
+
+  // Ball with a real seam, plus a fading trail that doesn't glow.
+  const ballTex = (() => {
+    const c = canvasOf(128),
+      x = c.getContext("2d")!;
+    x.fillStyle = "#f5efe2";
+    x.fillRect(0, 0, 128, 128);
+    x.fillStyle = "#b9b09c";
+    x.fillRect(0, 58, 128, 12);
+    x.fillStyle = "#3a5c46";
+    for (let n = 0; n < 128; n += 6) {
+      x.fillRect(n, 56, 3, 3);
+      x.fillRect(n + 2, 69, 3, 3);
+    }
+    const t = new T.CanvasTexture(c);
+    t.colorSpace = T.SRGBColorSpace;
+    return t;
+  })();
+  const ball = new T.Mesh(new T.SphereGeometry(0.04, 14, 10), new T.MeshStandardMaterial({ map: ballTex, roughness: 0.42 }));
+  const ballMesh = ball;
+  ball.castShadow = !!q.shadows;
+  scene.add(ball);
+  const TRAIL = 22,
+    trailPos = new Float32Array(TRAIL * 3),
+    trailCol = new Float32Array(TRAIL * 4);
+  for (let n = 0; n < TRAIL; n++) {
+    trailCol.set([1, 0.96, 0.82, (n / TRAIL) ** 2 * 0.55], n * 4);
   }
-  const ballMat = material("#fff1d6", 0.55),
-    ball = mesh(scene, new T.SphereGeometry(0.045, 12, 8), ballMat);
-  const seam = new T.Mesh(
-    new T.TorusGeometry(0.0455, 0.002, 3, 24),
-    material("#cd7758"),
-  );
-  ball.add(seam);
-  const trailGeo = new T.BufferGeometry().setFromPoints(
-    Array.from({ length: 28 }, () => v3()),
-  );
-  const trail = new T.Line(
-    trailGeo,
-    new T.LineBasicMaterial({
-      color: "#f9d88c",
-      transparent: true,
-      opacity: 0.65,
-    }),
-  );
+  const trailGeo = new T.BufferGeometry();
+  trailGeo.setAttribute("position", new T.BufferAttribute(trailPos, 3));
+  trailGeo.setAttribute("color", new T.BufferAttribute(trailCol, 4));
+  const trail = new T.Line(trailGeo, new T.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
+  trail.frustumCulled = false;
   scene.add(trail);
-  const points: T.Vector3[] = [];
-  const target = v3(),
-    look = v3(0, 0.6, 0),
-    desired = v3();
+  const history: number[] = [];
+
+  // Dust puffs: a fixed pool, nothing allocated while playing.
+  const DUST = q.particles,
+    dustPos = new Float32Array(DUST * 3).fill(-50),
+    dustVel = new Float32Array(DUST * 3),
+    dustLife = new Float32Array(DUST);
+  const dustGeo = new T.BufferGeometry();
+  dustGeo.setAttribute("position", new T.BufferAttribute(dustPos, 3));
+  const dustTex = (() => {
+    const c = canvasOf(32),
+      x = c.getContext("2d")!,
+      g = x.createRadialGradient(16, 16, 1, 16, 16, 15);
+    g.addColorStop(0, "rgba(232,216,178,.75)");
+    g.addColorStop(1, "rgba(232,216,178,0)");
+    x.fillStyle = g;
+    x.fillRect(0, 0, 32, 32);
+    return new T.CanvasTexture(c);
+  })();
+  const dust = new T.Points(dustGeo, new T.PointsMaterial({ map: dustTex, size: 0.55, transparent: true, depthWrite: false, opacity: 0.8 }));
+  dust.frustumCulled = false;
+  scene.add(dust);
+  let dustNext = 0;
+  const puff = (x: number, y: number, z: number, n: number, spread = 1) => {
+    for (let i = 0; i < n; i++) {
+      const k = dustNext++ % DUST,
+        a = (dustNext * 2.399) % 6.283,
+        s = (0.25 + ((dustNext * 7) % 10) * 0.08) * spread;
+      dustPos.set([x, y, z], k * 3);
+      dustVel.set([Math.cos(a) * s, 0.5 + ((dustNext * 3) % 10) * 0.07, Math.sin(a) * s], k * 3);
+      dustLife[k] = 0.7;
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  const camTarget = v3(0, 1, -4),
+    tmp = v3(),
+    tmp2 = v3();
   let lastTick = -1,
+    lastTime = 0,
     disposed = false,
     width = 0,
     height = 0,
-    wicketAt = -1,
-    wasWicket = false;
-  const bailImpulse = v3();
+    deadAt = -1,
+    wasDead = false,
+    wicketKick = 0,
+    contactSeen = false,
+    shotName = "",
+    excite = 0,
+    contactError: number | undefined,
+    releaseError: number | undefined,
+    gripError = 0,
+    footSlip = 0,
+    snapCamera = true,
+    frameNo = 0,
+    prevBallY = 0,
+    prevBallVy = 0;
+  const frozenImpact: Vec3 = [0, 0, 0];
+  let impactFrozen = false;
+  const planted = [v3(NaN), v3(NaN)];
+  let plantResets = 0;
+
   const onContextLost = (event: Event) => {
     event.preventDefault();
     if (!disposed) onLoss();
@@ -927,263 +362,464 @@ export function createCricketScene(
     height = h;
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    // Pixels are the main cost on a slow GPU: each level caps the rendered width as well as the ratio.
+    dpr = Math.min(window.devicePixelRatio || 1, q.dpr, q.maxWidth / w);
+    renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
   };
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
   resize();
-  const setTeam = (a: Athlete, team: number, number: number) => {
-    if (a.team === team && a.number === number) return;
-    const mat = a.torso.material as T.MeshStandardMaterial;
-    const old = mat.map;
-    mat.map = cloth(team, number);
-    old?.dispose();
-    mat.needsUpdate = true;
-    a.number = number;
-    for (const m of a.trousers)
-      (m.material as T.MeshStandardMaterial).color.set(TEAMS[team]!.dark);
-    a.team = team;
+
+  const setKit = (actor: Actor, n: number, team: number, number: number) => {
+    if (n === UMPIRE || (actor.team === team && actor.number === number)) return;
+    if (actor.kit && actor.kitCanvas) {
+      paintKit(actor.kitCanvas.getContext("2d")!, team, number, true);
+      actor.kit.needsUpdate = true;
+    } else actor.a.mesh.material = teamKits[team]!.material;
+    actor.team = team;
+    actor.number = number;
   };
+
+  /** Writes a clip (with a short crossfade from whatever played before) into `out`. */
+  const resolve = (actor: Actor, name: string, wall: number, reduced: boolean) => {
+    if (actor.clip !== name) {
+      actor.from.set(actor.out);
+      actor.clip = name;
+      actor.fadeAt = reduced ? -10 : wall;
+    }
+    const w = clamp01((wall - actor.fadeAt) / 0.16);
+    if (w < 1) blendPose(actor.from, actor.target, w, actor.out);
+    else actor.out.set(actor.target);
+  };
+
+  /** Converts a world point to root space for an actor about to be posed. */
+  const toLocal = (actor: Actor, x: number, y: number, z: number) => {
+    const s = actor.a.look.scale,
+      dx = x - actor.a.root.position.x,
+      dz = z - actor.a.root.position.z,
+      c = Math.cos(actor.a.root.rotation.y),
+      si = Math.sin(actor.a.root.rotation.y);
+    return [(dx * c - dz * si) / s, y / s, (dx * si + dz * c) / s] as const;
+  };
+  const setHand = (p: Pose, left: boolean, x: number, y: number, z: number, w: number) => {
+    const X = left ? CH.lHandX : CH.rHandX;
+    p[X] = p[X]! + (x - p[X]!) * w;
+    p[X + 1] = p[X + 1]! + (y - p[X + 1]!) * w;
+    p[X + 2] = p[X + 2]! + (z - p[X + 2]!) * w;
+  };
+  const gaitInto = (actor: Actor) => {
+    const p = actor.target,
+      root = actor.a.root.position,
+      s = actor.a.look.scale;
+    actor.planter.update(root.x, root.z, actor.facing, actor.speed);
+    applyGait(p, actor.planter.phase, actor.speed);
+    const f = actor.planter.feet,
+      c = Math.cos(actor.facing),
+      si = Math.sin(actor.facing);
+    for (let k = 0; k < 2; k++) {
+      const dx = f[k]!.x - root.x,
+        dz = f[k]!.z - root.z,
+        X = k === 0 ? CH.lFootX : CH.rFootX;
+      p[X] = (dx * c - dz * si) / s;
+      p[X + 1] = RIG.ankle + f[k]!.y;
+      p[X + 2] = (dx * si + dz * c) / s;
+    }
+    p[CH.hipZ] = 0;
+    p[CH.hipX] = 0;
+    p[CH.roll] = 0;
+    p[CH.headY] = 0;
+    p[CH.headZ] = 0;
+  };
+
   return {
     draw(feed) {
       if (disposed) return;
       const { frame, shot, outcome } = feed;
       resize();
-      for (let n = 0; n < athletes.length; n++) {
-        const a = athletes[n]!;
-        setTeam(
-          a,
-          n < 2 ? feed.battingTeam : 1 - feed.battingTeam,
-          feed.actorNumbers?.[n] ?? a.number,
-        );
+      const wall = feed.time,
+        dt = Math.max(0, Math.min(0.1, wall - lastTime));
+      lastTime = wall;
+      frameNo++;
+      const tick = frame.tick;
+      const rewound = tick < lastTick - 0.001 || tick === 0;
+      if (rewound) {
+        history.length = 0;
+        contactSeen = false;
+        impactFrozen = false;
+        wicketKick = 0;
+        if (tick < lastTick) for (const actor of actors) actor.prev.set(NaN, NaN, NaN);
+      }
+      const dead = !!outcome && frame.mode === "dead";
+      if (dead && !wasDead) deadAt = wall;
+      if (!dead) deadAt = -1;
+      const deadAge = dead ? wall - deadAt : -1;
+      const contactTick = feed.contactTick ?? (frame.contact ? tick : -1);
+      const hit = frame.contact && (contactTick < 0 || tick >= contactTick);
+      const running = frame.runner % 1 > 0.0001;
+      const style = bowlingStyle(feed.variation ?? undefined);
+      const moment: MatchMoment = { tick, outcome: dead ? outcome : null, deadAge, contact: hit, result: feed.result ?? null };
+      const wicket = dead ? (outcome?.wicket ?? null) : null;
+
+      for (let n = 0; n < ACTORS; n++) {
+        const actor = actors[n]!,
+          a = actor.a;
+        if (n < BOWLER + 2) setKit(actor, n, n <= NON_STRIKER ? feed.battingTeam : 1 - feed.battingTeam, feed.actorNumbers?.[n] ?? actor.number);
+        // Outfielders can update on alternate frames on the lowest preset.
+        if (q.fielderEvery > 1 && n >= 2 && n < BOWLER && n % 2 !== frameNo % 2 && actor.clip) continue;
+
+        // ---- where the simulation says this actor is -------------------------
         let px = 0,
           pz = 0,
-          py = 0,
-          action = "ready";
-        if (n === 0) {
-          const run = frame.runner % 2,
-            progress = run <= 1 ? run : 2 - run;
-          pz = CREASE_Z * (1 - progress * 2);
-          px = -0.36 + (frame.runner > 0 ? 0.3 : 0);
-          if (frame.runner === 0) pz = frame.batterGroundZ;
-        } else if (n === 1) {
-          const run = frame.runner % 2,
-            progress = run <= 1 ? run : 2 - run;
-          pz = -CREASE_Z * (1 - progress * 2);
-          px = 0.65;
+          simAction: Fielder["action"] = "ready",
+          travel = 0;
+        if (n === STRIKER || n === NON_STRIKER) {
+          const end = n === STRIKER ? 1 : -1;
+          pz = creaseZ(end, frame.runner);
+          px = (n === STRIKER ? -0.38 : 0.72) + (frame.runner > 0 ? 0.28 : 0);
+          if (n === STRIKER && frame.runner === 0) pz = frame.batterGroundZ;
+        } else if (n === UMPIRE) {
+          px = -1.05;
+          pz = -STUMPS_Z - 1.55;
         } else {
           const f = frame.fielders[n - 2]!;
           px = f.x;
           pz = f.z;
-          action = frame.actions[n - 2] ?? "ready";
-          if (n === 11 && frame.tick < RELEASE_TICK) {
-            pz =
-              -20 +
-              (20 + frame.bowlerFootZ - 0.12) *
-                smooth(frame.tick / RELEASE_TICK);
-            action = "run";
+          simAction = frame.actions[n - 2] ?? "ready";
+          travel = frame.travel[n - 2] ?? 0;
+        }
+        if (n === BOWLER) {
+          const follow = tick > RELEASE_TICK ? ((u) => u * u * (3 - 2 * u))(clamp01((tick - RELEASE_TICK - 6) / 60)) * 1.75 : 0;
+          const fade = 1 - clamp01(travel * 2);
+          if (tick <= RELEASE_TICK) {
+            const u = runUpProgress(tick, style),
+              startZ = -8.5 + RELEASE_ROOT.z - RUN_UP[style];
+            pz = startZ + (RUN_UP[style] + (frame.bowlerFootZ + CREASE_Z + 0.23)) * u;
+            px = 0.55 + RELEASE_ROOT.x + (1 - u) * 0.5;
+          } else {
+            pz += (RELEASE_ROOT.z + follow) * fade;
+            px += RELEASE_ROOT.x * fade;
           }
         }
-        const next = v3(px, py, pz),
-          movement = next.distanceTo(a.previous);
-        if (n < 2) a.phase = frame.runner * CREASE_Z * 16;
-        else if (n === 11 && frame.tick < RELEASE_TICK) a.phase = (pz + 20) * 8;
-        else
-          a.phase =
-            (frame.travel[n - 2] ?? 0) *
-            (n === 12 ? 4.8 : 6.6 + ((n - 2) % 3) * 0.3) *
-            8;
-        const moving = movement > 0.0005 && movement < 2;
-        const facing = moving
-          ? Math.atan2(px - a.previous.x, pz - a.previous.z)
-          : n === 0
-            ? Math.PI
-            : n === 1
-              ? 0
-              : Math.atan2(frame.ball.x - px, frame.ball.z - pz);
-        a.root.rotation.y = T.MathUtils.lerp(a.root.rotation.y, facing, 0.25);
-        a.root.position.copy(next);
-        shadows[n]!.position.set(px, 0.018, pz);
-        a.previous.copy(next);
-        a.pelvis.position.y =
-          0.93 + (moving ? Math.abs(Math.sin(a.phase)) * 0.025 : 0);
-        a.chest.rotation.set(0, 0, 0);
-        for (let l = 0; l < 2; l++) {
-          legPose(
-            a.legs[l]!,
-            moving
-              ? Math.sin(a.phase + l * Math.PI) * 0.28
-              : n === 0
-                ? l === 0
-                  ? 0.15
-                  : -0.08
-                : 0,
-            moving ? Math.max(0, Math.cos(a.phase + l * Math.PI)) * 0.13 : 0,
-          );
-          const arm = a.arms[l]!;
-          arm.upper.rotation.set(
-            moving ? Math.sin(a.phase + l * Math.PI) * 0.65 : 0,
-            0,
-            (l === 0 ? -1 : 1) * 0.1,
-          );
-          arm.lower.rotation.set(moving ? -0.4 : 0, 0, 0);
-          arm.hand.rotation.set(0, 0, 0);
+
+        // ---- movement bookkeeping ---------------------------------------------
+        const dTick = tick - actor.prevTick;
+        if (!Number.isFinite(actor.prev.x) || dTick < 0 || actor.prev.distanceTo(tmp.set(px, 0, pz)) > 4) {
+          actor.prev.set(px, 0, pz);
+          actor.speed = 0;
+          actor.planter.reset(px, pz, actor.facing);
         }
-        if (n === 0 && frame.runner === 0) {
-          const phase = shot ? (frame.tick - shot.tick) / 42 : -1,
-            u = smooth(phase);
-          a.chest.rotation.y = shot
-            ? Math.sin((shot.direction * Math.PI) / 180) * u * 0.7
-            : 0;
-          const arm = a.arms[1]!;
-          arm.upper.rotation.set(-0.85 - u * 1.4, 0, -0.17 - u * 0.35);
-          arm.lower.rotation.x = -0.65 + u * 0.4;
-          arm.hand.rotation.set(0.2 - u * 0.65, 0, shot?.face ?? 0);
-          a.chest.rotation.x = 0.09;
-          gripLeft(a);
+        const dx = px - actor.prev.x,
+          dz = pz - actor.prev.z,
+          moved = Math.hypot(dx, dz);
+        if (dTick > 0) {
+          const measured = moved / (dTick * STEP);
+          actor.speed += (measured - actor.speed) * Math.min(1, dTick * 0.12);
         }
-        if (n === 11 && frame.tick < RELEASE_TICK + 55) {
-          const wind = smooth((frame.tick - RELEASE_TICK + 35) / 70);
-          a.arms[1]!.upper.rotation.x = -wind * Math.PI * 2;
-          a.arms[0]!.upper.rotation.x = -Math.sin(wind * Math.PI) * 2.7;
-          a.chest.rotation.x = 0.12;
+        const moving = actor.speed > 0.35;
+        if (simAction !== actor.action) {
+          actor.action = simAction;
+          actor.actionTick = tick;
         }
-        if (n === 12) {
-          a.pelvis.position.y = 0.68;
-          for (const leg of a.legs) legPose(leg, 0.08, 0.22);
-          a.chest.rotation.x = 0.28;
-          for (const arm of a.arms) {
-            arm.upper.rotation.x = -0.85;
-            arm.lower.rotation.x = -0.8;
-          }
-        }
-        if (action === "dive") {
-          a.root.rotation.z = 0.8;
-          a.pelvis.position.y = 0.3;
-          for (const arm of a.arms) arm.upper.rotation.x = -1.8;
+        if (tick < actor.actionTick) actor.actionTick = tick;
+        const actionAge = Math.max(0, tick - actor.actionTick) * STEP;
+
+        // ---- facing -----------------------------------------------------------
+        let want: number;
+        if (n === STRIKER && !running && frame.runner === 0) want = Math.PI / 2;
+        else if (moved > 0.002 && moving && (n === BOWLER || n <= NON_STRIKER || actor.speed > 2.2)) want = Math.atan2(dx, dz);
+        else if (n === UMPIRE) want = 0;
+        else if (n === NON_STRIKER) want = frame.runner % 2 < 1 ? 0 : Math.PI;
+        else if (n === STRIKER) want = frame.runner % 2 < 1 ? Math.PI : 0;
+        else if (n === KEEPER && !hit) want = Math.PI;
+        else want = Math.atan2(frame.ball.x - px, frame.ball.z - pz);
+        const diff = ((want - actor.facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        actor.facing += diff * (feed.reducedMotion ? 1 : Math.min(1, dt * 9));
+        a.root.position.set(px, 0, pz);
+        a.root.rotation.y = actor.facing;
+        actor.prev.set(px, 0, pz);
+        actor.prevTick = tick;
+
+        // ---- which clip -------------------------------------------------------
+        const p = actor.target;
+        let sel: Selection | "gait" | "bat" | "delivery";
+        if (n === STRIKER) {
+          const dismissedStriker = !!outcome?.wicket && outcome.dismissed === "striker";
+          sel = frame.runner > 0 && !running && !dead ? { clip: "idle", time: wall } : selectStriker({ ...moment, running, shot, edge: !!feed.edge, dismissedStriker });
+        } else if (n === NON_STRIKER) sel = selectNonStriker({ ...moment, running, dismissedNonStriker: !!outcome?.wicket && outcome.dismissed === "non-striker" });
+        else if (n === UMPIRE) sel = selectUmpire(moment);
+        else if (n === BOWLER) sel = selectBowler({ ...moment, style, chasing: travel > 0.02, action: simAction, actionAge, moving, ballY: frame.ball.y, wicket });
+        else if (n === KEEPER) sel = selectKeeper({ ...moment, action: simAction, actionAge, moving, ballZ: frame.ball.z, ballY: frame.ball.y, wicket });
+        else sel = selectFielder({ ...moment, action: simAction, actionAge, moving, speed: actor.speed, ballY: frame.ball.y, id: n - 2, chasing: travel > 0.05 });
+
+        let name: string;
+        if (sel === "gait" && actor.speed < 0.2 && tick === 0) sel = { clip: "idle", time: wall };
+        if (sel === "gait") {
+          gaitInto(actor);
+          name = "gait";
+        } else if (sel === "bat") {
+          sampleClip(CLIPS.stance, 0, p);
+          const swing = shot ? clamp01((tick - shot.tick) / IMPACT_TICKS) : 0;
+          if (shot) applyShotBody(p, shot.kind, shot.foot, swing);
+          // A little trigger movement as the bowler lets go.
+          const trigger = clamp01((tick - RELEASE_TICK + 12) / 20);
+          p[CH.hipY] = p[CH.hipY]! + trigger * 0.012;
+          p[CH.headY] = 1.15;
+          name = shot ? `bat-${shot.kind}` : "bat";
+        } else if (sel === "delivery") {
+          sampleClip(DELIVERY[style], (tick - RELEASE_TICK) * STEP, p);
+          name = `delivery-${style}`;
         } else {
-          a.root.rotation.z *= 0.8;
-          if (action === "catch" || action === "throw") {
-            for (const arm of a.arms) arm.upper.rotation.x = -2.4;
+          sampleClip(CLIPS[sel.clip as ClipName], sel.time, p);
+          name = sel.clip;
+        }
+
+        // ---- contact points ---------------------------------------------------
+        const ball = frame.ball;
+        if (n === KEEPER && !hit && tick >= RELEASE_TICK && ball.z > 4.5) {
+          // Gloves meet the actual ball as it arrives.
+          const [lx, ly, lz] = toLocal(actor, ball.x, ball.y, ball.z);
+          const w = clamp01((ball.z - 4.5) / 4.5);
+          const reach = Math.hypot(lx, ly - 1, lz);
+          if (reach < 1.7) {
+            setHand(p, true, lx + 0.055, ly, lz, w);
+            setHand(p, false, lx - 0.055, ly, lz, w);
+            // Stretch the body towards a wide or low ball rather than just the arms.
+            p[CH.hipX] = p[CH.hipX]! + lx * 0.45 * w;
+            p[CH.roll] = p[CH.roll]! - lx * 0.5 * w;
           }
         }
-      }
-      ball.position.set(frame.ball.x, frame.ball.y, frame.ball.z);
-      ball.visible = frame.tick >= RELEASE_TICK;
-      ball.scale.setScalar(
-        Math.max(
-          1,
-          Math.min(2.6, camera.position.distanceTo(ball.position) / 18),
-        ),
-      );
-      ball.rotation.x = frame.tick * 0.12;
-      if (frame.tick !== lastTick) {
-        if (frame.tick < lastTick || frame.tick === 0) points.length = 0;
-        points.push(ball.position.clone());
-        while (points.length > 28) points.shift();
-        const attr = trailGeo.getAttribute("position") as T.BufferAttribute;
-        for (let n = 0; n < 28; n++) {
-          const p =
-            points[Math.max(0, points.length - 28 + n)] ?? ball.position;
-          attr.setXYZ(n, p.x, p.y, p.z);
+        if (n === KEEPER && dead && wicket === "stumped" && deadAge < 0.5) {
+          const [lx, ly, lz] = toLocal(actor, 0, 0.62, STUMPS_Z);
+          setHand(p, true, lx + 0.05, ly, lz, 1);
+          setHand(p, false, lx - 0.05, ly, lz, 1);
         }
-        attr.needsUpdate = true;
-        trailGeo.computeBoundingSphere();
-        lastTick = frame.tick;
+        if ((simAction === "catch" || simAction === "drop" || simAction === "dive") && n >= 2 && n !== UMPIRE && actionAge < 0.5) {
+          const [lx, ly, lz] = toLocal(actor, ball.x, ball.y, ball.z);
+          if (Math.hypot(lx, ly - 1, lz) < 1.9) {
+            const w = 1 - clamp01((actionAge - 0.3) / 0.2);
+            setHand(p, true, lx + 0.05, ly, lz, w);
+            setHand(p, false, lx - 0.05, ly, lz, w);
+          }
+        }
+        if (simAction === "pickup" && n >= 2 && n !== UMPIRE) {
+          const [lx, ly, lz] = toLocal(actor, ball.x, ball.y, ball.z);
+          if (Math.hypot(lx, ly - 1, lz) < 1.6) setHand(p, false, lx, ly, lz, 1);
+        }
+        // Bowling hand arrives exactly at the simulated release point.
+        if (n === BOWLER && sel === "delivery") {
+          const away = Math.abs(tick - RELEASE_TICK);
+          if (away < 7) {
+            const [lx, ly, lz] = toLocal(actor, 0.55, 2.08, -8.5);
+            setHand(p, false, lx, ly, lz, 1 - away / 7);
+          }
+        }
+
+        resolve(actor, name, wall, feed.reducedMotion);
+        const out = actor.out;
+
+        // ---- apply --------------------------------------------------------------
+        if (n === STRIKER && sel === "bat") {
+          // Contact point in this batter's root space (chest +z = world +x, left = bowler).
+          const s = a.look.scale;
+          const local = (wx: number, wy: number, wz: number): Vec3 => [-(wz - pz) / s, wy / s, (wx - px) / s];
+          let impact: Vec3 | null = null;
+          if (shot) {
+            const nominal = nominalImpact(shot);
+            const near = clamp01(1 - Math.abs(ball.z - nominal.z) / 1.1);
+            const aimed = hit ? null : local(nominal.x + (ball.x - nominal.x) * near, nominal.y + (ball.y - nominal.y) * near, nominal.z);
+            if (hit && !impactFrozen) {
+              const met = feed.contactPoint ?? ball;
+              const at = local(met.x, met.y, met.z);
+              frozenImpact[0] = at[0];
+              frozenImpact[1] = at[1];
+              frozenImpact[2] = at[2];
+              impactFrozen = true;
+            }
+            impact = hit ? frozenImpact : aimed;
+          }
+          if (hit && shot && !contactSeen) {
+            // Measure the rig at the contact tick itself, even if no frame was drawn on that tick.
+            contactSeen = true;
+            const met = feed.contactPoint ?? ball;
+            holdBat(a, out, batPose({ tick: contactTick, shot, contactTick, impact }));
+            a.root.updateMatrixWorld(true);
+            contactError = batPoint(a, BAT.sweet, tmp).distanceTo(tmp2.set(met.x, met.y, met.z));
+          }
+          const bat = batPose({ tick, shot, contactTick: hit ? contactTick : -1, impact });
+          holdBat(a, out, bat);
+          a.root.updateMatrixWorld(true);
+          if (shot) {
+            // Measure the real rig: how well the hands are holding the handle.
+            handCentre(a, true, tmp);
+            batPoint(a, BAT.top, tmp2);
+            gripError = Math.max(gripError * 0.995, tmp.distanceTo(tmp2));
+            handCentre(a, false, tmp);
+            batPoint(a, BAT.bottom, tmp2);
+            gripError = Math.max(gripError, tmp.distanceTo(tmp2));
+          }
+        } else {
+          if (n <= NON_STRIKER) {
+            // Bat carried in the right hand while running or reacting.
+            const up = out[CH.rHandY]! > 1.45;
+            const rx = out[CH.rHandX]!,
+              ry = out[CH.rHandY]!,
+              rz = out[CH.rHandZ]!;
+            placeBat(a, { grip: [rx, ry, rz], dir: up ? [0.08, 0.9, 0.3] : [0.04, -0.72, 0.68], face: [1, 0, 0] });
+          }
+          applyPose(a, out);
+        }
+        if (n === BOWLER && Math.abs(tick - RELEASE_TICK) < 7 && sel === "delivery") {
+          // The arm alone can fall short on a smaller bowler: the body closes the gap into the release.
+          a.root.updateMatrixWorld(true);
+          handCentre(a, false, tmp);
+          tmp2.set(0.55, 2.08, -8.5).sub(tmp);
+          const w = 1 - Math.abs(tick - RELEASE_TICK) / 7;
+          a.root.position.x += tmp2.x * w;
+          a.root.position.z += tmp2.z * w;
+          a.root.position.y += Math.max(0, tmp2.y) * w;
+        }
+        if (n === BOWLER && Math.abs(tick - RELEASE_TICK) < 1.5 && sel === "delivery") {
+          a.root.updateMatrixWorld(true);
+          releaseError = handCentre(a, false, tmp).distanceTo(tmp2.set(0.55, 2.08, -8.5));
+        }
+        if (n === BOWLER && tick < RELEASE_TICK) {
+          a.root.updateMatrixWorld(true);
+          handCentre(a, false, ballMesh.position);
+        }
+        // Foot-lock check for the runner most on camera.
+        if (n === BOWLER && (name !== "gait" || feed.replay || tick < lastTick || actor.planter.resets !== plantResets)) {
+          plantResets = actor.planter.resets;
+          // A new ball or a replay scrub moves the runner legitimately: that is not a slip.
+          planted[0]!.x = planted[1]!.x = NaN;
+        } else if (n === BOWLER) {
+          actor.planter.feet.forEach((f, k) => {
+            const lock = planted[k]!;
+            if (!f.swinging && Number.isFinite(lock.x)) footSlip = Math.max(footSlip * 0.998, Math.hypot(f.x - lock.x, f.z - lock.z));
+            if (!f.swinging) lock.set(f.x, 0, f.z);
+            else lock.set(NaN, 0, 0);
+          });
+        }
+        // Dust at the bowler's front foot as it lands.
+        if (n === BOWLER && lastTick < RELEASE_TICK - 5 && tick >= RELEASE_TICK - 5 && !feed.reducedMotion) puff(px + 0.13, 0.05, pz + 0.6, Math.min(10, DUST / 6));
+        // Dust from a sliding dive.
+        if (simAction === "dive" && actionAge > 0.3 && actionAge < 0.36 && !feed.reducedMotion) puff(px, 0.06, pz, Math.min(12, DUST / 5), 1.3);
+
+        const shadowSize = 0.95 + (out[CH.hipY]! < 0.5 ? 0.5 : 0);
+        dummy.position.set(px, 0.016, pz);
+        dummy.scale.set(shadowSize, 1, shadowSize * 0.8);
+        dummy.rotation.y = actor.facing;
+        dummy.updateMatrix();
+        blobs.setMatrixAt(n, dummy.matrix);
       }
-      trail.visible = ball.visible;
-      const bowlingWicket =
-        outcome?.wicket === "bowled" && frame.mode === "dead";
-      if (bowlingWicket && !wasWicket) {
-        wicketAt = feed.time;
-        const a = points.at(-2),
-          b = points.at(-1);
-        if (a && b)
-          bailImpulse
-            .copy(b)
-            .sub(a)
-            .multiplyScalar(1 / (STEP * 3));
+
+      // ---- ball -------------------------------------------------------------------
+      const b = frame.ball;
+      if (tick >= RELEASE_TICK) ball.position.set(b.x, b.y, b.z);
+      ball.scale.setScalar(Math.max(1, Math.min(2.4, camera.position.distanceTo(ball.position) / 16)));
+      ball.rotation.x = tick * 0.14;
+      ball.rotation.y = tick * 0.05;
+      const vy = (b.y - prevBallY) / Math.max(1e-3, (tick - lastTick) * STEP);
+      // A bounce: a downward ball that's now rising at ground level. Purely a visual cue.
+      if (tick > RELEASE_TICK && tick !== lastTick && !rewound && b.y < 0.25 && prevBallVy < -1 && vy > 0 && !feed.reducedMotion) puff(b.x, 0.04, b.z, Math.min(8, DUST / 7), 0.7);
+      if (tick !== lastTick) {
+        prevBallVy = vy;
+        prevBallY = b.y;
+        history.push(ball.position.x, ball.position.y, ball.position.z);
+        while (history.length > TRAIL * 3) history.splice(0, 3);
+        const count = history.length / 3;
+        for (let n = 0; n < TRAIL; n++) {
+          const from = Math.max(0, count - TRAIL + n) * 3;
+          trailPos[n * 3] = history[from] ?? ball.position.x;
+          trailPos[n * 3 + 1] = history[from + 1] ?? ball.position.y;
+          trailPos[n * 3 + 2] = history[from + 2] ?? ball.position.z;
+        }
+        (trailGeo.getAttribute("position") as T.BufferAttribute).needsUpdate = true;
       }
-      if (!bowlingWicket) wicketAt = -1;
-      wasWicket = bowlingWicket;
-      bails.forEach((b, n) => {
-        const elapsed =
-          wicketAt < 0 ? 0 : Math.min(1.5, Math.max(0, feed.time - wicketAt));
-        const lift = T.MathUtils.clamp(bailImpulse.length() * 0.07, 1, 3);
-        b.position.set(
-          (n === 0 ? -0.038 : 0.038) + elapsed * (n ? 0.7 : -0.7),
-          Math.max(0.025, 0.718 + elapsed * lift - 4.9 * elapsed ** 2),
-          STUMPS_Z + elapsed * bailImpulse.z * 0.06,
-        );
-        b.rotation.x = elapsed * 8;
-        b.visible = true;
+      lastTick = tick;
+      trail.visible = tick > RELEASE_TICK && (!!feed.replay || !(deadAge > 3));
+      // Ball's shadow on the ground gives its height away, as on a real broadcast.
+      const by = ball.position.y,
+        shade = Math.max(0.16, 0.42 - by * 0.012);
+      dummy.position.set(ball.position.x, 0.02, ball.position.z);
+      dummy.scale.set(shade, 1, shade);
+      dummy.rotation.y = 0;
+      dummy.updateMatrix();
+      blobs.setMatrixAt(ACTORS, dummy.matrix);
+      blobs.instanceMatrix.needsUpdate = true;
+
+      // ---- stumps -------------------------------------------------------------------
+      const broke = dead && (outcome?.wicket === "bowled" || outcome?.wicket === "stumped" || outcome?.wicket === "run-out");
+      if (broke && !wasDead) wicketKick = outcome?.wicket === "bowled" ? 1 : 0.55;
+      const since = broke ? Math.min(1.5, Math.max(0, deadAge)) : 0;
+      nearStumps.rotation.x = wicketKick && outcome?.wicket === "bowled" ? -Math.min(0.22, since * 1.5) * wicketKick * Math.exp(-since * 0.4) : 0;
+      bails.forEach((bail, n) => {
+        const side = n ? 1 : -1;
+        bail.position.set(side * 0.038 + since * side * 0.75 * wicketKick, Math.max(0.03, 0.718 + since * 2.1 * wicketKick - 4.9 * since * since), STUMPS_Z + since * 1.1 * wicketKick);
+        bail.rotation.x = since * 9;
       });
-      let chosen = feed.camera;
-      if (chosen === "broadcast" && frame.tick > 0)
-        chosen =
-          frame.contact && !feed.reducedMotion
-            ? "track"
-            : feed.humanBatting
-              ? "batter"
-              : "bowler";
-      if (chosen === "track") {
-        desired.copy(ball.position).add(v3(-10, 9, 17));
-        look.copy(ball.position).multiplyScalar(0.7);
-        look.y = Math.max(1, look.y);
-      } else if (chosen === "batter") {
-        desired.set(0.6, 3.3, 17.4);
-        look.set(0, 1, -4);
-      } else if (chosen === "bowler") {
-        desired.set(-1.3, 4.2, -22);
-        look.set(0, 0.8, 8);
-      } else if (chosen === "side") {
-        desired.set(31, 7, 3);
-        look.set(0, 1, 1);
-      } else if (chosen === "aerial") {
-        desired.set(0, 82, 25);
-        look.set(0, 0, 0);
-      } else {
-        desired.set(-32, 24, 43);
-        look.set(0, 1, 0);
-      }
-      camera.position.lerp(desired, feed.reducedMotion ? 1 : 0.08);
-      target.lerp(look, feed.reducedMotion ? 1 : 0.14);
-      camera.lookAt(target);
-      if (
-        outcome?.boundary === 6 &&
-        frame.mode === "dead" &&
-        !feed.reducedMotion &&
-        quality !== "low"
-      ) {
-        for (let n = 0; n < Math.min(300, settings.crowd); n++) {
-          const base = crowdBase[n]!;
-          dummy.position.set(
-            base.x,
-            base.y + Math.max(0, Math.sin(feed.time * 6 + n)) * 0.4,
-            base.z,
-          );
-          dummy.scale.set(0.7, 1.4, 0.65);
-          dummy.updateMatrix();
-          crowd.setMatrixAt(n, dummy.matrix);
+      if (broke && deadAge < 0.1 && !feed.reducedMotion) puff(0, 0.25, STUMPS_Z, 2, 0.5);
+      wasDead = dead;
+
+      // ---- dust ---------------------------------------------------------------------
+      if (DUST) {
+        let alive = false;
+        for (let n = 0; n < DUST; n++) {
+          if (dustLife[n]! <= 0) continue;
+          alive = true;
+          dustLife[n] = dustLife[n]! - dt;
+          dustPos[n * 3] = dustPos[n * 3]! + dustVel[n * 3]! * dt;
+          dustPos[n * 3 + 1] = dustPos[n * 3 + 1]! + dustVel[n * 3 + 1]! * dt;
+          dustPos[n * 3 + 2] = dustPos[n * 3 + 2]! + dustVel[n * 3 + 2]! * dt;
+          dustVel[n * 3 + 1] = dustVel[n * 3 + 1]! - dt * 1.1;
+          if (dustLife[n]! <= 0) dustPos[n * 3 + 1] = -50;
         }
-        crowd.instanceMatrix.needsUpdate = true;
+        dust.visible = alive;
+        if (alive) (dustGeo.getAttribute("position") as T.BufferAttribute).needsUpdate = true;
       }
-      if (oldScore !== feed.score) {
-        oldScore = feed.score;
-        const source = scoreboard.image as HTMLCanvasElement,
-          c = source.getContext("2d")!;
-        c.fillStyle = "#092936";
-        c.fillRect(0, 0, 512, 256);
-        c.textAlign = "center";
-        c.fillStyle = "#6de2c5";
-        c.font = "bold 26px sans-serif";
-        c.fillText("SINVERSE CRICKET", 256, 55);
-        c.fillStyle = "#f1ead2";
-        c.font = "bold 32px sans-serif";
-        feed.score
-          .split("|")
-          .forEach((line, n) => c.fillText(line, 256, 112 + n * 45));
-        scoreboard.needsUpdate = true;
+
+      // ---- crowd --------------------------------------------------------------------
+      const energy = crowdEnergy({ outcome: dead ? outcome : null, deadAge, ballRatio: hit ? ropeRatio(b, config.venue) : 0, inAir: hit && !frame.bounce, reduced: feed.reducedMotion });
+      excite += (energy - excite) * Math.min(1, dt * (energy > excite ? 5 : 0.8));
+      stadium.update(wall, excite);
+      stadium.setScore(feed.score);
+
+      // ---- camera -------------------------------------------------------------------
+      const pick = direct({
+        camera: feed.camera,
+        frame: { tick, ball: b, contact: hit, mode: frame.mode, bounce: frame.bounce },
+        outcome,
+        deadAge,
+        humanBatting: feed.humanBatting,
+        config,
+        batterX: actors[STRIKER]!.a.root.position.x,
+        batterZ: actors[STRIKER]!.a.root.position.z,
+        replay: !!feed.replay,
+      });
+      shotName = pick.name;
+      const snap = feed.reducedMotion || snapCamera;
+      const kP = snap ? 1 : 1 - Math.exp(-pick.rate * dt),
+        kL = snap ? 1 : 1 - Math.exp(-pick.lookRate * dt);
+      snapCamera = false;
+      camera.position.x += (pick.px - camera.position.x) * kP;
+      camera.position.y += (pick.py - camera.position.y) * kP;
+      camera.position.z += (pick.pz - camera.position.z) * kP;
+      camTarget.x += (pick.lx - camTarget.x) * kL;
+      camTarget.y += (pick.ly - camTarget.y) * kL;
+      camTarget.z += (pick.lz - camTarget.z) * kL;
+      // Never below the turf or inside the stands.
+      camera.position.y = Math.max(0.3, camera.position.y);
+      if (camera.position.y < 30) {
+        const r = Math.hypot(camera.position.x / 66, camera.position.z / 72);
+        if (r > 1) {
+          camera.position.x /= r;
+          camera.position.z /= r;
+        }
+      }
+      camera.lookAt(camTarget);
+      if (Math.abs(camera.fov - pick.fov) > 0.01) {
+        camera.fov += (pick.fov - camera.fov) * (snap ? 1 : kP);
+        camera.updateProjectionMatrix();
       }
       renderer.render(scene, camera);
     },
@@ -1193,6 +829,12 @@ export function createCricketScene(
       textures: renderer.info.memory.textures,
       geometries: renderer.info.memory.geometries,
       dpr,
+      shot: shotName,
+      contactError,
+      releaseError,
+      gripError,
+      footSlip,
+      excite,
     }),
     dispose() {
       if (disposed) return;
@@ -1204,17 +846,21 @@ export function createCricketScene(
         textures = new Set<T.Texture>();
       scene.traverse((node) => {
         if (node instanceof T.InstancedMesh) node.dispose();
+        if (node instanceof T.SkinnedMesh) node.skeleton.dispose();
+        if (node instanceof T.Sprite) return;
         const m = node as T.Mesh;
         if (m.geometry) geometries.add(m.geometry);
         if (m.material)
-          for (const mat of Array.isArray(m.material)
-            ? m.material
-            : [m.material]) {
+          for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
             materials.add(mat);
-            for (const value of Object.values(mat))
-              if (value instanceof T.Texture) textures.add(value);
+            for (const value of Object.values(mat)) if (value instanceof T.Texture) textures.add(value);
           }
       });
+      for (const kit of teamKits) {
+        textures.add(kit.tex);
+        materials.add(kit.material);
+      }
+      stadium.dispose();
       textures.forEach((t) => t.dispose());
       materials.forEach((m) => m.dispose());
       geometries.forEach((g) => g.dispose());

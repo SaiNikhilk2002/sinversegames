@@ -132,6 +132,31 @@ function bell(freq: number, at = 0, gainScale = 1, dur = 0.9) {
 export const sfx = {
   cricketBat: (strength: number) => { burst({dur:0.09,filter:"bandpass",freq:1600,q:1.8,gain:0.18+Math.max(0,Math.min(1,strength))*.25,sweepTo:700});tone([[190,0,.055],[340,.012,.035]],"triangle",.4); },
   cricketStumps: () => { for(let n=0;n<3;n++)burst({at:n*.025,dur:.065,filter:"bandpass",freq:850+n*420,gain:.22}); },
+  cricketEdge: () => {
+    burst({ dur: 0.05, filter: "highpass", freq: 3200, gain: 0.28 });
+    tone([[520, 0, 0.03]], "triangle", 0.25);
+  },
+  cricketBlock: () => {
+    burst({ dur: 0.06, filter: "bandpass", freq: 900, q: 1.1, gain: 0.26 });
+    tone([[150, 0, 0.05]], "triangle", 0.3);
+  },
+  cricketGlove: () => burst({ dur: 0.07, filter: "lowpass", freq: 1100, gain: 0.3 }),
+  cricketPickup: () => burst({ dur: 0.05, filter: "bandpass", freq: 1400, q: 0.8, gain: 0.14 }),
+  cricketBoard: () => {
+    burst({ dur: 0.14, filter: "lowpass", freq: 700, gain: 0.34, sweepTo: 180 });
+    tone([[92, 0, 0.12]], "triangle", 0.5);
+  },
+  /** A swell of crowd noise; `level` from a polite ripple to a full roar. */
+  crowdSwell: (level: number) => {
+    const k = Math.max(0.1, Math.min(1, level));
+    burst({ dur: 0.8 + k * 1.4, filter: "bandpass", freq: 900 + k * 700, q: 0.35, gain: 0.08 + k * 0.28, attack: 0.18 });
+    burst({ at: 0.06, dur: 0.6 + k * 1.2, filter: "bandpass", freq: 2200, q: 0.5, gain: 0.04 + k * 0.13, attack: 0.25 });
+  },
+  crowdGroan: () => burst({ dur: 1.0, filter: "bandpass", freq: 620, q: 0.7, gain: 0.15, attack: 0.1, sweepTo: 320 }),
+  cricketAppeal: () => {
+    burst({ dur: 0.55, filter: "bandpass", freq: 1250, q: 1.3, gain: 0.2, attack: 0.05, sweepTo: 1600 });
+    tone([[392, 0, 0.32], [523, 0.08, 0.3]], "sawtooth", 0.1);
+  },
   cricketStep: () => burst({dur:.045,filter:"lowpass",freq:350,gain:.055}),
   // Shared across games.
   yourTurn: () => tone([[660, 0, 0.12], [880, 0.1, 0.18]], "triangle"),
