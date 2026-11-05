@@ -8,6 +8,7 @@ import { Button, Card, Input, Spinner } from "../ui/primitives";
 import { NameForm } from "../play/name-gate";
 import { CosmeticAvatar } from "./cosmetic-avatar";
 
+import { expectJson } from "@/lib/read-json";
 interface Account {
   linked: boolean;
   username: string | null;
@@ -431,8 +432,7 @@ export function AccountPanel({
                             body: file,
                             signal: AbortSignal.timeout(20000),
                           });
-                          const result = await response.json();
-                          if (!response.ok) throw Error(result.error);
+                          await expectJson(response, "Your picture couldn't be saved. Please try again.");
                           setFile(null);
                           await load();
                           await reloadPlayer();

@@ -21,6 +21,24 @@ export class SessionUnavailableError extends Error {
   }
 }
 
+/**
+ * What a server log needs from an error: Prisma's code and the missing table or
+ * column. Connection strings are removed, and nothing here is sent to clients.
+ */
+export function serverErrorSummary(error: unknown) {
+  const e = (error ?? {}) as { name?: unknown; code?: unknown; message?: unknown; meta?: Record<string, unknown> };
+  return {
+    name: String(e.name ?? "Error"),
+    code: typeof e.code === "string" ? e.code : undefined,
+    model: e.meta?.modelName,
+    table: e.meta?.table,
+    column: e.meta?.column,
+    message: String(e.message ?? error)
+      .replace(/[a-z][a-z0-9+.-]*:\/\/[^\s"'`]+/gi, "<url>")
+      .slice(0, 500),
+  };
+}
+
 export function authSecret(): string {
   const secret = process.env.AUTH_SECRET;
   if (!secret || secret.length < 32)
@@ -45,7 +63,10 @@ export async function getSession(): Promise<SessionPlayer | null> {
   if (token.startsWith("s1_")) {
     if (!/^s1_[a-f0-9]{64}$/.test(token)) return null;
     const db = getDb();
-    if (!db) throw new SessionUnavailableError();
+    if (!db) {
+      console.error("session lookup failed: DATABASE_URL is not configured");
+      throw new SessionUnavailableError();
+    }
     try {
       const session = await resolveAccountSession(
         db,
@@ -62,7 +83,8 @@ export async function getSession(): Promise<SessionPlayer | null> {
         username: p.username,
         avatarKey: p.avatarKey,
       };
-    } catch {
+    } catch (error) {
+      console.error("session lookup failed", serverErrorSummary(error));
       throw new SessionUnavailableError();
     }
   }
@@ -86,13 +108,17 @@ export async function getSession(): Promise<SessionPlayer | null> {
           username: row?.username,
           avatarKey: row?.avatarKey,
         };
-      } catch {
+      } catch (error) {
+        console.error("guest session lookup failed", serverErrorSummary(error));
         throw new SessionUnavailableError();
       }
     }
     return { id: c.sub, name: c.name, color: c.color, kind: c.kind };
   } catch (error) {
     if (error instanceof SessionUnavailableError) throw error;
+    // An invalid cookie is normal, but a missing secret signs everyone out.
+    if (error instanceof Error && error.message.startsWith("AUTH_SECRET"))
+      console.error(error.message);
     return null;
   }
 }

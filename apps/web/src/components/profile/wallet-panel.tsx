@@ -9,6 +9,7 @@ import { sfx } from "@/lib/sound";
 import { Button, Card } from "../ui/primitives";
 import { CosmeticAvatar } from "./cosmetic-avatar";
 
+import { expectJson } from "@/lib/read-json";
 interface Wallet {
   balance: number;
   inventory: { itemId: string; acquiredAt: string }[];
@@ -29,8 +30,7 @@ export function WalletPanel({ store = false }: { store?: boolean }) {
     setLoading(true);
     try {
       const response = await fetch(`/api/wallet${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Your wallet is unavailable.");
+      const data = await expectJson<Wallet>(response, "Your wallet is unavailable.");
       setWallet((previous) => cursor && previous ? { ...data, transactions: [...previous.transactions, ...data.transactions] } : data);
     } catch (err) { setError(err instanceof Error ? err.message : "Your wallet is unavailable."); }
     finally { setLoading(false); }
@@ -41,8 +41,7 @@ export function WalletPanel({ store = false }: { store?: boolean }) {
     setBusy(key); setNotice(null); setError(null);
     try {
       const response = await fetch("/api/wallet", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(12_000) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "The store couldn't confirm this request.");
+      const result = await expectJson<{ purchased?: boolean; error?: string }>(response, "The store couldn't confirm this request. Refresh your wallet before retrying.");
       setNotice("action" in body && body.action === "purchase" ? (result.purchased ? "Unlocked! Equip it whenever you like." : "You already own this item. No coins spent.") : "Profile style updated.");
       sfx.pop();
       await refresh();

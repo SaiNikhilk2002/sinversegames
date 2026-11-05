@@ -10,6 +10,7 @@ import { updateSettings, useSettings } from "@/lib/settings";
 import type { SoloGameProps, SoloSetupProps } from "../solo-types";
 import { CustomerPortrait, FoodArt, IngredientArt, KitchenBackdrop, PreparationArt } from "./art";
 import { QUEST_SONGS } from "./music";
+import { expectJson } from "@/lib/read-json";
 import "./cuisine-quest.css";
 
 const Stars = ({ count, label = true }: { count: number; label?: boolean }) => <span className="cq-stars" aria-label={label ? `${count} of 3 stars` : undefined}>{[1,2,3].map(n => <Star key={n} size={18} fill={n <= count ? "currentColor" : "none"} opacity={n <= count ? 1 : .3} />)}</span>;
@@ -22,8 +23,9 @@ export function CuisineQuestSetup({ onStart, busy }: SoloSetupProps) {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const response = await fetch("/api/cuisine-quest/campaign", { cache: "no-store", signal: AbortSignal.timeout(8000) }); const data = await response.json();
-      if (!response.ok || !data.available) throw new Error(data.error ?? "Campaign saving is unavailable.");
+      const response = await fetch("/api/cuisine-quest/campaign", { cache: "no-store", signal: AbortSignal.timeout(8000) });
+      const data = await expectJson<typeof emptyCampaign & { available?: boolean; error?: string }>(response, "Campaign saving is unavailable.");
+      if (!data.available) throw new Error(data.error ?? "Campaign saving is unavailable.");
       setCampaign(data); setLevel(Math.min(7, data.completed + 1));
     } catch (e) { setError(e instanceof Error ? e.message : "Campaign couldn't be loaded."); }
     finally { setLoading(false); }

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { isSoloGameId } from "@platform/shared";
 import { getDailyBest, getDb, getPersonalBest } from "@platform/db";
+import { jsonRoute } from "@/lib/server/api-route";
 import { getSession } from "@/lib/server/session";
 
 export const dynamic = "force-dynamic";
 
 /** Personal best and today's top scores for a single-player game. */
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const gameId = new URL(req.url).searchParams.get("game");
   if (!isSoloGameId(gameId)) return NextResponse.json({ error: "Unknown game" }, { status: 400 });
   const db = getDb();
@@ -19,3 +20,5 @@ export async function GET(req: Request) {
     return NextResponse.json({ available: false, personal: null, daily: [] });
   }
 }
+
+export const GET = jsonRoute("solo best GET", handleGET);

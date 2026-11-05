@@ -4,6 +4,7 @@ import { isSoloGameId } from "@platform/shared";
 import { InvalidTokenError, verifyRunToken } from "@platform/shared/identity";
 import { SOLO_GAMES } from "@platform/engines/solo";
 import { activeBan, achievementByKey, getCuisineReceipt, getDb, getPersonalBest, recordMatch, upsertPlayer } from "@platform/db";
+import { jsonRoute } from "@/lib/server/api-route";
 import { authSecret, getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
 
@@ -22,7 +23,7 @@ const body = z.object({ token: z.string().min(20).max(4096), log: z.unknown() })
  * once (its id is the stored match id) and can't claim more game time than
  * has actually passed since it started.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   if (!(await isSameOrigin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (!(await rateLimit("solo-submit", 30, 60_000))) return NextResponse.json({ error: "Too many submissions" }, { status: 429 });
   const player = await getSession();
@@ -116,3 +117,5 @@ export async function POST(req: Request) {
   response.best = await getPersonalBest(db, player.id, run.gameId).catch(() => null);
   return NextResponse.json(response);
 }
+
+export const POST = jsonRoute("solo submit POST", handlePOST);

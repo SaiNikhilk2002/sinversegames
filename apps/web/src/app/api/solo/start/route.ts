@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isSoloGameId } from "@platform/shared";
 import { signRunToken } from "@platform/shared/identity";
 import { SOLO_GAMES } from "@platform/engines/solo";
+import { jsonRoute } from "@/lib/server/api-route";
 import { authSecret, getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { activeBan, getCuisineCampaign, getDb } from "@platform/db";
@@ -16,7 +17,7 @@ const body = z.object({ gameId: z.string().max(40), config: z.record(z.string(),
  * run token. The browser deals from the same seed; the score is later computed
  * by replaying the player's moves against it (see /api/solo/submit).
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   if (!(await isSameOrigin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   if (!(await rateLimit("solo-start", 60, 60_000))) return NextResponse.json({ error: "Too many new games — slow down a little" }, { status: 429 });
   const player = await getSession();
@@ -42,3 +43,5 @@ export async function POST(req: Request) {
   const token = await signRunToken({ sub: player.id, gameId: parsed.data.gameId, seed, config: config.data as Record<string, unknown>, jti: runId }, authSecret());
   return NextResponse.json({ token, seed, config: config.data, runId });
 }
+
+export const POST = jsonRoute("solo start POST", handlePOST);
