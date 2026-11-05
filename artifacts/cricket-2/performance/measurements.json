@@ -1,0 +1,57 @@
+{
+  "measuredAt": "2026-11-05T22:02:51.616Z",
+  "physicalDevice": false,
+  "results": [
+    {
+      "name": "desktop-low",
+      "width": 1280,
+      "height": 800,
+      "graphics": "low",
+      "cpuThrottling": 1,
+      "renderer": "Chromium SwiftShader (software GPU)",
+      "medianFrameMs": 50,
+      "p95FrameMs": 66.60000000000036,
+      "metrics": {
+        "calls": 45,
+        "triangles": 44254,
+        "textures": 36,
+        "geometries": 40,
+        "dpr": 0.75
+      }
+    },
+    {
+      "name": "desktop-medium",
+      "width": 1280,
+      "height": 800,
+      "graphics": "medium",
+      "cpuThrottling": 1,
+      "renderer": "Chromium SwiftShader (software GPU)",
+      "medianFrameMs": 133.29999999999927,
+      "p95FrameMs": 150,
+      "metrics": {
+        "calls": 44,
+        "triangles": 83970,
+        "textures": 37,
+        "geometries": 41,
+        "dpr": 1
+      }
+    },
+    {
+      "name": "mobile-low-cpu4",
+      "width": 844,
+      "height": 390,
+      "graphics": "low",
+      "cpuThrottling": 4,
+      "renderer": "Chromium SwiftShader (software GPU)",
+      "medianFrameMs": 33.30000000000109,
+      "p95FrameMs": 50.100000000000364,
+      "metrics": {
+        "calls": 45,
+        "triangles": 44254,
+        "textures": 36,
+        "geometries": 40,
+        "dpr": 1
+      }
+    }
+  ]
+}

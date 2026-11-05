@@ -1,5 +1,7 @@
 # Sinverse Cricket first vertical slice - QA
 
+The later controls, interactive 3D toss and presentation upgrade is tracked separately in [Sinverse Cricket 2.0 implementation and validation](SINVERSE_CRICKET_2_IMPLEMENTATION.md). This report preserves the original vertical-slice evidence and results.
+
 Started 2026-11-05 in `D:\dev\games`; initial clean branch `codex/takeover-and-reliability-audit`, HEAD `920b22d0485b40d0a1316cdf0ffd78a04b3be6ea`. No reset/checkout of historical milestones. Both root manuals are synchronized; local commits are explicitly allowed by current instructions. No push, merge, deployment, DNS/production-secret change, production migration, purchased asset or paid provisioning.
 
 ## Audit and scope
