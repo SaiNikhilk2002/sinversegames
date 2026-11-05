@@ -151,6 +151,18 @@ Acceptance: all 235 unit/integration tests (200 original + 35 cricket), 50 Postg
 
 Implementation checkpoint: c01a8b4c46bf50f222a9ae8e228b8b03f8e9282c; acceptance documentation follows in a separate local commit. No push, merge or deployment.
 
+## Sinverse Cricket visual polish (2026-11-05)
+
+Presentation only: no cricket outcome, physics, scoring, verification or reward changes. Renderer modules are `animation.ts`, `character.ts`, `director.ts`, `stadium.ts` and `scene.ts`; keep the first and third free of scene access so they stay unit testable. Never let presentation write to a `Delivery`. `contactPoint` is presentation-only and stays out of the digest. Slow motion may scale only wall-clock time. Art stays procedural, fictional and code-generated, with Three.js as the only rendering dependency.
+
+`apps/web/e2e/cricket-visual.spec.ts` covers animation, camera, resources and gameplay isolation. Evidence capture is on demand: `CRICKET_EVIDENCE=1 npx playwright test e2e/cricket-evidence.spec.ts` with optional `CRICKET_GRAPHICS`, `CRICKET_PHASE=bowling` and `CRICKET_EVIDENCE_DIR`. `cricket.spec.ts` overwrites tracked images in `artifacts/cricket/`, the "before" evidence: run `git restore artifacts/cricket` afterwards. Do not wrap long browser runs in a shell `timeout`, since killing the browser shows up as "Page crashed".
+
+Performance figures are SwiftShader software-GPU only and vary with machine conditions, so compare builds side by side on the same day. No physical device has been tested: do not claim device verification, 60 FPS or console quality. Full results are in `docs/SINVERSE_CRICKET_VISUAL_POLISH_QA_REPORT.md`.
+
+## Cloudflare root Wrangler config (2026-11-05)
+
+Workers Builds may run a bare `npx wrangler preview` at the repository root, so root `wrangler.jsonc` describes the same Worker as `apps/web/wrangler.jsonc`; `apps/web/e2e/cloudflare-config.spec.ts` keeps them in step. Change both together. `cf:build` also runs `populateCache local`. Keep `pnpm cloudflare:deploy` for production, never a bare `npx wrangler deploy`. The fix is unproven on Cloudflare until a real build runs after an authorized push.
+
 ## Completion checklist
 
 Report whether both instruction files were updated, byte-for-byte synchronization verified, tests/builds recorded, technical decisions documented, remaining issues recorded, and exact Git/branch state. Report limitations honestly and separate confirmed causes from unverified production hypotheses. Never claim production is fixed based only on local tests.

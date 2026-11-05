@@ -52,3 +52,9 @@ The frozen lockfile SHA-256 remains `3e66fb2ab0afb672ea2155faf2d36f3775d88b144f6
 Local evidence: `versions.log`, `install.log`, `generate.log`, `typecheck.log`, `node-build.log`, `cloudflare-build.log`, `preview-help.log`, `config-validation.json`, `preview-packaging.log`, `asset-validation.json`, `runtime-validation.json` and `workerd.log` under `.data/cloudflare-preview/`. The source copy contains no `.env` or production credentials; Cloudflare credential environment variables were cleared and configuration storage isolated. Smoke testing made no database writes and the actual branch Preview command was never executed.
 
 Owner action after a separately authorized push: set the existing Worker's Preview command to `pnpm cloudflare:preview:deploy`, retain build/production commands from the table, and review Preview-only Base secrets/resources and compiled public URLs before enabling runtime flows. A future authorized remote Preview run is required to verify account permissions, Base settings and the hosted URL. No production route/DNS/secret or database migration is part of this fix.
+
+## Follow-up: the same error after the first fix (2026-11-05)
+
+The owner's next Workers Builds log still failed on `npx wrangler preview` with the missing `previews` block. The dashboard command had not changed, and it runs at the repository root, where no Wrangler config existed: the block added earlier is in `apps/web/wrangler.jsonc`.
+
+Change: a root `wrangler.jsonc` for the same Worker, with `main` and `assets.directory` pointing into `apps/web/.open-next`; `cf:build` now also runs `populateCache local`, because a bare preview has no separate preparation step; and a test that fails if the two configs drift. Local results are in `docs/SINVERSE_CRICKET_VISUAL_POLISH_QA_REPORT.md`. No Preview was created and no dashboard setting changed, so the fix is unproven on Cloudflare until a push triggers a real Workers Build.

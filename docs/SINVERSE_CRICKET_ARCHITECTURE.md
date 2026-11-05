@@ -54,3 +54,15 @@ Reuse platform WebAudio/settings: a backward-compatible master level, separate c
 Three new achievements extend the existing list. Generic match/profile/ranking APIs persist verified results. The only score-repository behavior extension is neutral win/loss accounting for an explicitly tied cricket result. Existing game behavior remains unchanged. No arbitrary client coin amount or cosmetic entitlement is introduced.
 
 Future multiplayer must run this domain on the existing Node/Socket.IO server, receive bounded tick/sequence inputs, withhold future bowling randomness, reconcile snapshots and enforce server ownership/disconnect rules. No synchronous cricket multiplayer, server live tick loop, matchmaking, ranked season or network prediction has shipped in this milestone.
+
+## Presentation architecture after the visual polish (2026-11-05)
+
+The renderer reads the simulation and never writes to it.
+
+- `animation.ts`: pure pose channels, clips, bat poses and clip selection from match state. No Three.js scene access.
+- `character.ts`: one skinned mesh per player (one draw call), merged geometry, generated kit and roughness textures, two-bone IK. The bat is placed first, then the hands are solved onto it; if the ball is out of reach the hips move towards it with the feet planted.
+- `director.ts`: pure camera selection, slow-motion rate, crowd energy and the `QualityGovernor`, which changes level only on sustained measurements, with hysteresis.
+- `stadium.ts`: explicit quality ladder and lighting presets, stadium geometry merged by material, an instanced crowd animated in the vertex shader.
+- `scene.ts`: wires these together behind the unchanged driver interface and reports draw calls, resources and contact, release, grip and foot-slip errors as `data-` attributes on the game root for tests.
+
+Slow motion scales only wall-clock time passed to the fixed 120 Hz stepper, so the same ticks run. Quality levels cap rendered width as well as pixel ratio, because pixel fill was measured as the main cost on slow GPUs: script takes about 3 ms a frame. `Delivery.contactPoint` is the only simulation addition, and it is not read by the simulation or included in the digest.

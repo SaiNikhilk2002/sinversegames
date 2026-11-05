@@ -16,3 +16,9 @@ Audit/preserve the platform; implement a real one/two-over solo duel with two in
 8. **Production device and performance pass.** Physical mobile/Safari/gamepad/accessibility testing, adaptive LOD, asset compression/streaming, Worker upload budget, load and account recovery after a separately approved release. Keep future Google/R2 verification separate from this game.
 
 Rain adjustments require a specified rules/licensing decision; official competitions or real identities require rights review. Replay sharing needs privacy/storage/lifecycle design. No paid service, deployment, push, remote migration or official content is implied by this roadmap.
+
+## Status after the visual polish (2026-11-05)
+
+Item 2, the character and animation pass, is largely done in stylised form. Item 8 is still open and is now the most important next step: measure on real phones and hardware GPUs with the checklist in the [visual polish QA report](SINVERSE_CRICKET_VISUAL_POLISH_QA_REPORT.md), section 12.
+
+Next visual work, based on what was found: confirm Medium and Ultra cost on real GPUs and tune them; review cut, pull and sweep at full speed; capture stumping, run-out and diving catch on screen; add left-handed players and dedicated keeper wide and diving clips; have someone listen to the audio mix.
