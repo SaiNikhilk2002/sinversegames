@@ -48,6 +48,8 @@ export interface DirectorInput {
   batterX: number;
   batterZ: number;
   replay: boolean;
+  /** Actual reaction actor's presentation position, after a confirmed wicket. */
+  reaction?: { x: number; y: number; z: number };
 }
 
 const shot = (name: string, p: [number, number, number], l: [number, number, number], fov = 40, rate = 4, lookRate = 7): Shot => ({ name, px: p[0], py: p[1], pz: p[2], lx: l[0], ly: l[1], lz: l[2], fov, rate, lookRate });
@@ -109,6 +111,13 @@ export function direct(i: DirectorInput): Shot {
   const isAuto = camera === "broadcast" || camera === "director";
   if (!isAuto) return camera === "track" ? tracking(i) : fixed!(i);
 
+  // Track the approach, then settle behind the batter before the hand releases.
+  // Selected fixed cameras remain available, including for reduced-motion play.
+  if (!outcome && frame.tick > 0 && frame.tick < RELEASE_TICK - 40 && !i.replay) {
+    const u = Math.max(0, frame.tick / (RELEASE_TICK - 40));
+    return shot("bowler-run-up", [-3.6, 2.4 + u, -29 + u * 12], [0.65, 1.1, -23 + u * 14], 42, 4, 6);
+  }
+
   // End-of-ball reaction shots.
   if (outcome && deadAge >= 0) {
     if (outcome.boundary === 6 || outcome.boundary === 4) {
@@ -116,6 +125,10 @@ export function direct(i: DirectorInput): Shot {
       return shot("celebration", [i.batterX + 3.2, 1.75, i.batterZ - 4.6], [i.batterX, 1.3, i.batterZ], 30, 3, 5);
     }
     if (outcome.wicket) {
+      if (i.reaction && deadAge > 1.2) {
+        const p = i.reaction;
+        return shot(`celebration-${outcome.wicket}`, [p.x + 3.6, 1.8, p.z + 4.2], [p.x, 1.2, p.z], 34, 2.8, 5);
+      }
       if (outcome.wicket === "bowled" || outcome.wicket === "stumped") return shot("wicket-stumps", [1.9, 0.72, 13.2], [0, 0.48, 10.0], 30, 5, 8);
       if (outcome.wicket === "lbw") return shot("wicket-appeal", [-1.2, 2.2, -7], [0.2, 1.2, 8.5], 26, 3);
       if (outcome.wicket === "run-out") return shot("wicket-runout", [5.5, 1.1, 10.6], [0, 0.6, 9.4], 30, 4, 7);

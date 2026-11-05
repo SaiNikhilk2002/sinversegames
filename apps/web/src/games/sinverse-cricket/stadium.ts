@@ -24,7 +24,7 @@ export type QualityName = keyof typeof QUALITY;
 export const LIGHTS: Record<Lighting, { sky: [string, string, string]; fog: string; hemiSky: string; hemiGround: string; hemi: number; key: string; keyI: number; keyPos: [number, number, number]; exposure: number; glow: number }> = {
   day: { sky: ["#3f83c4", "#9cc9e6", "#e6eef0"], fog: "#c6dbe4", hemiSky: "#e8f1ff", hemiGround: "#6d7d4a", hemi: 1.15, key: "#fff2d6", keyI: 2.7, keyPos: [-30, 58, 24], exposure: 0.92, glow: 0 },
   evening: { sky: ["#2a2f63", "#b65c5a", "#f6b271"], fog: "#c88a6e", hemiSky: "#ffd0a8", hemiGround: "#4b4a39", hemi: 0.95, key: "#ffc48a", keyI: 2.4, keyPos: [-58, 20, -30], exposure: 0.9, glow: 0.55 },
-  night: { sky: ["#050a18", "#0c1830", "#1b2c47"], fog: "#0f1c33", hemiSky: "#a9c2e6", hemiGround: "#223524", hemi: 0.72, key: "#eef4ff", keyI: 2.3, keyPos: [-16, 44, 18], exposure: 1.0, glow: 1 },
+  night: { sky: ["#080d23", "#152345", "#304468"], fog: "#15233c", hemiSky: "#c0d4ef", hemiGround: "#3c5134", hemi: 0.9, key: "#fff3dc", keyI: 2.6, keyPos: [-16, 44, 18], exposure: 1.0, glow: 1 },
 };
 
 function texture(w: number, h: number, paint: (c: CanvasRenderingContext2D) => void, srgb = true) {

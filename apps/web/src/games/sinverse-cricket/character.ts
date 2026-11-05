@@ -82,10 +82,10 @@ export function paintKit(c: CanvasRenderingContext2D, team: number, number: numb
   c.fillStyle = "#ffffff";
   c.fillRect(0, 0, SIZE, SIZE);
   // Jersey: base colour, diagonal panel, collar band, side panels.
-  c.fillStyle = team < 0 ? "#e8e6dc" : t.dark;
+  c.fillStyle = team < 0 ? "#e8e6dc" : t.color;
   c.fillRect(0, 0, 160, 160);
   if (team >= 0) {
-    c.fillStyle = t.color;
+    c.fillStyle = t.dark;
     c.beginPath();
     c.moveTo(0, 26);
     c.lineTo(160, 96);

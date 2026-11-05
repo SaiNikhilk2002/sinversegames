@@ -158,6 +158,10 @@ export const sfx = {
     tone([[392, 0, 0.32], [523, 0.08, 0.3]], "sawtooth", 0.1);
   },
   cricketStep: () => burst({dur:.045,filter:"lowpass",freq:350,gain:.055}),
+  cricketToss: () => { tone([[1600, 0, 0.07], [2200, 0.08, 0.08], [2800, 0.2, 0.12]], "sine", 0.18); },
+  cricketCoinLand: () => { burst({ dur: 0.08, filter: "highpass", freq: 2100, gain: 0.08 }); tone([[1900, 0, 0.13], [1450, 0.1, 0.1]], "triangle", 0.17); },
+  cricketAnnouncement: () => tone([[392, 0, 0.15], [494, 0.15, 0.15], [587, 0.3, 0.28]], "triangle", 0.22),
+  cricketRelease: () => burst({ dur: 0.12, filter: "bandpass", freq: 900, sweepTo: 1800, gain: 0.08 }),
   // Shared across games.
   yourTurn: () => tone([[660, 0, 0.12], [880, 0.1, 0.18]], "triangle"),
   card: () => {
