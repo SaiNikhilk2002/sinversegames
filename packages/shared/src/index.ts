@@ -5,3 +5,5 @@ export * from "./games/registry";
 export * from "./realtime/protocol";
 export * from "./identity/names";
 export * from "./identity/profile";
+export * from "./identity/email";
+export * from "./identity/email-templates";
