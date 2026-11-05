@@ -70,7 +70,7 @@ function findShot(model: CricketMatch, wanted: (r: Outcome) => boolean) {
 test("capture real gameplay frames", async ({ browser }) => {
   test.setTimeout(1500000);
   mkdirSync(out, { recursive: true });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, recordVideo: { dir: `${out}/raw`, size: { width: 1024, height: 688 } } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, recordVideo: { dir: "../../.data/cricket-2/video", size: { width: 1024, height: 688 } } });
   const page = await context.newPage(),
     errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -89,6 +89,9 @@ test("capture real gameplay frames", async ({ browser }) => {
 
   const model = new CricketMatch(run.seed, run.config);
   await finishCricketToss(page, model.tossFace);
+  await page.getByRole("button", { name: "Pause match", exact: true }).click();
+  await page.getByLabel("Automatic event replays").uncheck();
+  await page.getByRole("button", { name: "Return to the middle", exact: true }).click();
   model.toss({ k: "toss", call: model.tossFace, decision: "bat", t: 0 });
   await page.getByRole("button", { name: "More control +", exact: true }).click();
   await page.getByLabel("Relaxed presentation pace").uncheck();
@@ -100,9 +103,7 @@ test("capture real gameplay frames", async ({ browser }) => {
   let time = 0;
   const settle = graphics === "low" ? 1500 : 2600;
   const skipReplay = async () => {
-    // Slow software rendering stretches the delay before an automatic replay, so wait it out.
-    await page.getByTestId("cricket-replay-close").waitFor({ timeout: 7000 }).catch(() => {});
-    if ((await page.getByTestId("cricket-replay-close").count()) > 0) await page.getByTestId("cricket-replay-close").click();
+    if (await page.getByTestId("cricket-replay-close").isVisible()) await page.getByTestId("cricket-replay-close").click();
   };
   // An automatic replay can open at any moment; the primary button then means "skip".
   const primaryAction = async () => {
@@ -126,7 +127,8 @@ test("capture real gameplay frames", async ({ browser }) => {
     const slider = page.getByRole("slider", { name: "Replay position", exact: true });
     if (!(await slider.isVisible().catch(() => false))) await page.keyboard.press("KeyP");
     await expect(slider).toBeVisible({ timeout: 8000 });
-    await page.getByRole("button", { name: "Pause replay", exact: true }).click().catch(() => {});
+    const pause = page.getByRole("button", { name: "Pause replay", exact: true });
+    if (await pause.isVisible()) await pause.click({ timeout: 2000 });
     return slider;
   };
 
