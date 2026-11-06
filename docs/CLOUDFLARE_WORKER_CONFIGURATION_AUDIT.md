@@ -29,7 +29,7 @@ All root scripts below use `pnpm --filter @platform/web`, which executes in `app
 | --- | --- |
 | `pnpm cloudflare:build` | App `cf:build`: OpenNext build with `apps/web/wrangler.jsonc`, then `populateCache local` with the same config. `apps/web/open-next.config.ts` selects Workers Prisma/build behavior. Emits `apps/web/.open-next/worker.js`, assets and local static cache; no upload |
 | `pnpm cloudflare:deploy` | OpenNext deploy in app workspace with `apps/web/wrangler.jsonc`; then pinned Wrangler production `deploy` with that config. Publishes production if authorized and executed; **not run in this audit** |
-| `pnpm cloudflare:preview:deploy` | App `cf:preview:deploy`: local cache preparation using app config, then pinned `wrangler preview --config wrangler.jsonc`. Targets a branch Preview under parent Worker `sinversegames`; **not run in this audit** |
+| `pnpm cloudflare:preview:deploy` | App `cf:preview:deploy`: local cache preparation using app config, artifact validation, then pinned `wrangler preview --config wrangler.jsonc`. Targets a branch Preview under parent Worker `sinversegames`; **not run in this audit** |
 | `pnpm cloudflare:config:check` | Local-only validation of both source configs, canonical identity, both production domains and Preview separation; no build or upload |
 | `pnpm cloudflare:check` | Local cache preparation, then production packaging with the app config and hard-coded `wrangler deploy --dry-run` |
 | `pnpm cloudflare:preview:check` | Local cache preparation, then packaging of a generated Preview settings projection using hard-coded `wrangler deploy --dry-run`; no Preview API call |
@@ -212,3 +212,38 @@ Local results for this follow-up:
 The local CI commit/build IDs were deliberately all-zero fixtures to exercise safe metadata output, not identifiers of any real Cloudflare run. This test does not reproduce the exact failed run's unknown environment or effective build settings. Evidence is retained under ignored `.data/cloudflare-preview-run/`: read-only `pr-evidence.json` / `checks.json`, `config-validation.log`, `config-tests.log`, `helper-tests.log`, `helper-tests-linux.log`, `cloudflare-build.log`, `artifact-check.log`, both packaging logs, versions and frozen-lock check. The entry loader references the full Worker bundle; its byte count is not the full payload size.
 
 Remote Preview remains unverified. No push, upload, deployment, merge, dashboard change, production migration or production resource operation was performed. The final handoff records the local follow-up commit; the root instruction files remain unchanged and byte-identical.
+
+## Final local review before push approval
+
+Review began from clean branch `feature/sinverse-cricket-2` at `dfdb7fc1b3ad2bc6a15e5adc3e5a6ed6c257ed47`. The complete Cloudflare audit diff is measured from cricket checkpoint `26f066ef03b3109c9162188fa1b6a6a3bdcca472`; it contains only the two Wrangler files, root/web package scripts, validation helper/tests, configuration tests and deployment/audit documentation. Earlier cricket implementation and evidence are outside this diff and unchanged.
+
+Audit commits present when review started:
+
+| Full hash | Change |
+| --- | --- |
+| `5a994862331e5e358782896f8e6941a1777d52c9` | Missing OpenNext Worker diagnosis and documentation |
+| `8942a015f8a7e1fed236cca546822eec59af8a61` | Clarified the scope of local artifact verification |
+| `f0e595745c6512ee5171641555d96194216d4ff0` | Canonical Worker name, production Custom Domains, explicit config selection and separate packaging checks |
+| `dfdb7fc1b3ad2bc6a15e5adc3e5a6ed6c257ed47` | Required artifacts before Cloudflare build success and recorded the matched failed run |
+
+One review finding was corrected: `cf:build` already checked artifacts after OpenNext build/cache preparation, but the standalone Preview deployment script did not recheck immediately before its publishing step. It now runs **local cache preparation → artifact validation → pinned `wrangler preview`**, using `&&` so a failed prerequisite prevents publishing. A seventh configuration regression checks that order, the build's corresponding order and the absence of production deploy/version-upload commands in the Preview chain. The actual publishing script is never executed during this review.
+
+The canonical name remains `sinversegames` in both source configurations. Both exact production Custom Domains remain declared with `custom_domain: true`; no redirect/wildcard substitution, routing removal or remote change occurs. Top-level production routing and the separate `previews` settings remain intact. Production uses OpenNext's production deploy command; Preview uses Wrangler's Preview command. This confirms source command/configuration separation; it does not certify unseen remote Previews Base resource IDs or runtime isolation.
+
+The helper review confirms fixed dry-run arguments for local packaging, pinned local Wrangler resolution, normalized root/app asset paths, no automatic copying of production data settings into Preview packaging and limited artifact/CI metadata logging. There is no environment dump. Production secrets, database schemas/resources, player data, engine/shared/realtime code, application game/routes code, dependencies and the lockfile are unchanged across the entire audit range. Root `AGENTS.md` and `CLAUDE.md` remain unchanged and byte-identical to their original hash.
+
+Final checks after the review correction:
+
+| Check | Result |
+| --- | --- |
+| Config/command contracts | All seven configuration cases pass, including the new cache/guard/Preview ordering check |
+| Artifact/Preview helper tests | All five pass on Windows and Linux |
+| Typechecks | All five packages pass on the final source |
+| Normalized source config and existing artifacts | Both checks pass in the isolated Linux checkout |
+| Production packaging | Fixed dry-run passes with both production domains declared; no publishing command executed |
+| Preview packaging | Fixed dry-run passes with the route-free Preview settings projection; no Preview API call |
+| Frozen lockfile, instruction bytes, diff and documentation links | Unchanged/passing |
+
+Packaging checks reused the previously validated local OpenNext output: the review changes the publishing-chain guard, its structural test and documentation, with compiler/application inputs unchanged. The first typecheck of the new test flagged optional indexed script keys; the test now declares the required script keys, and the final seven-case run and all five typechecks pass. No test was skipped or relaxed. Review logs are retained under ignored `.data/cloudflare-review/`, including final typechecks/configuration cases, helper/config/artifact checks and both packaging dry-runs.
+
+The review correction is saved in a separate local commit whose full hash is supplied in the handoff. Work stops without push, merge, deployment, dashboard change or production resource access. Approval to push remains pending, and remote Preview success remains unverified.
