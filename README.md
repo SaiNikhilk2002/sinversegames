@@ -147,6 +147,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md): Cloudflare Workers (web, via OpenNext) + Rai
 pnpm --filter @platform/web cf:preview   # web app in the real Workers runtime (Linux/WSL only)
 pnpm cloudflare:build                   # build Worker without publishing
 pnpm cloudflare:config:check            # validate canonical Worker, both domains and Preview separation
+pnpm cloudflare:artifact:check          # require Worker file/assets; print safe CI/artifact identifiers
 pnpm cloudflare:check                   # production Worker/assets packaging; fixed --dry-run
 pnpm cloudflare:preview:check           # route-free Preview settings projection; fixed --dry-run
 ```

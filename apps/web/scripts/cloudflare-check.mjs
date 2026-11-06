@@ -17,6 +17,19 @@ export function validateProduction(config) {
   assert.ok(config.previews, "An explicit previews block is required");
 }
 
+export function validateBuildArtifacts(config) {
+  const message = "OpenNext Worker entry/assets missing or invalid; run pnpm cloudflare:build in this checkout";
+  let worker, assets;
+  try {
+    worker = statSync(config.main);
+    assets = statSync(config.assets.directory);
+  } catch {
+    throw new Error(message);
+  }
+  assert.ok(worker.isFile() && worker.size > 0 && assets.isDirectory(), message);
+  return { entryBytes: worker.size };
+}
+
 // Wrangler preview has no dry-run in pinned 4.155.0. Package a local projection
 // of its common code settings + previews settings, never production data/routes.
 // This validates the bundle, not Preview API behavior or remote Base settings.
@@ -39,7 +52,7 @@ export function previewPackagingConfig(config) {
 }
 
 async function main(mode) {
-  assert.ok(["config", "production", "preview"].includes(mode), "Use config, production or preview");
+  assert.ok(["config", "artifacts", "production", "preview"].includes(mode), "Use config, artifacts, production or preview");
   const configPath = join(app, "wrangler.jsonc");
   const load = async (file) => {
     const config = await unstable_readConfig({ config: file });
@@ -56,8 +69,18 @@ async function main(mode) {
     console.log(JSON.stringify({ worker: config.name, productionDomains: domains, previewProductionRoutes: preview.routes, configsAgree: true }, null, 2));
     return;
   }
-  assert.ok(statSync(config.main).size > 0, "Run pnpm cloudflare:build before packaging");
-  assert.ok(statSync(config.assets.directory).isDirectory(), "OpenNext assets are required");
+  const artifact = validateBuildArtifacts(config);
+  if (mode === "artifacts") {
+    const commit = process.env.WORKERS_CI_COMMIT_SHA ?? "";
+    const build = process.env.WORKERS_CI_BUILD_UUID ?? "";
+    console.log("OPENNEXT_ARTIFACT_CHECK " + JSON.stringify({
+      worker: config.name, config: configPath, entry: config.main, ...artifact,
+      assets: config.assets.directory,
+      ciCommit: /^[a-f0-9]{40}$/i.test(commit) ? commit : null,
+      ciBuild: /^[a-f0-9-]{36}$/i.test(build) ? build : null,
+    }));
+    return;
+  }
   const out = join(app, ".open-next", `${mode}-check`);
   mkdirSync(out, { recursive: true });
   let selectedConfig = configPath;

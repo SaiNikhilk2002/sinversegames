@@ -2,6 +2,8 @@
 
 Repository `D:\dev\games`, branch `feature/sinverse-cricket-2`, clean starting HEAD `8942a015f8a7e1fed236cca546822eec59af8a61`. This task changes local source and documentation only. No upload, deployment, dashboard/DNS/secret/binding/resource change, production migration, push or merge is authorized or performed. Both root instruction files remain unchanged. No existing uncommitted work was present at the start.
 
+The subsequent 11:03 IST failure on the reconciled commit is examined in [the follow-up below](#follow-up-the-1103-ist-preview-failure). Earlier tables record the first audit snapshot rather than the latest PR head.
+
 ## Root cause and canonical identity
 
 The owner confirms the existing production Worker is **`sinversegames`**, with Custom Domains **`sinversegames.com`** and **`www.sinversegames.com`**. The supplied successful run reports CI overriding the local Worker name, both domains present remotely, and a warning that local configuration will override remote settings. That is sufficient to align the local declarations with the confirmed existing Worker; it does not authorize creating or renaming a remote Worker.
@@ -66,7 +68,7 @@ Read-only public GitHub API inspection independently found:
 | Commit / context | Check outcome | Cloudflare Build ID |
 | --- | --- | --- |
 | PR #4 feature commit `26f066ef03b3109c9162188fa1b6a6a3bdcca472` | Completed **failure** | [283de0f5-ad3f-4dbf-bfc4-4f11468a697c](https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production/builds/283de0f5-ad3f-4dbf-bfc4-4f11468a697c) |
-| PR #4 current head `8942a015f8a7e1fed236cca546822eec59af8a61` | Completed **failure** | [aee1ccee-b353-4d94-b42d-a3ddae8e2406](https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production/builds/aee1ccee-b353-4d94-b42d-a3ddae8e2406) |
+| PR #4 head at the first audit, `8942a015f8a7e1fed236cca546822eec59af8a61` | Completed **failure** | [aee1ccee-b353-4d94-b42d-a3ddae8e2406](https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production/builds/aee1ccee-b353-4d94-b42d-a3ddae8e2406) |
 | Current remote `main` merge `2aeab766414668602f75a78a6cc03b2fe4c7f57c` | Completed **success** | [94169f8e-63d2-4d4a-ae72-f5c5b84629cd](https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production/builds/94169f8e-63d2-4d4a-ae72-f5c5b84629cd) |
 
 [PR #4's Cloudflare bot comment](https://github.com/SaiNikhilk2002/sinversegames/pull/4#issuecomment-6677072264) lists both feature-commit failures under “Preview Deployments by commit”, with empty deployment-URL cells. The older `26f066e` failure completed at approximately 04:40:34 UTC on November 6, matching the supplied earlier missing-Worker-entry log at 04:40:33 UTC. That earlier log establishes its missing generated artifact; it does not establish the cause of the later head-commit failure. The head check completed at 04:59:14 UTC. The public check summaries expose Build ID/Worker links but no full log; the annotation endpoints for both failed terminal checks returned zero annotations. The dashboard URL's `/production/builds/` component also appears on the feature checks and cannot identify deployment type by itself.
@@ -135,3 +137,78 @@ Initial local checks: all **four isolation tests** and **six existing/extended c
 The source changes are reviewable locally. Pushing the feature branch (which may trigger CI), changing dashboard settings/Base bindings, publishing a branch Preview, production deployment and merge remain outside this authorization. Existing full Cloudflare logs/version metadata could be inspected read-only if access is supplied; that is sufficient to determine the later feature failure without rerunning it.
 
 A future approved Preview verification needs a real `wrangler preview` result with branch, commit, Build ID and returned Preview/deployment IDs/URLs, plus runtime checks using Preview-safe resources. A future production release must first review the full remote/local diff, including any remote-only non-secret variables and bindings not present in the supplied summary. This task aligns only the confirmed name and two domains and preserves other local settings; it cannot certify an unseen remote configuration. **The remote Preview deployment is not claimed fixed.**
+
+## Follow-up: the 11:03 IST Preview failure
+
+Investigation started from clean local `f0e595745c6512ee5171641555d96194216d4ff0`. The owner supplied a new failed Preview log ending at 11:03:35.396 on November 6, along with a current screenshot listing root `/`, Build command `pnpm cloudflare:build`, Production Deploy command `pnpm cloudflare:deploy` and production branch `main`. The screenshot does not show the separate Preview command or the effective settings recorded for that failed run.
+
+### Matched run and facts
+
+Read-only public GitHub API inspection now finds PR #4 head **`f0e595745c6512ee5171641555d96194216d4ff0`** with a failed terminal Cloudflare check. Its Details URL identifies build **[77abdaf8-0f7d-4da8-bda9-9c0a4f569776](https://dash.cloudflare.com/21c2f668735c78d18513f64d381aa233/workers/services/view/sinversegames/production/builds/77abdaf8-0f7d-4da8-bda9-9c0a4f569776)**. The check completed at 05:33:37 UTC (**11:03:37 IST**), and the Cloudflare bot records 05:33:36.673 UTC with an empty deployment-URL cell. This matches the supplied error timing. It is a newer failed run on the reconciled commit, not a replay of the old `26f066e` / `283de0f5-…` failure. No new push or build was triggered by this investigation.
+
+That commit already contains both `name: sinversegames` declarations, both production Custom Domains and explicit app-config selection. Its root Cloudflare build script delegates to the app's OpenNext build/cache preparation. Thus an old Worker-name declaration in the PR source is not the explanation for this run's missing file. The name and domains require no further rename, redirect or DNS change.
+
+| Supplied run evidence | What it establishes |
+| --- | --- |
+| `Executing user deploy command: npx wrangler preview` | The run used the default/bare Preview command, not the repository's `pnpm cloudflare:preview:deploy` script |
+| Wrangler 4.158.0 downloaded | The root invocation did not resolve the app workspace's installed pinned Wrangler 4.155.0 |
+| `apps/web build: Done`, then immediate build-command success | The provided tail resembles the recursive Node build; it does not show which build command actually ran or a completed OpenNext packaging/cache stage |
+| Missing `apps/web/.open-next/worker.js` | The selected root config's expected Worker entry did not exist at Preview invocation; plain Next `.next` output cannot satisfy it |
+| Current screenshot displays `pnpm cloudflare:build` | Current displayed configuration only; it does not prove that the same saved trigger/settings were used for the failed run |
+
+Cloudflare documents that non-production branch builds use the **Preview command** instead of the production Deploy command, defaulting to `npx wrangler preview`. That explains the observed command even when the screenshot's production command is correct. [Build settings and Preview command](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/). The display label “Executing user deploy command” in a build log does not turn `wrangler preview` into a production deployment.
+
+### Build-side conclusion and remaining evidence
+
+The exact run-specific reason that the artifact was absent is **not established by this tail**. The same commit's intended Cloudflare command generated and packaged it locally in Linux. The missing file is confirmed, while the run's actual build command/settings snapshot is not. Possible explanations still requiring evidence include a different saved build command or connected build trigger at run time, a screenshot captured after settings changed, or an output/path/environment difference during that run. These are possibilities, not findings. No evidence establishes a cache problem, a missing domain, or the Worker-name mismatch as the cause.
+
+The decisive existing log lines are: checked-out commit, repository/working directory, `Executing user build command: ...`, and any OpenNext bundle/cache output after the Next.js route table. Those lines were requested without asking for a rerun. The owner supplied an expanded route-list/Preview-error tail, which still omits the build-command header and checkout/working-directory lines. Authenticated dashboard build metadata/full logs are unavailable locally. Do not assert that the displayed Build field is wrong or was already in use based only on this excerpt.
+
+The installed adapter always runs its bundle-generation stage after Next unless that stage fails; skipping the Next compile does not skip Worker packaging. No repository pre/post-build hook removes the Worker. Local source/config review has not reproduced a successful intended OpenNext command that leaves the entry absent.
+
+### Local hardening
+
+The app `cf:build` now ends with `node scripts/cloudflare-check.mjs artifacts`. This validates that the configured Worker is a nonempty regular file and the assets path is a directory, then prints `OPENNEXT_ARTIFACT_CHECK` with Worker/config/artifact paths, byte count and validated public CI commit/build IDs. It logs no environment dump or secret values. `pnpm cloudflare:artifact:check` exposes the same local check separately. A missing, empty or directory-valued Worker, or missing/file-valued assets path, fails the check. Production and Preview packaging reuse the same artifact validation.
+
+This cannot change the dashboard's command or explain a past run without its metadata. It ensures that a future invocation of the revised `pnpm cloudflare:build` cannot exit successfully while the configured artifact is absent at build completion. If Preview later reports it missing despite the marker, compare its working directory/filesystem and intervening cleanup with the marker's absolute path. If no marker appears, first confirm the actual commit and build command. No publishing command was added to the build.
+
+### Exact dashboard change and next Preview acceptance
+
+For the existing `sinversegames` Worker's correct repository/build connection:
+
+| Field | Required value / action |
+| --- | --- |
+| Root directory | Keep `/` |
+| Build command | Keep `pnpm cloudflare:build`; verify/save it on the same connection that produced build `77abdaf8-…` |
+| Production Deploy command | Keep `pnpm cloudflare:deploy` |
+| **Preview command** | **Replace `npx wrangler preview` with `pnpm cloudflare:preview:deploy`** |
+| Production branch | Keep `main` |
+| Preview branch control | Ensure `feature/sinverse-cricket-2` is included when Preview builds are enabled |
+
+Cloudflare says saved settings apply to the next build and retries use the settings saved at retry time. This describes future verification, not an action performed here. Changing the Preview command alone does not prove the missing-artifact cause is resolved.
+
+After separately approved source/settings updates, accept a next PR Preview only when all of these match:
+
+1. PR #4 check Details names the expected new commit and Build ID; the checkout is `feature/sinverse-cricket-2` on `sinversegames`.
+2. The existing run log explicitly says `Executing user build command: pnpm cloudflare:build`, then shows OpenNext Worker generation and cache preparation.
+3. The updated source prints `OPENNEXT_ARTIFACT_CHECK` before build success, with a positive entry byte count and matching CI commit/build IDs. On an older commit without this guard, require equivalent file-existence evidence rather than expecting a marker that did not exist yet.
+4. The next stage explicitly invokes `pnpm cloudflare:preview:deploy`, uses installed Wrangler 4.155.0 and reaches a successful **Preview** deployment; no `npx` download or production deploy substitution.
+5. Cloudflare returns branch Preview/deployment IDs and URL, and the check for that same commit/Build ID becomes successful. A `main` production success or plain workers.dev production endpoint is insufficient.
+6. Verify that returned Preview URL with Preview-only runtime secrets/data resources and confirm the production Custom Domains/configuration have not changed. Do not create production players, matches or reward data as a Preview check.
+
+Local results for this follow-up:
+
+| Check | Result |
+| --- | --- |
+| Normalized root/app config | Pass; canonical `sinversegames`, both existing Custom Domains and separate Preview settings retained |
+| Helper regressions | All five pass on Windows and Linux; new case rejects missing/empty/directory Worker entries and invalid assets paths |
+| Configuration regressions | All six Playwright checks pass; no web/realtime server or browser started |
+| Frozen Linux install | Pass with unchanged dependencies and lockfile; isolated source copy reused from the prior audit with the four changed package/helper files copied in |
+| OpenNext build | Pass under synthetic `WORKERS_CI=1` / feature-branch context; generated Worker/assets and the final artifact guard passes |
+| Independent artifact check | Pass; `OPENNEXT_ARTIFACT_CHECK` records a nonempty 2,278-byte entry loader and the expected absolute app config/assets paths |
+| Production and Preview packaging | Both fixed dry-runs pass with installed Wrangler 4.155.0; prepared assets retained, Preview projection excludes production routes/data settings; explicit no-upload exits |
+| Preservation | Frozen lockfile and both root instruction hashes unchanged; Worker names/domains and all application, player-data and engine source unchanged in this follow-up |
+
+The local CI commit/build IDs were deliberately all-zero fixtures to exercise safe metadata output, not identifiers of any real Cloudflare run. This test does not reproduce the exact failed run's unknown environment or effective build settings. Evidence is retained under ignored `.data/cloudflare-preview-run/`: read-only `pr-evidence.json` / `checks.json`, `config-validation.log`, `config-tests.log`, `helper-tests.log`, `helper-tests-linux.log`, `cloudflare-build.log`, `artifact-check.log`, both packaging logs, versions and frozen-lock check. The entry loader references the full Worker bundle; its byte count is not the full payload size.
+
+Remote Preview remains unverified. No push, upload, deployment, merge, dashboard change, production migration or production resource operation was performed. The final handoff records the local follow-up commit; the root instruction files remain unchanged and byte-identical.

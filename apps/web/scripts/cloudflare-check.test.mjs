@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { previewPackagingConfig, validateProduction } from "./cloudflare-check.mjs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join, resolve, sep } from "node:path";
+import { previewPackagingConfig, validateBuildArtifacts, validateProduction } from "./cloudflare-check.mjs";
 
 const production = () => ({
   name: "sinversegames",
@@ -52,5 +55,23 @@ test("Preview settings cannot override identity, entry or production routing", (
     const source = production();
     source.previews[key] = [];
     assert.throws(() => previewPackagingConfig(source), new RegExp(key));
+  }
+});
+
+test("build completion requires a nonempty Worker file and an assets directory", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "sinverse-worker-artifact-"));
+  try {
+    const config = { main: join(fixture, "worker.js"), assets: { directory: join(fixture, "assets") } };
+    assert.throws(() => validateBuildArtifacts(config), /OpenNext Worker entry\/assets missing/);
+    mkdirSync(config.assets.directory);
+    writeFileSync(config.main, "");
+    assert.throws(() => validateBuildArtifacts(config), /OpenNext Worker entry\/assets missing/);
+    writeFileSync(config.main, "export default {};");
+    assert.ok(validateBuildArtifacts(config).entryBytes > 0);
+    assert.throws(() => validateBuildArtifacts({ ...config, main: config.assets.directory }), /OpenNext Worker entry\/assets missing/);
+    assert.throws(() => validateBuildArtifacts({ ...config, assets: { directory: config.main } }), /OpenNext Worker entry\/assets missing/);
+  } finally {
+    assert.ok(resolve(fixture).startsWith(resolve(tmpdir()) + sep) && basename(fixture).startsWith("sinverse-worker-artifact-"));
+    rmSync(fixture, { recursive: true });
   }
 });

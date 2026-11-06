@@ -15,6 +15,7 @@
     "start:realtime": "pnpm --filter @platform/realtime start",
     "cloudflare:build": "pnpm --filter @platform/web cf:build",
     "cloudflare:config:check": "pnpm --filter @platform/web cf:config:check",
+    "cloudflare:artifact:check": "pnpm --filter @platform/web cf:artifact:check",
     "cloudflare:check": "pnpm --filter @platform/web cf:check",
     "cloudflare:preview:check": "pnpm --filter @platform/web cf:preview:check",
     "cloudflare:preview:deploy": "pnpm --filter @platform/web cf:preview:deploy",
