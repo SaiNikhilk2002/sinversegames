@@ -58,3 +58,29 @@ Owner action after a separately authorized push: set the existing Worker's Previ
 The owner's next Workers Builds log still failed on `npx wrangler preview` with the missing `previews` block. The dashboard command had not changed, and it runs at the repository root, where no Wrangler config existed: the block added earlier is in `apps/web/wrangler.jsonc`.
 
 Change: a root `wrangler.jsonc` for the same Worker, with `main` and `assets.directory` pointing into `apps/web/.open-next`; `cf:build` now also runs `populateCache local`, because a bare preview has no separate preparation step; and a test that fails if the two configs drift. Local results are in `docs/SINVERSE_CRICKET_VISUAL_POLISH_QA_REPORT.md`. No Preview was created and no dashboard setting changed, so the fix is unproven on Cloudflare until a push triggers a real Workers Build.
+
+## Follow-up: missing Worker entry point (2026-11-06)
+
+Current local branch `feature/sinverse-cricket-2`, clean starting HEAD `26f066ef03b3109c9162188fa1b6a6a3bdcca472`. The newly supplied log succeeds through the Next.js route list and `apps/web build: Done`, then Workers Builds invokes `npx wrangler preview`, downloads unpinned Wrangler 4.158.0 and reports that `apps/web/.open-next/worker.js` does not exist. This establishes a missing generated artifact, not another missing Preview configuration block. The provided tail does not include the actual build-command header; it matches the normal root Node build rather than a completed OpenNext build. The exact dashboard field value has not been independently inspected.
+
+The repository commands and both Wrangler paths are already correct. Root `pnpm build` generates Prisma clients and Node web/realtime output. Root `pnpm cloudflare:build` invokes the web workspace's `opennextjs-cloudflare build && opennextjs-cloudflare populateCache local`, which produces the Worker and its prepared static assets. Keep these build targets separate: OpenNext invokes the web `build` script internally, so changing that script into another OpenNext invocation would recurse.
+
+Required dashboard correction in the existing Worker's **Settings > Build**: root `/`, Build command **`pnpm cloudflare:build`**, Preview command **`pnpm cloudflare:preview:deploy`**, production deploy command **`pnpm cloudflare:deploy`**. The latter uses the original production workflow. The Preview command resolves the existing pinned Wrangler 4.155.0 without the unpinned download seen in the log. Save the settings and retry the failed build; a repository-only commit cannot change those external fields. [Cloudflare's settings documentation](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#build-settings) confirms that a retry uses the settings saved at retry time. [OpenNext's setup documentation](https://opennext.js.org/cloudflare/get-started#6-update-the-packagejson-file) distinguishes `next build` from adapter build/deploy commands and specifies the generated entry path.
+
+Verification passed against the current source in a fresh Linux/WSL checkout with Node 24.14.0, pnpm 11.15.1, frozen dependencies, isolated configuration storage, fake local-only build settings and an explicitly selected loopback test database URL. The source archive excludes environment/runtime files and historical media. Cloudflare credential environment variables were cleared. No database server was started or migration run, and no actual Preview/production upload was invoked.
+
+| Check | Result |
+| --- | --- |
+| Fresh `pnpm install --frozen-lockfile` | Pass, 14.6 seconds; dependency versions unchanged |
+| `pnpm db:generate` | Pass, both Prisma clients generated; no migration or database connection |
+| `pnpm cloudflare:build` | Pass, including Next.js TypeScript validation and OpenNext packaging; nonempty Worker emitted at `apps/web/.open-next/worker.js`, assets and prerender cache prepared |
+| `pnpm cloudflare:preview:check` | Pass with installed Wrangler 4.155.0; 165 asset files; full Worker payload 23,845.68 KiB / gzip 6,308.76 KiB; explicit `--dry-run: exiting now` |
+| Static prerender cache | All 42 source cache files byte-equal to prepared cache assets |
+| Existing Cloudflare configuration tests | All three pass with an isolated Playwright config; no web/realtime server started |
+| Frozen lockfile / instructions | Lockfile SHA-256 remains `c1bb3ef586c5f1bdd07c85ff045fca81c5ad7a7b1a0c31f55d1cdf161a4db4bb`; both root instruction files remain unchanged and byte-identical |
+
+Logs and the isolated runner are retained under ignored `.data/cloudflare-entry/`: `versions.log`, `install.log`, `generate.log`, `cloudflare-build.log`, `preview-packaging.log`, `artifact-validation.json`, `config-tests.log`, and `lockfile-after.log`. The artifact check records a 2,278-byte entry loader; that loader references the full server bundle, whose packaged size is listed above. Generated files and local fixture values are not committed.
+
+The failure shown in the supplied log is now locally reproduced at the build-target level and resolved by selecting the existing Cloudflare build target: normal Node output is insufficient, while the adapter build emits and packages the required entry point. No remote dashboard settings were inspected or changed, and no hosted retry was triggered. Remote Preview creation and its runtime settings remain unverified until the owner saves the Build/Preview commands and retries the build. The packaging check validates the common Worker/assets payload, not a remote Preview upload or hosted runtime.
+
+Only this report and the deployment guide need changes for this diagnosis. Application source, package scripts, Wrangler configuration, dependencies and lockfile remain unchanged. Root instruction files remain byte-identical and unchanged in accordance with the user's preservation request.

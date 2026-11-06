@@ -110,6 +110,25 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 
 The build and both deployment commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Keep `pnpm cloudflare:deploy` as the production command: never use a bare `npx wrangler deploy` for production. The root `wrangler.jsonc` means it no longer stops with the workspace-detection error, so it would now publish whatever was last built, with none of the safeguards of the script.
 
+### Missing `apps/web/.open-next/worker.js` after a successful build
+
+The 2026-11-06 log ends with `apps/web build: Done`, then `npx wrangler preview` downloads Wrangler 4.158.0 and fails because the Worker entry point does not exist. The tail matches the repository's normal Node build; it does not include the configured build-command header or an OpenNext packaging stage. A successful `next build` creates `.next`, while the Cloudflare adapter must also generate `.open-next/worker.js` and `.open-next/assets`. This is a different failure from the earlier missing `previews` block.
+
+In the existing Worker's **Settings > Build**, save these values, then retry the failed build:
+
+| Field | Value |
+| --- | --- |
+| Root directory | Repository root (`/`; leave empty if the UI uses an empty field for root) |
+| Build command | `pnpm cloudflare:build` |
+| Preview command | `pnpm cloudflare:preview:deploy` |
+| Production deploy command | `pnpm cloudflare:deploy` |
+
+The build script runs the installed OpenNext adapter and prepares the static cache. The Preview script uses the installed pinned Wrangler 4.155.0. The unpinned Wrangler download is a separate configuration issue; the reported fatal error is the absent generated entry point. The paths in both Wrangler configurations already agree with the adapter output.
+
+The next build log should continue past the Next.js route list into OpenNext's Worker generation. Keep the app's `build` script as `next build`: OpenNext invokes that script internally. Keep the generated `.open-next` output ignored. [OpenNext documents this build arrangement](https://opennext.js.org/cloudflare/get-started#6-update-the-packagejson-file); [Cloudflare documents the Build settings location and that retries use the saved settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#build-settings).
+
+The repository already contains the required commands. A code commit alone cannot update the dashboard's configured Build command. See [the follow-up verification record](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md#follow-up-missing-worker-entry-point-2026-11-06) for local results and the remaining hosted check.
+
 ### Worker Previews and the reported missing-block failure
 
 The supplied build log completed Next.js/OpenNext and failed only on the dashboard command `npx wrangler preview` (4.157.0). That command is absent from repository scripts. [Workers Builds uses it by default for new Workers, and requires the Preview workflow after a one-time switch](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/). The log establishes which workflow ran; it does not identify who selected it or when. This project now supports that workflow with a `previews` block. Do not substitute the production deploy command or switch this build to version uploads to silence the error.
