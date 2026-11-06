@@ -8,11 +8,13 @@
     "build": "next build",
     "start": "next start --port 3200",
     "typecheck": "tsc --noEmit",
-    "cf:build": "opennextjs-cloudflare build && opennextjs-cloudflare populateCache local",
-    "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview --port 3200",
-    "cf:preview:check": "opennextjs-cloudflare populateCache local && wrangler deploy --config wrangler.jsonc --dry-run --outdir .open-next/preview-check",
-    "cf:preview:deploy": "opennextjs-cloudflare populateCache local && wrangler preview --config wrangler.jsonc",
-    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf:build": "opennextjs-cloudflare build --config wrangler.jsonc && opennextjs-cloudflare populateCache local --config wrangler.jsonc",
+    "cf:config:check": "node scripts/cloudflare-check.mjs config",
+    "cf:check": "opennextjs-cloudflare populateCache local --config wrangler.jsonc && node scripts/cloudflare-check.mjs production",
+    "cf:preview": "opennextjs-cloudflare build --config wrangler.jsonc && opennextjs-cloudflare preview --config wrangler.jsonc --port 3200",
+    "cf:preview:check": "opennextjs-cloudflare populateCache local --config wrangler.jsonc && node scripts/cloudflare-check.mjs preview",
+    "cf:preview:deploy": "opennextjs-cloudflare populateCache local --config wrangler.jsonc && wrangler preview --config wrangler.jsonc",
+    "cf:deploy": "opennextjs-cloudflare build --config wrangler.jsonc && opennextjs-cloudflare deploy --config wrangler.jsonc",
     "test:e2e": "playwright test"
   },
   "dependencies": {

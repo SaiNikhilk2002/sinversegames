@@ -1,5 +1,7 @@
 # Cloudflare Worker Preview failure and local QA - 2026-11-05
 
+Current name/domain reconciliation and the distinction between the successful production run and failed PR #4 checks are recorded in [Worker configuration audit](CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md). The confirmed canonical Worker is now `sinversegames`; references to `sinversegames-web` below preserve the historical configuration. The current production and Preview packaging checks are separate; the older checks below packaged their then-common settings.
+
 Repository `D:\dev\games`, branch `codex/takeover-and-reliability-audit`; initially clean at `5304115893ec762f365070f4216c6356f0ddf583`. No production/Preview publishing, DNS or secret changes, database migrations, push, merge or unrelated application changes.
 
 ## Cause and workflow decision

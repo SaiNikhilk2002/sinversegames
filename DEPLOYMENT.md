@@ -97,16 +97,19 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 
 ## 4. Cloudflare Workers: web app
 
-**Workers & Pages → Create → Import a repository →** `sinversegames`:
+Configure the existing **Workers & Pages → sinversegames** Worker connected to this repository. The owner's production evidence confirms this name and both existing Custom Domains; preserve that Worker rather than creating another service. See the [Worker configuration audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) for source history, exact configuration selection and GitHub check evidence.
 
 | Setting | Value |
 | --- | --- |
-| Project name | `sinversegames-web` (must match `name` in `apps/web/wrangler.jsonc`) |
+| Worker name | `sinversegames` (matches both Wrangler configurations and the confirmed existing production Worker) |
+| Production branch | `main` |
 | Root directory | `/` (repository root; leave empty) |
 | Build command | `pnpm cloudflare:build` |
 | Production deploy command | `pnpm cloudflare:deploy` (unchanged) |
 | Preview command (non-production branches) | `pnpm cloudflare:preview:deploy` |
 | Build variables | `NEXT_PUBLIC_SITE_URL=https://<your-domain>`, `NEXT_PUBLIC_REALTIME_URL=https://rt.<your-domain>`, `NEXT_PUBLIC_SUPPORT_EMAIL=…` (platform name is fixed) |
+
+Both root `wrangler.jsonc` and `apps/web/wrangler.jsonc` declare the existing production Custom Domains `sinversegames.com` and `www.sinversegames.com` using `custom_domain: true`. These declarations preserve the provided production routing contract; they do not create redirects or change DNS in a local build/check. Production routes stay at the top level. Keep Preview settings in `previews`, whose resources and secrets must be configured separately from production. A Preview command must invoke `wrangler preview`, and must never run the production deploy command. The root scripts select the app workspace and explicitly pass its `wrangler.jsonc` to OpenNext/Wrangler; the root Wrangler config supports equivalent bare-root commands.
 
 The build and both deployment commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Keep `pnpm cloudflare:deploy` as the production command: never use a bare `npx wrangler deploy` for production. The root `wrangler.jsonc` means it no longer stops with the workspace-detection error, so it would now publish whatever was last built, with none of the safeguards of the script.
 
@@ -141,7 +144,9 @@ Keep `.open-next/worker.js`, `.open-next/assets`, compatibility settings, placem
 
 `pnpm --filter @platform/web cf:preview` remains the existing **local** OpenNext/Wrangler dev server. It is different from the dashboard Preview deployment. `wrangler versions upload` creates version URLs using that version's production resources; it is not the branch Preview workflow configured by the supplied log. No `preview_urls` toggle is added.
 
-Local verification after building: **`pnpm cloudflare:preview:check`** prepares the same cache and runs pinned `wrangler deploy --dry-run`, packaging the shared Worker/assets payload without uploading or changing routes. Wrangler 4.155.0's beta `preview` command has no `--dry-run`; do not run it as a packaging test. The check validates the common entry/assets/compatibility configuration, and the QA harness separately validates `previews.vars`. It cannot verify remote Preview creation, permissions or dashboard Base secrets. See [preview QA](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md) for exact results and the remaining owner check. No publishing or dashboard change was performed during this fix.
+Local verification: **`pnpm cloudflare:config:check`** validates the canonical name, both domains, root/app configuration agreement and Preview separation without building. After **`pnpm cloudflare:build`**, run **`pnpm cloudflare:check`** for production packaging and **`pnpm cloudflare:preview:check`** for Preview packaging. Both packaging scripts prepare the local static cache and hard-code pinned `wrangler deploy --dry-run`; neither can upload. The production check uses the app config including both Custom Domains. The Preview check generates an ignored configuration containing common code/assets settings and only the explicit `previews` variables/resources, with no production routes, variables, bindings or schedules. Its `workers_dev: false` applies only to that local packaging projection; the real Worker's workers.dev setting is not changed.
+
+Wrangler 4.155.0's beta `preview` command has no `--dry-run`, so the Preview check packages this local projection instead of invoking the Preview API. It cannot verify remote Preview creation, permissions, Base settings/secrets, or runtime resource isolation. Production routes must not be placed inside `previews`; [Cloudflare documents that routes do not target Previews](https://developers.cloudflare.com/workers/previews/configuration/). A real branch Preview remains unverified until an authorized upload produces a Preview deployment/URL and its runtime behavior is checked. See the [current audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) and [historical Preview QA](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md).
 
 The repository-root `.node-version` and `apps/web/.node-version` both pin **24.14.0**, the reproducible build baseline. Root `engines.node` allows `>=24.14.0 <25`, so Node 24.22.2 satisfies the compatibility range; it is not the exact pinned baseline. `packageManager` keeps pnpm at **11.15.1**. Install with `pnpm install --frozen-lockfile`; do not regenerate the lockfile to change the Node pin.
 
@@ -222,7 +227,7 @@ Email sign-in uses [Resend](https://resend.com/docs/api-reference/emails/send-em
 
 The November 2026 takeover is local only. Historical deploy and migration instructions above are a reference, not approval to run them. See [CODEX_TAKEOVER_REPORT.md](docs/CODEX_TAKEOVER_REPORT.md) and [RELIABILITY_INVESTIGATION.md](docs/RELIABILITY_INVESTIGATION.md).
 
-The observed GitHub check is **Workers Builds: sinversegames**, but this checkout's Wrangler name is **sinversegames-web**. Confirm the intended existing Worker and the failed build's logs before reconciling these names; do not create or redirect a production Worker based on an assumption. Also verify that the dashboard uses the repository root and the workspace-aware build/deploy commands above.
+The canonical Worker is now **sinversegames**, matching the owner's confirmed production evidence; both local configs retain both existing production Custom Domains. The earlier `sinversegames-web` name came from the original setup and was copied into the root config. GitHub checks belong to specific commit/build IDs: a successful `main` production deployment does not replace a failed feature-branch Preview check. The [current audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) records the observed check IDs, outcomes, known earlier failure and remaining unavailable logs. A plain workers.dev endpoint and a version ID alone do not verify a branch Preview.
 
 Keep preview data, signing secrets, and realtime rooms separate from production. Worker Previews use the checked-in `previews` configuration and Preview-only Base secrets under the existing parent Worker; an uploaded version URL does not provide that boundary. Use a non-production PostgreSQL database, isolated realtime service and matching Preview-only signing secrets. Compile `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_REALTIME_URL` for that preview and allow only its exact browser origin on its realtime service. Do not add broad `*.workers.dev` access to the production origin list.
 

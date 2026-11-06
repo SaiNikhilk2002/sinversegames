@@ -26,4 +26,22 @@ test.describe("Cloudflare Worker configuration", () => {
     const shared = ({ $schema: _s, main: _m, assets: _a, ...rest }: Record<string, unknown>) => rest;
     expect(shared(root)).toEqual(shared(app));
   });
+  test("both configs target the confirmed existing production Worker", () => {
+    expect(root.name).toBe("sinversegames");
+    expect(app.name).toBe("sinversegames");
+  });
+  test("both production Custom Domains are retained exactly", () => {
+    const routes = [
+      { pattern: "sinversegames.com", custom_domain: true },
+      { pattern: "www.sinversegames.com", custom_domain: true },
+    ];
+    expect(root.routes).toEqual(routes);
+    expect(app.routes).toEqual(routes);
+  });
+  test("Preview settings keep production routing separate", () => {
+    expect(root.previews).toHaveProperty("vars.NODE_ENV", "production");
+    for (const key of ["routes", "route", "name", "main", "assets", "workers_dev", "env", "build", "triggers"])
+      expect(root.previews).not.toHaveProperty(key);
+    expect(app.previews).toEqual(root.previews);
+  });
 });
