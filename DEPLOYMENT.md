@@ -1,5 +1,7 @@
 # Deployment
 
+Current release verification: [2026-11-07 audit](docs/RELEASE_READINESS_2026_11_07.md). Production web/realtime health returns 200, and read-only Railway active-deployment metadata confirms realtime commit `2aeab766414668602f75a78a6cc03b2fe4c7f57c`. PR #4 at `52c0a825…` remains open with a failed Cloudflare Preview check and no verified Preview URL. This does not establish real-player persistence or provider acceptance; the audit lists the remaining gates. No deployment or external configuration changed during that verification.
+
 SinverseGames runs on three services:
 
 | Piece | Host | How | Cost* |
