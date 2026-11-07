@@ -124,3 +124,7 @@
 .cr-game .cq-ingredients svg { width:46px;height:42px; }
 .cr-game .cq-guide { margin-top:auto;position:relative;z-index:1; }
 @media (max-height:820px) { .cr-lane { height:clamp(74px,13vh,112px); } .cr-walker { width:clamp(36px,6.5vh,56px); } }
+
+/* While an action awaits the server, show it is on its way rather than done. */
+.cr-game[data-pending="true"] .cq-station { cursor:progress; }
+.cr-game[data-pending="true"] .cq-feedback::after { content:" · sending…";opacity:.7; }

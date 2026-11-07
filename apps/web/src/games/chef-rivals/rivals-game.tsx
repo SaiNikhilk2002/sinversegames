@@ -87,6 +87,8 @@ export function ChefRivalsGame({ game, send, selfId, room }: GameClientProps<Riv
   const [garnish, setGarnish] = useState<Garnish>("herbs");
   const [error, setError] = useState<string | null>(null);
   const [book, setBook] = useState(false);
+  const [pending, setPending] = useState(0);
+  const heard = useRef(-1);
   const warned = useRef(false);
   const started = useRef(false);
 
@@ -96,6 +98,16 @@ export function ChefRivalsGame({ game, send, selfId, room }: GameClientProps<Riv
     local.current = view.you ? (JSON.parse(JSON.stringify(view.you.kitchen)) as QuestState) : null;
     repaint((n) => n + 1);
   }, [game.version, view]);
+
+  // Sounds follow events the server confirmed, never a guess.
+  useEffect(() => {
+    const k = view.you?.kitchen;
+    if (!k) return;
+    if (heard.current === -1 || k.event < heard.current) { heard.current = k.event; return; }
+    if (k.event === heard.current) return;
+    heard.current = k.event;
+    if (k.lastEvent === "serve") sfx.serve(); else if (k.lastEvent === "mistake" || k.lastEvent === "burnt" || k.lastEvent === "left") sfx.error(); else if (k.lastEvent === "flip") sfx.flip(); else if (k.lastEvent === "chop" || k.lastEvent === "slice") sfx.chop(); else sfx.pickup();
+  }, [view.you?.kitchen.event]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const serverNow = () => Date.now() + offset.current;
   const cookingClock = () => Math.max(0, Math.min(view.durationMs, serverNow() - view.playAt));
@@ -126,18 +138,17 @@ export function ChefRivalsGame({ game, send, selfId, room }: GameClientProps<Riv
     unlockAudio();
     const predicted = questActionSchema.safeParse({ ...intent, t: Math.max(kitchen.t, cookingClock()) });
     if (!predicted.success) return false;
-    // Show the result now, so controls feel immediate. The server's next view confirms or corrects it.
-    const result = applyQuest(kitchen, predicted.data);
-    if (!result.ok) { setError(result.error ?? "Try that step again."); repaint((n) => n + 1); return false; }
+    // Check the move against a copy, so an impossible move gets instant feedback without a round trip.
+    // Nothing is shown as done until the server's next view says it happened.
+    const probe = JSON.parse(JSON.stringify(kitchen)) as QuestState;
+    const result = applyQuest(probe, predicted.data);
+    if (!result.ok) { setError(result.error ?? "Try that step again."); return false; }
     setError(null);
     if ("order" in intent) setFocus(intent.order);
-    if (kitchen.lastEvent === "serve") sfx.serve(); else if (kitchen.lastEvent === "mistake") sfx.error(); else if (kitchen.lastEvent === "flip") sfx.flip(); else if (kitchen.lastEvent === "chop" || kitchen.lastEvent === "slice") sfx.chop(); else sfx.pickup();
-    repaint((n) => n + 1);
+    setPending((n) => n + 1);
     void send("kitchen:act", { p: RIVALS_PROTOCOL, intent }).then((ack) => {
-      if (!ack.ok) {
-        setError(ack.error.message);
-        if (view.you) { local.current = JSON.parse(JSON.stringify(view.you.kitchen)) as QuestState; repaint((n) => n + 1); }
-      }
+      setPending((n) => Math.max(0, n - 1));
+      if (!ack.ok) { setError(ack.error.message); sfx.error(); }
     });
     return true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,7 +179,7 @@ export function ChefRivalsGame({ game, send, selfId, room }: GameClientProps<Riv
   const rival = view.rivals[0];
 
   return (
-    <section className="cq-game cr-game" data-testid="chef-rivals" data-phase={phase} data-warning={warning} style={{ "--cq-accent": "#ff9a6b", "--cq-dark": "#2a1533", "--cq-wall": cuisine.wall } as React.CSSProperties}>
+    <section className="cq-game cr-game" data-testid="chef-rivals" data-phase={phase} data-warning={warning} data-pending={pending > 0} style={{ "--cq-accent": "#ff9a6b", "--cq-dark": "#2a1533", "--cq-wall": cuisine.wall } as React.CSSProperties}>
       <header className="cq-game-top">
         <div><span className="cq-eyebrow">Chef Rivals · {view.theme}</span><h2>Mystery: {view.mystery.replaceAll("-", " ")}</h2></div>
         <div className={`cq-clock ${warning ? "cr-clock-warn" : ""}`} role="timer" aria-label="Time left" data-testid="cr-clock">{clock(remaining)}{warning ? <small>Final plating!</small> : <small>{kitchen?.served ?? 0} / {view.you?.summary.wanted ?? 0} plates</small>}</div>
