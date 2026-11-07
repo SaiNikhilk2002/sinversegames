@@ -19,7 +19,7 @@
     "cloudflare:check": "pnpm --filter @platform/web cf:check",
     "cloudflare:preview:check": "pnpm --filter @platform/web cf:preview:check",
     "cloudflare:preview:deploy": "pnpm --filter @platform/web cf:preview:deploy",
-    "cloudflare:deploy": "pnpm --filter @platform/web exec opennextjs-cloudflare deploy --config wrangler.jsonc",
+    "cloudflare:deploy": "pnpm --filter @platform/web cf:production:deploy",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --filter @platform/engines --filter @platform/shared --filter @platform/realtime test",
     "test:e2e": "pnpm --filter @platform/web test:e2e",

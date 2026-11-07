@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { unstable_readConfig } from "wrangler";
+import { checkProductionDeploy, readRecord } from "./cloudflare-build-env.mjs";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const domains = ["sinversegames.com", "www.sinversegames.com"];
@@ -52,7 +53,7 @@ export function previewPackagingConfig(config) {
 }
 
 async function main(mode) {
-  assert.ok(["config", "artifacts", "production", "preview"].includes(mode), "Use config, artifacts, production or preview");
+  assert.ok(["config", "artifacts", "production", "preview", "deploy"].includes(mode), "Use config, artifacts, production, preview or deploy");
   const configPath = join(app, "wrangler.jsonc");
   const load = async (file) => {
     const config = await unstable_readConfig({ config: file });
@@ -70,6 +71,18 @@ async function main(mode) {
     return;
   }
   const artifact = validateBuildArtifacts(config);
+  if (mode === "deploy") {
+    // Gate for the approved production deploy: configs, both domains and the
+    // artifact are validated above; the build record and branch are checked here.
+    const record = readRecord();
+    const warnings = checkProductionDeploy(process.env, record);
+    for (const warning of warnings) console.warn(`WARNING: ${warning}`);
+    console.log("PRODUCTION_DEPLOY_CHECK " + JSON.stringify({
+      worker: config.name, productionDomains: domains, entryBytes: artifact.entryBytes,
+      builtBranch: record.branch, builtCommit: record.commit, realtimeHost: record.realtimeHost,
+    }));
+    return;
+  }
   if (mode === "artifacts") {
     const commit = process.env.WORKERS_CI_COMMIT_SHA ?? "";
     const build = process.env.WORKERS_CI_BUILD_UUID ?? "";

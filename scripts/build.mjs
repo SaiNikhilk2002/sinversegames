@@ -11,9 +11,15 @@
 // keeps its own isolation and artifact checks, so they run on both paths.
 //
 // SINVERSE_BUILD_TARGET=node|cloudflare overrides the detection explicitly.
+//
+// Production is deliberately excluded: on the production branch Workers Builds
+// must run the approved `pnpm cloudflare:build` and `pnpm cloudflare:deploy`.
+// If it falls back to the defaults there, this build stops before building, so
+// the default `npx wrangler deploy` never gets an artifact.
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { classify, PRODUCTION_BRANCH } from "../apps/web/scripts/cloudflare-build-env.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const GUARD = "SINVERSE_ROOT_BUILD_ACTIVE";
@@ -26,6 +32,15 @@ export function selectTarget(env) {
     return explicit;
   }
   return env.WORKERS_CI === "1" ? "cloudflare" : "node";
+}
+
+export function checkRootBuild(env, target) {
+  if (target === "cloudflare" && classify(env).production)
+    throw new Error(
+      `Refusing the default root build on the production branch "${PRODUCTION_BRANCH}". ` +
+        "Production builds must use the build command pnpm cloudflare:build and the deploy command pnpm cloudflare:deploy. " +
+        "See docs/CLOUDFLARE_DEFAULT_BUILD.md.",
+    );
 }
 
 export function buildSteps(target) {
@@ -41,6 +56,7 @@ function main() {
   if (process.env[GUARD] === "1")
     throw new Error("Root build re-entered itself; a nested script must not call the root `build`.");
   const target = selectTarget(process.env);
+  checkRootBuild(process.env, target);
   console.log(`ROOT_BUILD_TARGET ${target}` + (process.env.WORKERS_CI === "1" ? " (Workers Builds detected)" : ""));
   // pnpm sets npm_execpath to its own entry point when it runs a script.
   const pnpm = process.env.npm_execpath;
