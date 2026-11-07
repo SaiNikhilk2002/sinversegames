@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start --port 3200",
     "typecheck": "tsc --noEmit",
-    "cf:build": "opennextjs-cloudflare build --config wrangler.jsonc && opennextjs-cloudflare populateCache local --config wrangler.jsonc && node scripts/cloudflare-check.mjs artifacts",
+    "cf:build": "node scripts/cloudflare-build-env.mjs && opennextjs-cloudflare build --config wrangler.jsonc && opennextjs-cloudflare populateCache local --config wrangler.jsonc && node scripts/cloudflare-check.mjs artifacts",
     "cf:config:check": "node scripts/cloudflare-check.mjs config",
     "cf:artifact:check": "node scripts/cloudflare-check.mjs artifacts",
     "cf:check": "opennextjs-cloudflare populateCache local --config wrangler.jsonc && node scripts/cloudflare-check.mjs production",

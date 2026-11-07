@@ -10,7 +10,7 @@
     "dev": "pnpm -r --parallel --filter @platform/web --filter @platform/realtime dev",
     "dev:web": "pnpm --filter @platform/web dev",
     "dev:realtime": "pnpm --filter @platform/realtime dev",
-    "build": "pnpm --filter @platform/db generate && pnpm -r --filter @platform/web --filter @platform/realtime build",
+    "build": "node scripts/build.mjs",
     "start:web": "pnpm --filter @platform/web start",
     "start:realtime": "pnpm --filter @platform/realtime start",
     "cloudflare:build": "pnpm --filter @platform/web cf:build",
@@ -29,5 +29,8 @@
     "db:migrate": "pnpm --filter @platform/db migrate:dev",
     "db:deploy": "pnpm --filter @platform/db migrate:deploy",
     "db:studio": "pnpm --filter @platform/db studio"
+  },
+  "devDependencies": {
+    "wrangler": "4.155.0"
   }
 }
