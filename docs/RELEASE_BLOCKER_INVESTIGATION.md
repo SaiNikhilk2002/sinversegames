@@ -127,7 +127,7 @@ Caveats: the production build was on the deploy path, not the Preview path, and 
 
 **Warnings:**
 
-- **Bare deploy now proceeds at the root.** Before the root config, a bare `npx wrangler deploy` at the root failed. It would now publish, without the cache step. Confirm the Deploy command before merging.
+- **Bare deploy now proceeds at the root.** Before the root config, a bare `npx wrangler deploy` at the root failed. It would now publish, without the cache step. Confirm the Deploy command before merging. *Update, 2026-11-07:* `fix/cloudflare-default-build` blocks this after a local or production `cf:build`, and gates `pnpm cloudflare:deploy`. See [CLOUDFLARE_DEFAULT_BUILD.md](CLOUDFLARE_DEFAULT_BUILD.md).
 - **My `cf:build` change is a possible new failure point.** `populateCache local` now runs in the build. It passed locally on Linux, but that isn't the Cloudflare environment. A failure at that step would be my regression and should be checked first.
 - **Previews don't inherit production settings.** Per Cloudflare's docs, Previews need their own settings, and Preview URLs are public by default. Without Preview-only secrets, a Preview may deploy and then fail at runtime, which would be a separate problem from this build error.
 - **The current Preview would also need a migrated database,** or it will show the same session errors.

@@ -152,7 +152,7 @@ pnpm cloudflare:check                   # production Worker/assets packaging; fi
 pnpm cloudflare:preview:check           # route-free Preview settings projection; fixed --dry-run
 ```
 
-Inside Workers Builds (`WORKERS_CI=1`), the root `pnpm build` builds the OpenNext Worker instead of the Node build. The root also pins Wrangler 4.155.0, so Cloudflare's default `pnpm run build` and `npx wrangler preview` work too. See [default build commands](docs/CLOUDFLARE_DEFAULT_BUILD.md).
+Inside Workers Builds (`WORKERS_CI=1`), the root `pnpm build` builds the OpenNext Worker instead of the Node build. The root also pins Wrangler 4.155.0, so Cloudflare's default `pnpm run build` and `npx wrangler preview` work for Preview branches. Production on `main` must use the approved commands. `pnpm cloudflare:deploy` checks the branch, the build record and the artifact first, and bare root Wrangler commands are blocked after a production or local build. See [default build commands and deploy safeguards](docs/CLOUDFLARE_DEFAULT_BUILD.md).
 
 Workers Builds Preview command: `pnpm cloudflare:preview:deploy` (publishes a branch Preview; not a local check). Production keeps `pnpm cloudflare:deploy`. See [preview configuration and verification](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md); the open-beta Wrangler Preview command requires the checked-in `previews` block and Preview-only runtime secrets.
 
