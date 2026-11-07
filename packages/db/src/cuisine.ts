@@ -35,6 +35,12 @@ export async function getCuisineLeaderboard(db: PrismaClient, level: number) {
   return rows.map((row, i) => ({ rank: i + 1, name: row.player.displayName, color: row.player.avatarColor, score: row.bestScore, stars: row.stars }));
 }
 
+/** Details of a player's most recent completed shifts, newest first, for replay goals. */
+export async function getCuisineRunDetails(db: PrismaClient, playerId: string, limit = 500): Promise<unknown[]> {
+  const rows = await db.matchParticipant.findMany({ where: { playerId, isWinner: true, match: { gameId: "cuisine-quest" } }, orderBy: { createdAt: "desc" }, take: limit, select: { details: true } });
+  return rows.map(row => row.details);
+}
+
 /** Owner-only saved result, including the exact awards from its original commit. */
 export async function getCuisineReceipt(db: PrismaClient, playerId: string, runId: string) {
   const row = await db.matchParticipant.findFirst({ where: { matchId: runId, playerId, match: { gameId: "cuisine-quest", visibility: "solo" } }, include: { match: { select: { durationMs: true } } } });
