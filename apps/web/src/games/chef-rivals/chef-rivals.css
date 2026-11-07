@@ -128,3 +128,6 @@
 /* While an action awaits the server, show it is on its way rather than done. */
 .cr-game[data-pending="true"] .cq-station { cursor:progress; }
 .cr-game[data-pending="true"] .cq-feedback::after { content:" · sending…";opacity:.7; }
+
+/* Wide but short screens (1280x720): all six ingredients in one row, so nothing needs scrolling mid-duel. */
+@media (min-width:900px) and (max-height:820px) { .cr-game .cq-ingredients { grid-template-columns:repeat(6,minmax(0,1fr));max-width:720px; } .cr-game .cq-ingredients button { min-height:58px; } .cr-game .cq-pantry-cue svg { width:48px;height:48px; } .cr-game .cq-current-recipe { margin:2px 0; } }

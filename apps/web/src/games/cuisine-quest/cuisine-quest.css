@@ -77,3 +77,10 @@ a.cq-mode:hover .cr-arm-l { animation:cr-cheer .55s ease-in-out infinite; }
 .cq-mode dt { font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#6c7a6d; }
 .cq-mode dd { margin:0;font-size:11px;line-height:1.25; }
 @media(max-width:820px){.cq-modes { grid-template-columns:1fr; }}
+
+/* The recipe book is light paper, so its labels need dark ink in every kitchen (audit: accent text measured 1.65:1). */
+.cq-recipe-book .cq-eyebrow { color:#8a4a1c; }
+.cq-recipe-book li>span { color:#5a4a2a; }
+/* Specific enough to beat game-level eyebrow colours, such as the duel accent. */
+.cq-game .cq-recipe-book .cq-eyebrow { color:#8a4a1c; }
+.cq-game .cq-recipe-book li>span { color:#44502f; }

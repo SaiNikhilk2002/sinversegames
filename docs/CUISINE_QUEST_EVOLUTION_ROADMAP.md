@@ -10,6 +10,13 @@ Nothing here is released. Work is on the local branch `feature/cuisine-quest-sho
 
 "Playable" means tested through the real client and server locally. See the report for current results.
 
+| Stage | State |
+|---|---|
+| Implemented locally | Yes |
+| Tested locally | Yes. Full browser suite 92 passed, 0 failed, 1 skipped, plus later targeted reruns ([release readiness](RELEASE_READINESS_CUISINE_QUEST.md)) |
+| Hosted Preview verified | No. Blocked on PR #4 Cloudflare fixes and a non-production realtime service |
+| Production deployed | No |
+
 ### Workstream A: cooking gameplay
 
 | Item | Status |
