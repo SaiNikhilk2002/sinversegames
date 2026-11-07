@@ -3,6 +3,7 @@ import type { AnyGameEngine } from "./core/types";
 import { bumperBlitzEngine } from "./bumper-blitz/engine";
 import { colorClashEngine } from "./color-clash/engine";
 import { rivalsEngine } from "./cuisine-quest/rivals";
+import { kitchenCoopEngine } from "./kitchen-rush/coop";
 import { doodleDuelEngine } from "./doodle-duel/engine";
 import { tokenTrailEngine } from "./token-trail/engine";
 
@@ -13,6 +14,7 @@ export { doodleDuelEngine, createDoodleEngine } from "./doodle-duel/engine";
 export { tokenTrailEngine } from "./token-trail/engine";
 export { bumperBlitzEngine } from "./bumper-blitz/engine";
 export { rivalsEngine } from "./cuisine-quest/rivals";
+export { kitchenCoopEngine } from "./kitchen-rush/coop";
 
 /** Server-side engine registry. Adding a multiplayer game = adding its engine here + metadata in @platform/shared. */
 export const ENGINES: Record<MultiplayerGameId, AnyGameEngine> = {
@@ -21,6 +23,7 @@ export const ENGINES: Record<MultiplayerGameId, AnyGameEngine> = {
   "token-trail": tokenTrailEngine,
   "bumper-blitz": bumperBlitzEngine,
   "chef-rivals": rivalsEngine,
+  "kitchen-rush-coop": kitchenCoopEngine,
 };
 
 export const getEngine = (id: MultiplayerGameId): AnyGameEngine => ENGINES[id];

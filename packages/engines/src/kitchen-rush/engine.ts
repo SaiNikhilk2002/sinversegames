@@ -131,8 +131,8 @@ function pickWeighted<T extends string>(weights: Partial<Record<T, number>>, rng
 
 const between = (rng: Rng, [lo, hi]: [number, number]) => lo + rng.int(hi - lo + 1);
 
-export function createKitchen(seed: number, config: KitchenConfig): KitchenState {
-  const level = LEVELS[config.level - 1]!;
+export function createKitchen(seed: number, config: KitchenConfig, overrides?: Partial<LevelDef>): KitchenState {
+  const level = overrides ? { ...LEVELS[config.level - 1]!, ...overrides } : LEVELS[config.level - 1]!;
   const rng = seededRng(seed);
   const customers: Customer[] = [];
   let at = FIRST_ARRIVAL_MS;
@@ -342,15 +342,19 @@ export function tap(s: KitchenState, cook: string, target: string, t: number) {
     const plate = Number(a);
     if (!s.plates[plate]) return nope();
     if (hand?.kind === "item") {
+      if (Object.entries(s.hands).some(([id, h]) => id !== cook && h?.kind === "plate" && h.plate === plate)) return nope();
       if (!addToPlate(s, plate, hand.item)) return nope();
       s.hands[cook] = null;
       return;
     }
+    // A plate can only be in one cook's hands, or two cooks could serve the same food.
+    const heldByOther = Object.entries(s.hands).some(([id, h]) => id !== cook && h?.kind === "plate" && h.plate === plate);
     if (hand?.kind === "plate") {
+      if (hand.plate !== plate && heldByOther) return nope();
       s.hands[cook] = hand.plate === plate ? null : { kind: "plate", plate };
       return;
     }
-    if (!s.plates[plate]!.length) return nope();
+    if (heldByOther || !s.plates[plate]!.length) return nope();
     s.hands[cook] = { kind: "plate", plate };
     return;
   }

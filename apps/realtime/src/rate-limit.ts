@@ -40,7 +40,7 @@ export const categoryFor = (event: string): RateCategory => {
   if (event === "doodle:stroke" || event === "doodle:undo" || event === "doodle:clear") return "stroke";
   if (event === "doodle:guess") return "guess";
   if (event === "arena:input") return "input";
-  if (event === "kitchen:act") return "cook";
+  if (event === "kitchen:act" || event === "kitchen:tap") return "cook";
   if (event.startsWith("card:") || event.startsWith("trail:") || event === "doodle:select-word") return "action";
   return "room";
 };

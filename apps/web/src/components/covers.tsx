@@ -335,6 +335,21 @@ export function GameCover({ gameId, className }: { gameId: GameId; className?: s
           <path d={`M${W / 2 - 16} ${H * 0.3}l24 -6 -10 26 18 -2 -30 40 8 -32 -16 2Z`} fill="#ffc83d" />
         </Frame>
       );
+    case "kitchen-rush-coop":
+      return (
+        <Frame label="Kitchen Rush Co-op cover: four chefs' hats around one busy stove" className={className} bg="#3a1d12">
+          <rect y={H * 0.68} width={W} height={H * 0.32} fill="#6b3a1e" />
+          <rect x={W * 0.3} y={H * 0.55} width={W * 0.4} height={H * 0.16} rx="8" fill="#2c2a3f" />
+          <path d={`M${W * 0.42} ${H * 0.55}q10 -34 22 -8q10 -26 22 8Z`} fill="#ffb23d" />
+          {[["#ff6b4a", 0.14], ["#2fd6a8", 0.36], ["#7c5cff", 0.62], ["#ffc83d", 0.84]].map(([color, x], i) => (
+            <g key={i} transform={`translate(${Number(x) * W} ${H * (i % 2 ? 0.3 : 0.38)})`}>
+              <path d="M-20 -6q-14 -26 8 -26q12 -16 24 0q22 0 8 26Z" fill="#fff6ea" />
+              <circle r="20" cy="12" fill={["#f0c39a", "#c98a5e", "#e5b184", "#9c6641"][i]} />
+              <path d="M-26 32q26 -12 52 0v50h-52Z" fill={String(color)} />
+            </g>
+          ))}
+        </Frame>
+      );
     case "kitchen-rush":
       return <KitchenRushCover className={className} />;
     case "bumper-blitz":
