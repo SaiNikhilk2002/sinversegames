@@ -160,3 +160,19 @@ Not measured: frame rates on real devices, network traffic per match, and remote
 5. Physical devices and Safari.
 6. Light-mode token fixes before considering light as default.
 7. Apply the proposed `AGENTS.md`/`CLAUDE.md` edits at merge: [PROPOSED_AGENT_INSTRUCTION_UPDATES.md](PROPOSED_AGENT_INSTRUCTION_UPDATES.md).
+
+## Rebase plan (after PR #4 merges)
+
+A dry run with `git merge-tree` of `feature/cuisine-quest-showdown` against PR #4's head predicts **no conflicts**. The only file both branches change is `README.md`, and it merges automatically.
+
+Steps, once `main` contains PR #4:
+
+1. Record the current tip (`3cf5d93` or later) as a safety reference with a local tag. Rebase is local and reversible from that reference.
+2. `git rebase origin/main` on `feature/cuisine-quest-showdown`. All nine commits are kept.
+3. Check the README merge keeps both the Cricket 2 text and the two new games.
+4. Rerun:
+   - Typecheck, `pnpm test`, `pnpm test:db` and the build.
+   - The Cloudflare config spec, which PR #4 adds.
+   - The Linux `cloudflare:build`, confirming `OPENNEXT_ARTIFACT_CHECK` prints, and the Preview and production dry runs.
+   - One full browser suite.
+5. Push the rebased branch only with approval, then follow `PREVIEW_REALTIME_ISOLATION_PLAN.md`.
