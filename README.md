@@ -152,6 +152,8 @@ pnpm cloudflare:check                   # production Worker/assets packaging; fi
 pnpm cloudflare:preview:check           # route-free Preview settings projection; fixed --dry-run
 ```
 
+Inside Workers Builds (`WORKERS_CI=1`), the root `pnpm build` builds the OpenNext Worker instead of the Node build. The root also pins Wrangler 4.155.0, so Cloudflare's default `pnpm run build` and `npx wrangler preview` work too. See [default build commands](docs/CLOUDFLARE_DEFAULT_BUILD.md).
+
 Workers Builds Preview command: `pnpm cloudflare:preview:deploy` (publishes a branch Preview; not a local check). Production keeps `pnpm cloudflare:deploy`. See [preview configuration and verification](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md); the open-beta Wrangler Preview command requires the checked-in `previews` block and Preview-only runtime secrets.
 
 The confirmed existing production Worker is `sinversegames`, serving `sinversegames.com` and `www.sinversegames.com`. Both Wrangler configurations declare that name and those Custom Domains. [Worker configuration audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) separates production deployment, branch Preview, local packaging and per-commit GitHub checks. No production routes or resources are copied into the Preview packaging projection.
