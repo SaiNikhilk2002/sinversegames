@@ -1,3 +1,4 @@
+import { finishCricketToss } from "./cricket-helpers";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import * as T from "three";
@@ -36,7 +37,7 @@ import { QualityGovernor, crowdEnergy, direct, presentationRate, type DirectorIn
 import { calibratedShot } from "../../../packages/engines/test/cricket-fixtures";
 import { enterName } from "./helpers";
 
-const evidence = "../../artifacts/cricket-polish";
+const evidence = "../../artifacts/cricket-2/visual-regression";
 const outcome = (patch: Partial<Outcome>): Outcome => ({ bat: 0, wides: 0, noBalls: 0, byes: 0, legByes: 0, total: 0, legal: true, wicket: null, dismissed: "striker", boundary: 0, completedRuns: 0, timing: 0, label: "", ...patch });
 const moment = (patch: Partial<MatchMoment> = {}): MatchMoment => ({ tick: 200, outcome: null, deadAge: -1, contact: false, result: null, ...patch });
 
@@ -146,11 +147,11 @@ test.describe("Cricket animation system", () => {
     const bowler = { style: "fast" as const, chasing: false, action: "ready" as const, actionAge: 0, moving: false, ballY: 0 };
     const keeper = { action: "ready" as const, actionAge: 0, moving: false, ballZ: 12, ballY: 1 };
 
-    expect(selectFielder({ ...dead(bowled), ...fielder })).toMatchObject({ clip: "celebrate" });
+    expect(selectFielder({ ...dead(bowled), ...fielder })).toMatchObject({ clip: "clap" });
     expect(selectFielder({ ...dead(six), ...fielder })).toMatchObject({ clip: "hands" });
     expect(selectBowler({ ...dead(lbw), ...bowler, wicket: "lbw" })).toMatchObject({ clip: "appeal" });
     expect(selectBowler({ ...dead(six), ...bowler, wicket: null })).toMatchObject({ clip: "frustrated" });
-    expect(selectKeeper({ ...dead(outcome({ wicket: "stumped" })), ...keeper, wicket: "stumped" })).toMatchObject({ clip: "appeal" });
+    expect(selectKeeper({ ...dead(outcome({ wicket: "stumped" })), ...keeper, wicket: "stumped" })).toMatchObject({ clip: "salute" });
     expect(selectUmpire(dead(six))).toMatchObject({ clip: "umpireSix" });
     expect(selectUmpire(dead(bowled))).toMatchObject({ clip: "umpireOut" });
     expect(selectUmpire(dead(outcome({ boundary: 4 })))).toMatchObject({ clip: "umpireFour" });
@@ -197,8 +198,10 @@ test.describe("Cricket camera director", () => {
   const inAir = { tick: 300, ball: { x: 20, y: 15, z: -40 }, contact: true, mode: "struck" as const, bounce: false };
 
   test("frames the player's working view before the ball is bowled", () => {
-    expect(direct(base).name).toBe("batter");
-    expect(direct({ ...base, humanBatting: false }).name).toBe("bowler");
+    expect(direct(base).name).toBe("bowler-run-up");
+    const settled = { ...base, frame: { ...base.frame, tick: 85 } };
+    expect(direct(settled).name).toBe("batter");
+    expect(direct({ ...settled, humanBatting: false }).name).toBe("bowler");
   });
   test("tracks a struck ball, and hands over to the rope for one going all the way", () => {
     expect(direct({ ...base, frame: { ...inAir, ball: { x: 5, y: 8, z: -6 } } }).name).toBe("track");
@@ -362,8 +365,7 @@ test("Cricket: a real ball's bat contact, release and grip are accurate in the a
   await page.getByLabel("Graphics", { exact: true }).selectOption("low");
   await expect(root).toHaveAttribute("data-draw-calls", /\d+/, { timeout: 20000 });
   const model = new CricketMatch(run.seed, run.config);
-  await page.getByLabel("Toss call").selectOption(model.tossFace);
-  await page.getByRole("button", { name: "Call the toss", exact: true }).click();
+  await finishCricketToss(page, model.tossFace);
   model.toss({ k: "toss", call: model.tossFace, decision: "bat", t: 0 });
   await page.getByRole("button", { name: "More control +", exact: true }).click();
   await page.getByLabel("Relaxed presentation pace").uncheck();
@@ -425,6 +427,9 @@ test("Cricket: quality presets, lighting and repeated re-entry keep resources bo
   await start(page);
   const root = page.getByTestId("sinverse-cricket"),
     measured: Record<string, unknown> = {};
+  // Compare the same fully visible playing field. Three uploads visible resources lazily;
+  // captain/coin close-ups intentionally upload fewer meshes than the full XI.
+  await finishCricketToss(page);
   const settle = async () => {
     await expect(page.getByText("3D ground ready", { exact: true })).toBeVisible({ timeout: 30000 });
     await page.waitForTimeout(3200);
@@ -469,8 +474,7 @@ test("Cricket: graphics, cameras, replay and pause never change what the engine 
     primary = page.getByTestId("cricket-primary"),
     score = page.getByTestId("cricket-score");
   const model = new CricketMatch(run.seed, run.config);
-  await page.getByLabel("Toss call").selectOption(model.tossFace);
-  await page.getByRole("button", { name: "Call the toss", exact: true }).click();
+  await finishCricketToss(page, model.tossFace);
   model.toss({ k: "toss", call: model.tossFace, decision: "bat", t: 0 });
   await page.getByRole("button", { name: "More control +", exact: true }).click();
   await page.getByLabel("Relaxed presentation pace").uncheck();
@@ -527,17 +531,30 @@ test("Cricket: leaving the match removes the canvas and the next match starts cl
   const page = await context.newPage(),
     errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await start(page);
+  const firstRun = await start(page);
   const root = page.getByTestId("sinverse-cricket");
+  // Begin each GPU renderer from the same history and fixed view. Resources
+  // uploaded by an optional sky/coin intro otherwise vary with loading speed.
+  await page.getByLabel("Camera", { exact: true }).selectOption("aerial");
+  await page.getByLabel("Graphics", { exact: true }).selectOption("tactical");
+  await finishCricketToss(page, new CricketMatch(firstRun.seed, firstRun.config).tossFace);
+  await expect(root).toHaveAttribute("data-batting", "true");
   await page.getByLabel("Graphics", { exact: true }).selectOption("low");
   await expect(root).toHaveAttribute("data-draw-calls", /\d+/, { timeout: 20000 });
+  await page.waitForTimeout(1600);
   const first = { textures: await stat(root, "textures"), geometries: await stat(root, "geometries") };
   for (let n = 0; n < 2; n++) {
     await page.getByRole("button", { name: "Pause match", exact: true }).click();
     await page.getByRole("button", { name: "Leave match", exact: true }).click();
     await expect(page.getByTestId("cricket-canvas")).toHaveCount(0);
+    const response = page.waitForResponse(r => r.url().endsWith("/api/solo/start") && r.request().method() === "POST");
     await page.getByTestId("start-run").click();
+    const nextRun = await (await response).json();
     await expect(root).toBeVisible();
+    await page.getByLabel("Camera", { exact: true }).selectOption("aerial");
+    await page.getByLabel("Graphics", { exact: true }).selectOption("tactical");
+    await finishCricketToss(page, new CricketMatch(nextRun.seed, nextRun.config).tossFace);
+    await expect(root).toHaveAttribute("data-batting", "true");
     await page.getByLabel("Graphics", { exact: true }).selectOption("low");
     await expect(root).toHaveAttribute("data-draw-calls", /\d+/, { timeout: 20000 });
     await page.waitForTimeout(1500);

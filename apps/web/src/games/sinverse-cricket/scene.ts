@@ -47,6 +47,8 @@ import {
 import { applyPose, batPoint, buildAthlete, handCentre, holdBat, paintKit, paintRoughness, placeBat, type Athlete, type Role } from "./character";
 import { crowdEnergy, direct, ropeRatio, type CameraName } from "./director";
 import { LIGHTS, QUALITY, buildStadium, lightingFor, type Lighting, type QualityName } from "./stadium";
+import { coinPose, type CeremonyFeed } from "./ceremony";
+import { buildCoin, ceremonyCamera } from "./ceremony-scene";
 
 export type Quality = QualityName;
 export type { CameraName, Lighting };
@@ -69,6 +71,9 @@ export type SceneFeed = {
   variation?: Variation | null;
   replay?: boolean;
   result?: MatchMoment["result"];
+  ceremony?: CeremonyFeed;
+  intent?: Omit<ShotInput, "tick">;
+  aim?: { line: number; length: number };
 };
 export interface SceneDriver {
   draw(feed: SceneFeed): void;
@@ -174,6 +179,11 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   };
   const stadium = buildStadium(config, quality, lightingChoice, renderer.capabilities.getMaxAnisotropy(), makeEnvMat);
   scene.add(stadium.group);
+  const coin = buildCoin();
+  scene.add(coin);
+  const aim = new T.Mesh(new T.RingGeometry(0.18, 0.23, 32), new T.MeshBasicMaterial({ color: "#f3ca78", transparent: true, opacity: 0.7, depthWrite: false }));
+  aim.rotation.x = -Math.PI / 2;
+  scene.add(aim);
 
   // Kit materials. Close actors have their own named shirts; outfielders share a team kit.
   const roughnessCanvas = canvasOf(64);
@@ -206,6 +216,11 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
     scene.add(a.root);
     actors.push({ a, planter: new FootPlanter(), target: makePose(), from: makePose(), out: makePose(), clip: "", fadeAt: -10, action: "ready", actionTick: 0, prev: v3(NaN), prevTick: -1, speed: 0, facing: 0, number: n + 1, team, kit, kitCanvas });
   }
+  const captains = [0, 1].map(team => {
+    const a = buildAthlete("field", 1, team, q.closeDetail, teamKits[team]!.material);
+    a.root.visible = false; a.mesh.castShadow = !!q.shadows; scene.add(a.root);
+    return { a, pose: makePose() };
+  });
 
   // Ground contact shadows for everyone and the ball: one instanced draw.
   const blobTex = (() => {
@@ -460,10 +475,22 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       const style = bowlingStyle(feed.variation ?? undefined);
       const moment: MatchMoment = { tick, outcome: dead ? outcome : null, deadAge, contact: hit, result: feed.result ?? null };
       const wicket = dead ? (outcome?.wicket ?? null) : null;
+      const ceremony = feed.ceremony;
+      const preMatch = ceremony && ceremony.stage !== "done" && ceremony.stage !== "entry";
+      for (const captain of captains) captain.a.root.visible = !!preMatch && ceremony.stage !== "lineups";
+      coin.visible = !!preMatch && !["stadium", "lineups", "captains"].includes(ceremony.stage);
+      if (coin.visible && ceremony) {
+        const c = coinPose(ceremony);
+        coin.position.set(c.x, c.y, c.z); coin.rotation.set(c.rx, 0, c.rz);
+      }
+      aim.visible = !!feed.aim && !preMatch && tick === 0;
+      if (feed.aim) aim.position.set(feed.aim.line, 0.025, 10.0584 - feed.aim.length);
 
       for (let n = 0; n < ACTORS; n++) {
         const actor = actors[n]!,
           a = actor.a;
+        a.bones.bat.scale.setScalar(1);
+        a.root.visible = !preMatch || ceremony?.stage === "lineups" && n < 11 || n === UMPIRE && ceremony?.stage !== "lineups";
         if (n < BOWLER + 2) setKit(actor, n, n <= NON_STRIKER ? feed.battingTeam : 1 - feed.battingTeam, feed.actorNumbers?.[n] ?? actor.number);
         // Outfielders can update on alternate frames on the lowest preset.
         if (q.fielderEvery > 1 && n >= 2 && n < BOWLER && n % 2 !== frameNo % 2 && actor.clip) continue;
@@ -501,6 +528,24 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
             px += RELEASE_ROOT.x * fade;
           }
         }
+        // Presentation positions never write to the fielders or match.
+        if (dead && wicket && deadAge > 1.1) {
+          const u = clamp01((deadAge - 1.1) / 3.2);
+          const dismissed = (outcome?.dismissed === "striker" ? STRIKER : NON_STRIKER);
+          if (n === dismissed) { px += u * 4; pz += u * 2.8; }
+          else if (n >= 2 && n < UMPIRE && simAction !== "dive") {
+            const anchor = frame.fielders.find((_, k) => frame.actions[k] === "catch" || frame.actions[k] === "throw") ?? frame.fielders[9]!;
+            const angle = n * 2.4;
+            const maxTravel = Math.min(1, (deadAge - 1.1) * 3 / Math.max(1, Math.hypot(anchor.x - px, anchor.z - pz)));
+            px += (anchor.x + Math.sin(angle) * 1.3 - px) * maxTravel;
+            pz += (anchor.z + Math.cos(angle) * 1.3 - pz) * maxTravel;
+          }
+        }
+        if (ceremony?.stage === "entry") {
+          const u = clamp01(ceremony.age / 2.4);
+          px += (n % 2 ? -1.4 : 1.4) * (1 - u);
+          pz -= 2.2 * (1 - u);
+        }
 
         // ---- movement bookkeeping ---------------------------------------------
         const dTick = tick - actor.prevTick;
@@ -512,8 +557,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         const dx = px - actor.prev.x,
           dz = pz - actor.prev.z,
           moved = Math.hypot(dx, dz);
-        if (dTick > 0) {
-          const measured = moved / (dTick * STEP);
+        if ((ceremony?.stage === "entry" || dead && wicket && deadAge > 1.1) && dt > 0) actor.speed = moved / dt;
+        else if (dTick > 0) {
+          const measured = moved / (dTick * STEP) * (n === BOWLER && tick < RELEASE_TICK ? 0.28 : 1);
           actor.speed += (measured - actor.speed) * Math.min(1, dTick * 0.12);
         }
         const moving = actor.speed > 0.35;
@@ -526,7 +572,8 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
 
         // ---- facing -----------------------------------------------------------
         let want: number;
-        if (n === STRIKER && !running && frame.runner === 0) want = Math.PI / 2;
+        if ((ceremony?.stage === "entry" || dead && wicket && deadAge > 1.1) && moving) want = Math.atan2(dx, dz);
+        else if (n === STRIKER && !running && frame.runner === 0) want = Math.PI / 2;
         else if (moved > 0.002 && moving && (n === BOWLER || n <= NON_STRIKER || actor.speed > 2.2)) want = Math.atan2(dx, dz);
         else if (n === UMPIRE) want = 0;
         else if (n === NON_STRIKER) want = frame.runner % 2 < 1 ? 0 : Math.PI;
@@ -551,6 +598,8 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         else if (n === BOWLER) sel = selectBowler({ ...moment, style, chasing: travel > 0.02, action: simAction, actionAge, moving, ballY: frame.ball.y, wicket });
         else if (n === KEEPER) sel = selectKeeper({ ...moment, action: simAction, actionAge, moving, ballZ: frame.ball.z, ballY: frame.ball.y, wicket });
         else sel = selectFielder({ ...moment, action: simAction, actionAge, moving, speed: actor.speed, ballY: frame.ball.y, id: n - 2, chasing: travel > 0.05 });
+        if (dead && wicket && deadAge > 1.1 && moved > 0.002 && n !== UMPIRE && simAction !== "dive") sel = "gait";
+        if (ceremony?.stage === "entry" && moving) sel = "gait";
 
         let name: string;
         if (sel === "gait" && actor.speed < 0.2 && tick === 0) sel = { clip: "idle", time: wall };
@@ -561,6 +610,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           sampleClip(CLIPS.stance, 0, p);
           const swing = shot ? clamp01((tick - shot.tick) / IMPACT_TICKS) : 0;
           if (shot) applyShotBody(p, shot.kind, shot.foot, swing);
+          else if (feed.intent && !preMatch) applyShotBody(p, feed.intent.kind, feed.intent.foot, 0.65);
           // A little trigger movement as the bowler lets go.
           const trigger = clamp01((tick - RELEASE_TICK + 12) / 20);
           p[CH.hipY] = p[CH.hipY]! + trigger * 0.012;
@@ -715,7 +765,13 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
 
       // ---- ball -------------------------------------------------------------------
       const b = frame.ball;
+      ball.visible = !preMatch;
+      blobs.visible = !preMatch;
       if (tick >= RELEASE_TICK) ball.position.set(b.x, b.y, b.z);
+      if (dead && wicket === "caught") {
+        const catcher = frame.actions.findIndex(action => action === "catch");
+        if (catcher >= 0) ball.position.copy(handCentre(actors[catcher + 2]!.a, false, tmp));
+      }
       ball.scale.setScalar(Math.max(1, Math.min(2.4, camera.position.distanceTo(ball.position) / 16)));
       ball.rotation.x = tick * 0.14;
       ball.rotation.y = tick * 0.05;
@@ -785,7 +841,37 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       stadium.setScore(feed.score);
 
       // ---- camera -------------------------------------------------------------------
-      const pick = direct({
+      if (preMatch && ceremony) {
+        const lineup: readonly (readonly [number, number, number, number])[] = Array.from({ length: 11 }, (_, n) => [n, (n - 5) * 0.95, -1 - Math.abs(n - 5) * 0.15, 0] as const);
+        for (const [n, x, z, facing] of ceremony.stage === "lineups" ? lineup : [[UMPIRE, 1.6, -1.2, 0]] as const) {
+          const actor = actors[n]!, a = actor.a;
+          setKit(actor, n, ceremony.stage === "lineups" ? ceremony.team : n === NON_STRIKER ? 1 - ceremony.team : ceremony.team, ceremony.stage === "lineups" ? n + 1 : 1);
+          a.root.position.set(x, 0, z); a.root.rotation.y = facing;
+          const p = sampleClip(ceremony.stage === "decision" ? CLIPS.clap : CLIPS.idle, ceremony.age, actor.target);
+          if (n === STRIKER && ["hand", "flight"].includes(ceremony.stage)) {
+            const u = ceremony.stage === "flight" ? Math.max(0, 1 - ceremony.age * 2) : 1;
+            const target = toLocal(actor, 0.6, 1.465, 0.7);
+            setHand(p, false, target[0], target[1] + (ceremony.stage === "flight" ? Math.sin(ceremony.age * Math.PI * 2) * 0.3 : 0), target[2], u);
+          }
+          applyPose(a, p);
+          a.bones.bat.scale.setScalar(0.001);
+        }
+        for (const [order, team] of [ceremony.team, 1 - ceremony.team].entries()) {
+          const { a, pose: p } = captains[team]!;
+          const x = order === 0 ? 0.9 : 2.4, z = order === 0 ? 0.3 : 0.5;
+          a.root.position.set(x, 0, z); a.root.rotation.y = order === 0 ? 0 : -0.7;
+          sampleClip(ceremony.stage === "decision" ? CLIPS.clap : CLIPS.idle, ceremony.age, p);
+          if (order === 0 && ["hand", "flight"].includes(ceremony.stage)) {
+            const u = ceremony.stage === "flight" ? Math.max(0, 1 - ceremony.age * 2) : 1;
+            setHand(p, false, (0.6 - x) / a.look.scale, 1.465 / a.look.scale, (0.7 - z) / a.look.scale, u);
+          }
+          applyPose(a, p);
+          if (order === 0 && ceremony.stage === "hand") { coin.position.copy(handCentre(a, false, tmp)); coin.position.y += 0.055; }
+        }
+      }
+      const reactionIndex = wicket === "caught" || wicket === "run-out" ? frame.actions.findIndex(action => action === (wicket === "caught" ? "catch" : "throw")) : -1;
+      const reactionActor = actors[reactionIndex >= 0 ? reactionIndex + 2 : wicket === "stumped" ? KEEPER : BOWLER]!;
+      const pick = (ceremony ? ceremonyCamera(ceremony) : null) ?? direct({
         camera: feed.camera,
         frame: { tick, ball: b, contact: hit, mode: frame.mode, bounce: frame.bounce },
         outcome,
@@ -795,6 +881,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         batterX: actors[STRIKER]!.a.root.position.x,
         batterZ: actors[STRIKER]!.a.root.position.z,
         replay: !!feed.replay,
+        reaction: dead && wicket ? reactionActor.a.root.position : undefined,
       });
       shotName = pick.name;
       const snap = feed.reducedMotion || snapCamera;

@@ -6,7 +6,7 @@ export function createTacticalScene(canvas: HTMLCanvasElement): SceneDriver {
   const c = canvas.getContext("2d");
   if (!c) throw Error("Canvas unavailable");
   return {
-    draw({ frame, battingTeam, score }) {
+    draw({ frame, battingTeam }) {
       const w = canvas.clientWidth,
         h = canvas.clientHeight;
       if (canvas.width !== w || canvas.height !== h) {
@@ -65,10 +65,6 @@ export function createTacticalScene(canvas: HTMLCanvasElement): SceneDriver {
       c.beginPath();
       c.arc(bx, by - frame.ball.y * scale * 0.65, 3.5, 0, 7);
       c.fill();
-      c.fillStyle = "#edf4eb";
-      c.font = "bold 12px sans-serif";
-      c.textAlign = "center";
-      c.fillText(score.replaceAll("|", " · "), w / 2, 24);
     },
     metrics: () => ({
       calls: 1,

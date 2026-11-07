@@ -9,6 +9,40 @@
   font-family: var(--font-body), sans-serif;
   color-scheme: dark;
 }
+
+/* Matchday 2: a stadium-first broadcast, warm paper, sea glass and brass. */
+.cr-primer { padding: 18px 36px; background: #101f29; color: #c3d1ce; font-size: 12px; }
+.cr-primer summary { cursor: pointer; color: #f1d296; font-weight: 750; }
+.cr-primer p { margin-top: 12px; max-width: 900px; }
+.cr-setup-v2 { --cr-bg: #0d1e28; --cr-mint: #eed39b; border: 1px solid #4e6667; }
+.cr-matchday { display: flex; justify-content: space-between; padding: 14px 30px; gap: 15px; font-size: 9px; letter-spacing: 0.14em; border-bottom: 1px solid #53696b; color: #b1c8c5; background: #101f28; }
+.cr-matchday b { color: #f1d39c; font-size: 8px; }
+.cr-setup-v2 .cr-intro { background: radial-gradient(ellipse at 80% 40%, #41626d55, transparent 70%), #132d39; border-bottom: 0; padding-block: 36px; }
+.cr-setup-v2 .cr-intro h2 { font-size: clamp(32px, 5vw, 58px); }
+.cr-setup-v2 .cr-intro em { color: #f0d29b; }
+.cr-setup-v2 .cr-intro img { filter: saturate(1.1); transform: rotate(-3deg); }
+.cr-setup-v2 .cr-tags span { border-color: #c5bb8c55; color: #d9e3ce; border-radius: 3px; }
+.cr-fixture-preview { display: flex; align-items: center; gap: 25px; padding: 24px 36px; border-block: 1px solid #5e747655; background: #112731; }
+.cr-fixture-preview > div { display: flex; align-items: center; gap: 12px; flex: 1; }
+.cr-fixture-preview span { display: flex; flex-direction: column; gap: 4px; }
+.cr-fixture-preview strong { font-size: 15px; }
+.cr-fixture-preview small { font-size: 9px; color: #bfd2cb; }
+.cr-fixture-preview .cr-emblem { color: #e7cb93; }
+.cr-versus { font-style: italic; font-size: 12px; color: #a0b9b6; }
+.cr-fixture-preview > p { font-size: 10px; color: #c1d3cb; border-left: 1px solid #6e8a8155; padding-left: 22px; }
+.cr-setup-v2 .cr-fixture { padding-top: 25px; background: #0e202b; }
+.cr-setup-v2 .cr-team-pick { border-radius: 5px; }
+.cr-setup-v2 .cr-start { background: #1b3440; border-top: 1px solid #59776e; }
+.cr-setup-v2 .cr-start .cr-primary { background: #efd39e; color: #192e35; border-color: #efd39e; box-shadow: none; }
+@media (max-width: 650px) {
+  .cr-matchday { padding: 12px 18px; font-size: 8px; }
+  .cr-matchday b { display: none; }
+  .cr-fixture-preview { flex-wrap: wrap; padding: 20px 18px; gap: 12px; }
+  .cr-fixture-preview .cr-emblem { width: 25px; height: 30px; }
+  .cr-fixture-preview > div { gap: 8px; }
+  .cr-fixture-preview strong { font-size: 12px; }
+  .cr-fixture-preview > p { width: 100%; padding: 8px 0 0; border: 0; border-top: 1px solid #59776e55; }
+}
 .cricket * {
   box-sizing: border-box;
 }
@@ -1242,4 +1276,117 @@
 .cr-stage {
   box-sizing: border-box;
   padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+}
+
+.cr-v2 { --cr-bg: #0b171e; --cr-card: #152c35; --cr-line: #34515a; --cr-ink: #f4f1e8; --cr-muted: #baccc9; --cr-mint: #efd297; }
+.cr-v2 .cr-top { height: 46px; background: #0b171e; padding-inline: 22px; }
+.cr-v2 .cr-wordmark b { color: #efd297; }
+.cr-v2 .cr-score { position: absolute; z-index: 2; top: calc(62px + env(safe-area-inset-top, 0px)); left: calc(22px + env(safe-area-inset-left, 0px)); width: min(500px, 60%); min-height: 78px; padding: 12px 18px; gap: 18px; border-left: 3px solid #e6c78b; border-radius: 0 6px 6px 0; background: linear-gradient(105deg, #10232cf5, #10232cdd); box-shadow: 0 6px 22px #0003; }
+.cr-v2 .cr-score-team strong { font-size: 13px; }
+.cr-team-short { display: none; }
+.cr-mobile-target { display: none; }
+.cr-v2 .cr-score-team .cr-emblem { width: 30px; height: 30px; color: #75deca; }
+.cr-v2 .cr-totals strong { font-size: 30px; font-variant-numeric: tabular-nums; }
+.cr-v2 .cr-target { min-width: 100px; }
+.cr-v2 .cr-target b { font-size: 12px; }
+.cr-v2 .cr-field { touch-action: none; overscroll-behavior: contain; isolation: isolate; }
+.cr-v2 .cr-canvas { touch-action: none; }
+.cr-v2 .cr-field-corner { top: 110px; left: 23px; border: 0; background: #0b202ca6; }
+.cr-v2 .cr-scene-options { flex-direction: column; right: 16px; width: 132px; max-width: 30%; }
+.cr-v2 .cr-scene-options select { background: #10232cdb; border: 1px solid #d8e2d333; border-radius: 4px; }
+.cr-v2 .cr-render-status { bottom: 8px; left: auto; right: 12px; font-size: 8px; }
+.cr-v2 .cr-ceremony { top: auto; bottom: 32px; left: 28px; transform: none; text-align: left; width: min(560px, calc(100% - 56px)); padding: 18px 22px; border: 0; border-left: 3px solid #e8c98b; border-radius: 0 8px 8px 0; background: linear-gradient(100deg, #0b1a25ef, #0b1a25c9); box-shadow: 0 12px 45px #0003; }
+.cr-v2 .cr-ceremony h2 { font-size: clamp(23px, 3.2vw, 42px); margin: 6px 0 10px; }
+.cr-v2 .cr-ceremony p { font-size: 12px; color: #e1e6d8; }
+.cr-v2 .cr-ceremony .cr-eyebrow { color: #efcd8c; }
+.cr-v2 .cr-ceremony > .cr-toss-choices { justify-content: flex-start; flex-wrap: wrap; margin: 14px 0 4px; gap: 8px; }
+.cr-toss-choices small { flex-basis: 100%; font-size: 11px; color: #c7d4cc; }
+.cr-v2 .cr-ceremony > .cr-lineups { display: grid; gap: 12px; margin: 12px 0; }
+.cr-lineups p { line-height: 1.5; font-size: 10px !important; }
+.cr-v2 .cr-skip { margin-top: 10px; color: #d6e1d9; font-size: 10px; min-height: 32px; }
+.cr-v2 .cr-primary { background: #edce93; border-color: #edce93; color: #192b30; box-shadow: none; }
+.cr-v2 .cr-primary:hover:not(:disabled) { background: #ffe4b0; }
+.cr-v2 .cr-players { background: #10232c; padding: 7px 22px; min-height: 34px; font-size: 11px; }
+.cr-v2 .cr-controls { padding: 4px 22px; gap: 12px; }
+.cr-v2:not(.cr-expanded):not(.cr-assist) .cr-controls { display: block; height: 0; padding: 0; position: relative; }
+.cr-v2:not(.cr-expanded):not(.cr-assist) .cr-controls > label { display: none; }
+.cr-v2:not(.cr-expanded):not(.cr-assist) .cr-controls > .cr-small { position: absolute; right: 22px; bottom: 5px; min-height: 26px; background: #18323b; z-index: 1; font-size: 10px; }
+.cr-v2:not(.cr-expanded):not(.cr-assist) .cr-players { padding-right: 145px; }
+.cr-v2 .cr-controls .cr-advanced { gap: 14px; padding-top: 6px; }
+.cr-v2 .cr-controls .cr-range > span { margin-bottom: 0; }
+.cr-v2 .cr-actions { padding: 5px 22px; min-height: 44px; gap: 8px; background: #0e2029; }
+.cr-v2 .cr-main-actions .cr-button { min-height: 30px; padding: 4px 9px; font-size: 10px; border-radius: 4px; }
+.cr-v2 .cr-main-actions .cr-primary { min-width: 140px; background: #18343d; color: #edce93; border-color: #698074; }
+.cr-v2.cr-assist .cr-main-actions .cr-button { min-height: 44px; }
+.cr-v2 .cr-ball-chips > span { min-width: 23px; height: 23px; border-radius: 3px; background: #1c3540; }
+.cr-v2 .cr-ball-chips > .cr-boundary-chip { background: #efd297; color: #17343c; }
+.cr-v2 .cr-footer { min-height: 28px; padding: 5px 22px; background: #0a171e; }
+.cr-v2 .cr-intent { position: absolute; bottom: 12px; left: 23px; max-width: 72%; display: flex; flex-direction: column; gap: 4px; pointer-events: none; padding: 9px 12px; background: #0b202cd4; border-left: 2px solid #83d4bf; border-radius: 0 4px 4px 0; }
+.cr-intent span { font-size: 12px; color: #fff5dd; font-weight: 700; }
+.cr-intent small { font-size: 10px; color: #c9dad1; }
+.cr-flight-cue { width: 150px; max-width: 100%; height: 3px; margin-top: 4px; background: #adbfbb44; }
+.cr-flight-cue i { height: 3px; display: block; background: #edce93; }
+.cr-event { position: absolute; top: 32%; right: 5%; display: flex; flex-direction: column; align-items: flex-end; text-align: right; padding: 12px 18px; border-right: 3px solid #edce93; background: linear-gradient(90deg, transparent, #0a1e2ed9); pointer-events: none; }
+.cr-event small { color: #f2d292; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; }
+.cr-event strong { font-size: clamp(24px, 4vw, 58px); font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; color: #faf0d5; }
+.cr-event span { font-size: 10px; color: #c9d9d1; }
+.cr-v2 .cr-release { bottom: 80px; max-width: 360px; padding: 10px 15px; border-color: #e8c98b6b; border-radius: 4px; }
+.cr-v2 .cr-release > div { background: linear-gradient(90deg, #3e565d 0%, #3e565d 66%, #e5c880 74%, #e5c880 81%, #9d6255 89%); }
+.cr-transition { position: absolute; inset: 30% 12% auto; text-align: center; padding: 24px; background: #0c202aeb; border-block: 1px solid #efce9666; border-radius: 7px; }
+.cr-transition p { margin: 10px; font-size: 13px; }
+.cr-transition .cr-button { margin-top: 15px; }
+.cr-bindings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.cr-bindings button { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; color: #e0e9dc; border: 1px solid #56706c; border-radius: 5px; background: #16333e; font-size: 11px; gap: 6px; }
+.cr-bindings button[aria-pressed="true"] { border-color: #efcd8c; background: #354347; }
+.cr-v2 .cr-panel { border-color: #c8b17c6b; background: #102831; }
+.cr-v2 .cr-match-finish { border-color: #c8b17c; background: #10232cf5; }
+@media (max-width: 650px) {
+  .cr-v2 .cr-top { height: 42px; padding-inline: 10px; }
+  .cr-v2 .cr-score { top: calc(53px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); width: 65%; min-height: 64px; gap: 8px; padding: 8px 10px; grid-template-columns: 1fr auto; }
+  .cr-v2 .cr-target { display: none; }
+  .cr-v2 .cr-score-team strong { font-size: 11px; }
+  .cr-team-long { display: none; }
+  .cr-team-short { display: inline; }
+  .cr-v2 .cr-score-team .cr-mobile-target { display: block; color: #f1d397; font-size: 10px; font-weight: 750; }
+  .cr-v2 .cr-score-team .cr-emblem { display: none; }
+  .cr-v2 .cr-score-team small { font-size: 8px; }
+  .cr-v2 .cr-totals strong { font-size: 25px; }
+  .cr-v2 .cr-totals > span { font-size: 10px; }
+  .cr-v2 .cr-scene-options { right: 8px; gap: 4px; width: 92px; }
+  .cr-v2 .cr-scene-options select { min-height: 26px; font-size: 9px; }
+  .cr-v2 .cr-field-corner { top: 91px; left: 10px; font-size: 8px; }
+  .cr-v2 .cr-ceremony { bottom: 16px; left: 12px; width: calc(100% - 24px); padding: 14px 16px; }
+  .cr-v2 .cr-ceremony h2 { font-size: 25px; }
+  .cr-v2 .cr-players, .cr-v2 .cr-footer, .cr-v2 .cr-actions { padding-inline: 10px; }
+  .cr-v2 .cr-players i { display: none; }
+  .cr-v2 .cr-intent { left: 10px; bottom: 14px; max-width: calc(100% - 20px); }
+  .cr-v2 .cr-intent span { font-size: 10px; }
+  .cr-v2 .cr-intent small { font-size: 9px; }
+  .cr-v2 .cr-main-actions .cr-primary { min-width: 100px; }
+  .cr-v2 .cr-main-actions kbd { display: none; }
+  .cr-v2 .cr-ball-chips > span { min-width: 18px; height: 20px; padding-inline: 2px; }
+  .cr-v2 .cr-ball-chips { gap: 3px; }
+  .cr-v2 .cr-ball-chips > button { padding-inline: 3px; font-size: 9px; }
+  .cr-v2 .cr-controls { padding: 4px 10px; gap: 6px; }
+  .cr-v2 .cr-advanced { gap: 8px; }
+  .cr-bindings { grid-template-columns: repeat(2, 1fr); }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .cr-v2 .cr-top { height: 34px; }
+  .cr-v2 .cr-score { top: calc(42px + env(safe-area-inset-top, 0px)); min-height: 50px; padding: 5px 12px; width: 56%; gap: 12px; }
+  .cr-v2 .cr-score-team small { white-space: nowrap; font-size: 9px; }
+  .cr-v2 .cr-score-team strong { white-space: nowrap; }
+  .cr-v2 .cr-totals strong { font-size: 23px; }
+  .cr-v2 .cr-field-corner { top: 64px; }
+  .cr-v2 .cr-ceremony { bottom: 12px; left: 16px; width: 40%; padding: 12px 16px; }
+  .cr-v2 .cr-ceremony h2 { font-size: 23px; margin: 5px 0; }
+  .cr-v2 .cr-ceremony .cr-button { min-height: 34px; padding: 5px 12px; }
+  .cr-v2 .cr-intent { max-width: 48%; padding: 5px 9px; bottom: 8px; }
+  .cr-v2 .cr-players { min-height: 24px; padding-block: 4px; }
+  .cr-v2 .cr-actions { min-height: 34px; padding-block: 2px; }
+  .cr-v2 .cr-footer { min-height: 22px; padding-block: 3px; }
+  .cr-v2 .cr-release { left: 74%; bottom: 12px; width: 40%; padding: 7px 12px; }
+}
+@media (pointer: coarse) {
+  .cr-v2 .cr-ceremony .cr-button { min-height: 44px; }
 }

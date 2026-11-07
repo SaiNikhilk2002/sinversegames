@@ -1,6 +1,7 @@
+import { finishCricketToss } from "./cricket-helpers";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
-import { CricketMatch, RELEASE_TICK, type BallLog, type ShotInput } from "@platform/engines/sinverse-cricket";
+import { CricketMatch, RELEASE_TICK, STEP, type BallLog, type ShotInput } from "@platform/engines/sinverse-cricket";
 import { calibratedShot } from "../../../packages/engines/test/cricket-fixtures";
 import { enterName } from "./helpers";
 
@@ -11,7 +12,7 @@ import { enterName } from "./helpers";
  */
 test.skip(!process.env.CRICKET_EVIDENCE, "Evidence capture only");
 test.use({ trace: "off", launchOptions: { args: ["--enable-unsafe-swiftshader"] } });
-const out = process.env.CRICKET_EVIDENCE_DIR ?? "../../artifacts/cricket-polish";
+const out = process.env.CRICKET_EVIDENCE_DIR ?? "../../artifacts/cricket-2/gameplay";
 
 async function range(page: Page, label: string, value: number) {
   await page.getByRole("slider", { name: label, exact: true }).evaluate((element, v) => {
@@ -69,7 +70,7 @@ function findShot(model: CricketMatch, wanted: (r: Outcome) => boolean) {
 test("capture real gameplay frames", async ({ browser }) => {
   test.setTimeout(1500000);
   mkdirSync(out, { recursive: true });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, recordVideo: { dir: `${out}/raw`, size: { width: 1024, height: 688 } } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, recordVideo: { dir: "../../.data/cricket-2/video", size: { width: 1024, height: 688 } } });
   const page = await context.newPage(),
     errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -87,8 +88,10 @@ test("capture real gameplay frames", async ({ browser }) => {
   await page.screenshot({ path: `${out}/01-main-stadium.png` });
 
   const model = new CricketMatch(run.seed, run.config);
-  await page.getByLabel("Toss call").selectOption(model.tossFace);
-  await page.getByRole("button", { name: "Call the toss", exact: true }).click();
+  await finishCricketToss(page, model.tossFace);
+  await page.getByRole("button", { name: "Pause match", exact: true }).click();
+  await page.getByLabel("Automatic event replays").uncheck();
+  await page.getByRole("button", { name: "Return to the middle", exact: true }).click();
   model.toss({ k: "toss", call: model.tossFace, decision: "bat", t: 0 });
   await page.getByRole("button", { name: "More control +", exact: true }).click();
   await page.getByLabel("Relaxed presentation pace").uncheck();
@@ -100,9 +103,7 @@ test("capture real gameplay frames", async ({ browser }) => {
   let time = 0;
   const settle = graphics === "low" ? 1500 : 2600;
   const skipReplay = async () => {
-    // Slow software rendering stretches the delay before an automatic replay, so wait it out.
-    await page.getByTestId("cricket-replay-close").waitFor({ timeout: 7000 }).catch(() => {});
-    if ((await page.getByTestId("cricket-replay-close").count()) > 0) await page.getByTestId("cricket-replay-close").click();
+    if (await page.getByTestId("cricket-replay-close").isVisible()) await page.getByTestId("cricket-replay-close").click();
   };
   // An automatic replay can open at any moment; the primary button then means "skip".
   const primaryAction = async () => {
@@ -126,7 +127,8 @@ test("capture real gameplay frames", async ({ browser }) => {
     const slider = page.getByRole("slider", { name: "Replay position", exact: true });
     if (!(await slider.isVisible().catch(() => false))) await page.keyboard.press("KeyP");
     await expect(slider).toBeVisible({ timeout: 8000 });
-    await page.getByRole("button", { name: "Pause replay", exact: true }).click().catch(() => {});
+    const pause = page.getByRole("button", { name: "Pause replay", exact: true });
+    if (await pause.isVisible()) await pause.click({ timeout: 2000 });
     return slider;
   };
 
@@ -161,16 +163,16 @@ test("capture real gameplay frames", async ({ browser }) => {
     const move = { bowling: null, shot: actual, runAt: [], field: model.fieldForAI() };
     const delivery = model.createDelivery(move);
     const result = delivery.complete();
-    time += 5000;
+    time += Math.ceil(delivery.tick * STEP * 1000) + 2000;
     const entry: BallLog = { k: "ball", seq: model.seq, ...move, digest: delivery.digest, t: time };
-    model.record(entry, delivery);
+    expect(model.record(entry, delivery), "evidence input agrees with the independent engine").toBe(true);
     const kind = result.wicket ? "wicket" : result.boundary === 6 ? "six" : result.boundary === 4 ? "four" : result.total ? "runs" : "dot";
     log.push({ ball: seq + 1, want: want?.[0], kind, wicket: result.wicket, shot: actual, contactTick: delivery.contactTick });
     const contact = delivery.contactTick > 0 ? delivery.contactTick : 180;
     const first = Object.keys(seen).length === 0;
     if (!seen[kind] && !bowlingRun) {
       seen[kind] = `ball ${seq + 1}`;
-      await page.waitForTimeout(1100);
+      await page.waitForTimeout(kind === "wicket" ? 2700 : 1100);
       await page.screenshot({ path: `${out}/result-${kind}-reaction.png` });
       await openReplay();
       await frames(`ball-${kind}`, [

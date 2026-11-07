@@ -2,6 +2,8 @@
 
 Date: 2026-11-05, updated 2026-11-06. This records the investigation as it happened. **Update:** the migrations were later applied to production with the owner's approval, and the empty 500s cleared in public checks. See [the migration report](PRODUCTION_MIGRATION_READINESS.md). The Cloudflare build failure below is still unresolved.
 
+For the subsequent deliberate local alignment with the confirmed `sinversegames` Worker, preservation of both production Custom Domains, and PR #4's separate failed Preview checks, see [the current Worker configuration audit](CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md). The older configuration names and build IDs below are retained as historical evidence; no remote Preview fix is claimed.
+
 ## 1. Cuisine Quest and token HTTP 500
 
 ### Finding

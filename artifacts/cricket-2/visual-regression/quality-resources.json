@@ -1,0 +1,37 @@
+{
+  "low-0": {
+    "calls": 44,
+    "triangles": 44064,
+    "textures": 28,
+    "geometries": 35,
+    "dpr": 0.75
+  },
+  "medium-1": {
+    "calls": 44,
+    "triangles": 83828,
+    "textures": 30,
+    "geometries": 35,
+    "dpr": 1
+  },
+  "high-2": {
+    "calls": 56,
+    "triangles": 136928,
+    "textures": 32,
+    "geometries": 36,
+    "dpr": 1
+  },
+  "ultra-3": {
+    "calls": 65,
+    "triangles": 228488,
+    "textures": 32,
+    "geometries": 36,
+    "dpr": 1
+  },
+  "low-4": {
+    "calls": 44,
+    "triangles": 44064,
+    "textures": 28,
+    "geometries": 35,
+    "dpr": 0.75
+  }
+}
