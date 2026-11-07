@@ -12,7 +12,7 @@ import { goldenCase, playBot, type BotProfile } from "./helpers/quest-bot";
 const FIXTURE = new URL("./fixtures/cuisine-quest-golden.json", import.meta.url);
 const LEVELS = [1, 2, 3, 4, 5, 6, 7];
 const SEEDS = [1, 17, 123, 987654];
-const PROFILES: BotProfile[] = ["clean", "human", "messy"];
+const PROFILES: BotProfile[] = ["clean", "human", "messy", "offheat"];
 const cases = LEVELS.flatMap((level) => SEEDS.flatMap((seed) => PROFILES.map((profile) => ({ level, seed, profile }))));
 
 if (process.env.CQ_GOLDEN_WRITE === "1") {
@@ -21,12 +21,13 @@ if (process.env.CQ_GOLDEN_WRITE === "1") {
 
 describe("Cuisine Quest campaign golden replays", () => {
   const golden: ReturnType<typeof goldenCase>[] = existsSync(FIXTURE) ? JSON.parse(readFileSync(FIXTURE, "utf8")) : [];
-  it("covers every kitchen, seed and play style", () => expect(golden).toHaveLength(84));
+  it("covers every kitchen, seed and play style", () => expect(golden).toHaveLength(112));
   it("exercises wins, partial services and real failures", () => {
     expect(new Set(golden.map((g) => g.details.stars))).toEqual(new Set([0, 1, 2, 3]));
     expect(golden.some((g) => Number(g.details.burnt) > 0)).toBe(true);
     expect(golden.some((g) => Number(g.details.missed) > 0)).toBe(true);
     expect(golden.some((g) => g.rejected > 0)).toBe(true);
+    expect(golden.filter((g) => g.profile === "offheat").some((g) => Number(g.details.precision) < 100)).toBe(true);
   });
   it.each(cases)("level $level seed $seed $profile is unchanged", ({ level, seed, profile }) => {
     const pinned = golden.find((g) => g.level === level && g.seed === seed && g.profile === profile)!;

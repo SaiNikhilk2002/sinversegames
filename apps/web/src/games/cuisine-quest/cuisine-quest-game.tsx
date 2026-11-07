@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronRight, Compass, Lock, Pause, Play, RotateCcw, Star, Volume2, VolumeX, X } from "lucide-react";
-import type { CuisineCampaign } from "@platform/shared";
-import { applyQuest, advanceQuest, byRecipe, cookForm, createQuest, CUISINES, currentRecipe, currentStep, GESTURE_GAP_MS, MAX_SHIFT_MS, PATHS, questHint, questLogSchema, questResult, STATION_NAMES, type Garnish, type Order, type QuestAction, type QuestConfig, type QuestIntent, type QuestState } from "@platform/engines/cuisine-quest";
+import { Award, BookOpen, ChevronRight, Compass, Lock, Pause, Play, RotateCcw, Star, Volume2, VolumeX, X } from "lucide-react";
+import { chefRank, type CuisineCampaign } from "@platform/shared";
+import { applyQuest, advanceQuest, byRecipe, challengesFor, cookForm, createQuest, CUISINES, currentRecipe, currentStep, decodeDishes, evaluateChallenges, GESTURE_GAP_MS, MAX_SHIFT_MS, pantryFor, PATHS, questHint, questLogSchema, questResult, STATION_NAMES, TOTAL_SEALS, type CuisineJourney, type Garnish, type Order, type QuestAction, type QuestConfig, type QuestIntent, type QuestState } from "@platform/engines/cuisine-quest";
 import { Button } from "@/components/ui/primitives";
 import { createLoop, playMusic, sfx, stopMusic, unlockAudio } from "@/lib/sound";
 import { updateSettings, useSettings } from "@/lib/settings";
@@ -14,7 +14,8 @@ import { expectJson } from "@/lib/read-json";
 import "./cuisine-quest.css";
 
 const Stars = ({ count, label = true }: { count: number; label?: boolean }) => <span className="cq-stars" aria-label={label ? `${count} of 3 stars` : undefined}>{[1,2,3].map(n => <Star key={n} size={18} fill={n <= count ? "currentColor" : "none"} opacity={n <= count ? 1 : .3} />)}</span>;
-const emptyCampaign: CuisineCampaign = { levels: CUISINES.map(c => ({ level: c.level, cuisine: c.id, unlocked: c.level === 1, stars: 0, bestScore: 0, completedRuns: 0, perfectRuns: 0, mastered: false })), completed: 0, mastered: 0, totalStars: 0 };
+type CampaignView = CuisineCampaign & { journey?: CuisineJourney | null };
+const emptyCampaign: CampaignView = { levels: CUISINES.map(c => ({ level: c.level, cuisine: c.id, unlocked: c.level === 1, stars: 0, bestScore: 0, completedRuns: 0, perfectRuns: 0, mastered: false })), completed: 0, mastered: 0, totalStars: 0 };
 
 export function CuisineQuestSetup({ onStart, busy }: SoloSetupProps) {
   const [campaign, setCampaign] = useState(emptyCampaign); const [level, setLevel] = useState(1);
@@ -37,8 +38,9 @@ export function CuisineQuestSetup({ onStart, busy }: SoloSetupProps) {
     const timeout = setTimeout(() => controller.abort(), 8000); return () => { clearTimeout(timeout); controller.abort(); };
   }, [level]);
   const cuisine = CUISINES[level - 1]!; const progress = campaign.levels[level - 1]!;
+  const rank = chefRank(campaign.totalStars); const journey = campaign.journey; const earned = journey?.seals[level] ?? [];
   return <section className="cq-map" data-testid="cq-campaign" aria-label="Cuisine Quest campaign">
-    <div className="cq-map-heading"><div><p className="cq-eyebrow">A passport to good food</p><h2>Seven kitchens.<br />Your signature.</h2></div><div className="cq-passport"><Compass size={28} /><strong data-testid="cq-total-stars">{loaded ? campaign.totalStars : "—"} / 21</strong><span>{loaded ? `${campaign.completed}/7 cuisines · ${campaign.mastered} mastered` : error ? "Progress not loaded" : "Loading your passport"}</span></div></div>
+    <div className="cq-map-heading"><div><p className="cq-eyebrow">A passport to good food</p><h2>Seven kitchens.<br />Your signature.</h2>{loaded && <p className="cq-rank" data-testid="cq-chef-rank"><strong>{rank.title}</strong><span>{rank.next ? `${rank.next.starsNeeded} more star${rank.next.starsNeeded > 1 ? "s" : ""} to ${rank.next.title}` : "The highest rank in the world"}{journey ? ` · ${journey.sealCount}/${TOTAL_SEALS} chef's seals` : ""}</span></p>}</div><div className="cq-passport"><Compass size={28} /><strong data-testid="cq-total-stars">{loaded ? campaign.totalStars : "—"} / 21</strong><span>{loaded ? `${campaign.completed}/7 cuisines · ${campaign.mastered} mastered` : error ? "Progress not loaded" : "Loading your passport"}</span></div></div>
     {loading && <p role="status">Opening your chef's passport…</p>}
     {error && <p className="cq-map-error" role="alert">{error} <button onClick={() => void load()}>Retry campaign</button></p>}
     <div className="cq-route" role="radiogroup" aria-label="Cuisine journey">{CUISINES.map(c => {
@@ -49,7 +51,7 @@ export function CuisineQuestSetup({ onStart, busy }: SoloSetupProps) {
     })}</div>
     <div className="cq-destination" style={{ "--cq-accent": cuisine.color, "--cq-dark": cuisine.dark } as React.CSSProperties}>
       <div className="cq-destination-scene"><KitchenBackdrop level={level} /><span className="cq-postmark">KITCHEN {String(level).padStart(2, "0")}<br />{cuisine.id.toUpperCase()}</span><div className="cq-destination-food"><FoodArt recipe={cuisine.recipes[0]!} /></div></div>
-      <div className="cq-destination-copy"><p className="cq-eyebrow">{cuisine.place}</p><h3>{cuisine.name}</h3><p>{cuisine.lesson}</p><p className="cq-challenge">Final service: {cuisine.challenge}</p><div className="cq-menu-preview">{cuisine.recipes.map(id => <div key={id}><FoodArt recipe={id} /><span>{byRecipe.get(id)!.name}</span></div>)}</div><div className="cq-destination-bottom"><div><Stars count={progress.stars} /><small>{progress.bestScore ? `Best ${progress.bestScore.toLocaleString()} · ${progress.completedRuns} completed` : "A fresh page in your passport"}</small></div><button type="button" className="cq-primary" disabled={busy || loading || !progress.unlocked} data-testid="start-run" onClick={() => { unlockAudio(); onStart({ level }); }}>{busy ? "Opening…" : progress.completedRuns ? "Revisit kitchen" : "Enter kitchen"}<ChevronRight size={20} /></button></div></div>
+      <div className="cq-destination-copy"><p className="cq-eyebrow">{cuisine.place}</p><h3>{cuisine.name}</h3><p>{cuisine.lesson}</p><p className="cq-challenge">Final service: {cuisine.challenge}</p><div className="cq-menu-preview">{cuisine.recipes.map(id => <div key={id} data-testid={`cq-recipe-${id}`}><FoodArt recipe={id} /><span>{byRecipe.get(id)!.name}</span>{journey?.recipes[id] && <small className={`cq-mastery cq-mastery-${journey.recipes[id].tier}`} title={`${journey.recipes[id].plates} plates, best ${journey.recipes[id].best}%`}>{journey.recipes[id].tier}</small>}</div>)}</div>{loaded && journey && <ul className="cq-challenges" aria-label="Chef's challenges" data-testid="cq-challenges">{challengesFor(level).map(challenge => { const done = earned.includes(challenge.id); return <li key={challenge.id} className={done ? "cq-seal-done" : ""} data-seal={challenge.id} data-done={done}><Award size={18} aria-hidden /><div><strong>{challenge.title}</strong><small>{challenge.description}</small></div><span className="sr-only">{done ? "Earned" : "Not earned yet"}</span></li>; })}</ul>}<div className="cq-destination-bottom"><div><Stars count={progress.stars} /><small>{progress.bestScore ? `Best ${progress.bestScore.toLocaleString()} · ${progress.completedRuns} completed` : "A fresh page in your passport"}</small></div><button type="button" className="cq-primary" disabled={busy || loading || !progress.unlocked} data-testid="start-run" onClick={() => { unlockAudio(); onStart({ level }); }}>{busy ? "Opening…" : progress.completedRuns ? "Revisit kitchen" : "Enter kitchen"}<ChevronRight size={20} /></button></div></div>
     </div>
     <div className="cq-map-foot"><p>One saved star opens the next kitchen. Replay freely to improve your craft. First cuisine completions earn Sin Coins; new records and achievements can earn bonuses within the daily cap.</p><div><h3>{cuisine.name} · best plates</h3>{board?.length ? <ol>{board.slice(0,3).map((row, i) => <li key={i}><span>{i+1}. {row.name}</span><strong>{row.score.toLocaleString()}</strong></li>)}</ol> : <p>{board ? "No saved plates yet. Set the first record." : "Cuisine rankings are unavailable right now."}</p>}</div></div>
   </section>;
@@ -165,7 +167,7 @@ export function CuisineQuestGame({ seed, config, onFinish, onQuit, initialLog, o
           {step?.kind === "ingredient" ? <div className="cq-pantry">
             <div className="cq-pantry-cue"><IngredientArt id={step.ingredient} /><p>{step.label}<strong>{step.portions} portion{step.portions > 1 ? "s" : ""}</strong></p></div>
             {config.level >= 5 && <div className="cq-portions" role="group" aria-label="Ingredient portions">{[1,2,3].map(n => <button key={n} aria-pressed={portions === n} onClick={() => setPortions(n)}>{n} portion{n > 1 ? "s" : ""}</button>)}</div>}
-            <div className="cq-ingredients">{[...new Set([...recipe.steps.filter(x => x.kind === "ingredient").map(x => x.ingredient), "water", "spice"])].slice(0,6).map(id => <button type="button" key={id} data-ingredient={id} data-testid={`cq-ingredient-${id}`} draggable onDragStart={e => e.dataTransfer.setData("text/cq-ingredient", id)} onClick={() => send({ kind: "ingredient", order: selected, ingredient: id, portions })}><IngredientArt id={id} /><span>{id.replaceAll("-", " ")}</span></button>)}</div>
+            <div className="cq-ingredients">{pantryFor(recipe).map(id => <button type="button" key={id} data-ingredient={id} data-testid={`cq-ingredient-${id}`} draggable onDragStart={e => e.dataTransfer.setData("text/cq-ingredient", id)} onClick={() => send({ kind: "ingredient", order: selected, ingredient: id, portions })}><IngredientArt id={id} /><span>{id.replaceAll("-", " ")}</span></button>)}</div>
             <div className="cq-drop-zone" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const ingredient = e.dataTransfer.getData("text/cq-ingredient"); if (ingredient) send({ kind: "ingredient", order: selected, ingredient, portions }); }}>Tap an ingredient, or drag it here.</div>
           </div> : step?.kind === "technique" ? <div className="cq-preparation">
             {o.startedAt === null ? <><FoodArt recipe={o.recipe} stage={step.technique === "plate" ? "perfect" : "prepared"} className="cq-dish-preview" /><p>{step.label}</p><button className="cq-primary" data-testid="cq-begin" onClick={() => send({ kind: "begin", order: selected })}>Start {STATION_NAMES[step.station].toLowerCase()}</button></> : <><TechniquePad order={o} send={send} /><button className="cq-action cq-keyboard-step" data-testid="cq-follow-marker" onClick={() => { const point = PATHS[step.technique][o.node]!; send({ kind: "gesture", order: selected, node: o.node, x: point[0], y: point[1] }); }}>Follow marker {o.node+1}<small>Keyboard / tap alternative</small></button></>}
@@ -218,7 +220,19 @@ function TechniquePad({ order, send }: { order: Order; send: (intent: QuestInten
   </div>;
 }
 
+/** Why this run scored what it did. Runs saved before these details existed simply omit it. */
+function ScoreStory({ details }: { details: Record<string, number | string> }) {
+  const level = Number(details.level);
+  const parts = [["Plates served", details.serviceScore, 4500], ["Cooking craft", details.craftScore, 3000], ["Guest welcome", details.welcomeScore, 1500], ["Clean technique", details.accuracyScore, 1000]] as const;
+  const dishes = decodeDishes(details.dishes);
+  return <>
+    {details.serviceScore !== undefined && <ul className="cq-score-story" data-testid="cq-score-breakdown" aria-label="Score breakdown">{parts.map(([label, value, max]) => <li key={label}><span>{label}</span><strong>{Number(value).toLocaleString()}<small> / {max.toLocaleString()}</small></strong><i aria-hidden><b style={{ width: `${Math.min(100, Number(value) / max * 100)}%` }} /></i></li>)}</ul>}
+    {dishes.length > 0 && <ul className="cq-plate-list" data-testid="cq-plate-list" aria-label="Plate quality">{dishes.map((dish, i) => <li key={i} className={dish.quality >= 95 ? "cq-plate-perfect" : ""}><span>{byRecipe.get(dish.recipe)!.name}</span><strong>{dish.quality}%</strong></li>)}</ul>}
+    <ul className="cq-run-seals" data-testid="cq-run-seals" aria-label="Chef's challenges this shift">{evaluateChallenges(level, details).map(challenge => <li key={challenge.id} className={challenge.done ? "cq-seal-done" : ""} data-seal={challenge.id} data-done={challenge.done}><Award size={16} aria-hidden /><div><strong>{challenge.title}</strong><small>{challenge.done ? "Earned this shift" : challenge.description}</small></div></li>)}</ul>
+  </>;
+}
+
 export function CuisineQuestResultDetails({ details, saved }: { details: Record<string, number | string>; saved: boolean }) {
   const stars = Number(details.stars ?? 0);
-  return <div className="cq-result-detail" data-testid="cq-verified-details"><div className="cq-result-stars"><Stars count={stars} /><strong>{stars}/3 stars</strong></div><div className="cq-result-grid">{[["Orders / plates", `${details.served}/${details.wanted}`],["Perfect dishes", details.perfect],["Mistakes", details.mistakes],["Burnt batches", details.burnt],["Cooking precision", `${details.precision}%`],["Customer satisfaction", `${details.satisfaction}%`]].map(([label,value]) => <div key={String(label)}><span>{label}</span><strong>{value}</strong></div>)}</div><p>{saved ? `Passport saved · ${details.cuisinesCompleted}/7 cuisines · ${details.totalStars}/21 stars` : "Verified result. Your passport still needs to be saved before the next kitchen opens."}</p></div>;
+  return <div className="cq-result-detail" data-testid="cq-verified-details"><div className="cq-result-stars"><Stars count={stars} /><strong>{stars}/3 stars</strong></div><div className="cq-result-grid">{[["Orders / plates", `${details.served}/${details.wanted}`],["Perfect dishes", details.perfect],["Mistakes", details.mistakes],["Burnt batches", details.burnt],["Cooking precision", `${details.precision}%`],["Customer satisfaction", `${details.satisfaction}%`]].map(([label,value]) => <div key={String(label)}><span>{label}</span><strong>{value}</strong></div>)}</div><ScoreStory details={details} /><p>{saved ? `Passport saved · ${details.cuisinesCompleted}/7 cuisines · ${details.totalStars}/21 stars` : "Verified result. Your passport still needs to be saved before the next kitchen opens."}</p></div>;
 }

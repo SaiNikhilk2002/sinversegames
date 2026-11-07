@@ -82,6 +82,33 @@
  },
  {
   "level": 1,
+  "seed": 1,
+  "profile": "offheat",
+  "actions": 392,
+  "log": "61a0ec2e28e3eaa50af02197",
+  "rejected": 122,
+  "errors": "728325a836e237a9af4e9070",
+  "state": "c14e0391129642279df5d2a2",
+  "score": 6451,
+  "completed": true,
+  "durationMs": 273105,
+  "details": {
+   "level": 1,
+   "cuisine": "indian",
+   "stars": 1,
+   "served": 5,
+   "wanted": 7,
+   "missed": 2,
+   "mistakes": 1,
+   "burnt": 2,
+   "perfect": 2,
+   "precision": 57,
+   "satisfaction": 57,
+   "durationMs": 273105
+  }
+ },
+ {
+  "level": 1,
   "seed": 17,
   "profile": "clean",
   "actions": 500,
@@ -159,6 +186,33 @@
    "precision": 35,
    "satisfaction": 29,
    "durationMs": 476721
+  }
+ },
+ {
+  "level": 1,
+  "seed": 17,
+  "profile": "offheat",
+  "actions": 246,
+  "log": "8413d37d29e59574e6cd59c4",
+  "rejected": 8,
+  "errors": "b87c89ae236cf412f383eca8",
+  "state": "e6dc33e50d8f62dd2abe5e63",
+  "score": 7329,
+  "completed": true,
+  "durationMs": 134776,
+  "details": {
+   "level": 1,
+   "cuisine": "indian",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 3,
+   "burnt": 4,
+   "perfect": 0,
+   "precision": 40,
+   "satisfaction": 51,
+   "durationMs": 134776
   }
  },
  {
@@ -244,6 +298,33 @@
  },
  {
   "level": 1,
+  "seed": 123,
+  "profile": "offheat",
+  "actions": 352,
+  "log": "6dd7ddcf072aa20eebd723e1",
+  "rejected": 108,
+  "errors": "3abaf81f96182c67d7e61e30",
+  "state": "afb8cbeaadeb1efcc12bb2d0",
+  "score": 6780,
+  "completed": true,
+  "durationMs": 242789,
+  "details": {
+   "level": 1,
+   "cuisine": "indian",
+   "stars": 1,
+   "served": 6,
+   "wanted": 7,
+   "missed": 1,
+   "mistakes": 2,
+   "burnt": 3,
+   "perfect": 1,
+   "precision": 46,
+   "satisfaction": 52,
+   "durationMs": 242789
+  }
+ },
+ {
+  "level": 1,
   "seed": 987654,
   "profile": "clean",
   "actions": 504,
@@ -321,6 +402,33 @@
    "precision": 43,
    "satisfaction": 33,
    "durationMs": 500227
+  }
+ },
+ {
+  "level": 1,
+  "seed": 987654,
+  "profile": "offheat",
+  "actions": 267,
+  "log": "e14dc895a52b879c85166cf4",
+  "rejected": 13,
+  "errors": "48e4a28c83d8bc22829756cd",
+  "state": "843cd86f1f4c89637f4c6f28",
+  "score": 7578,
+  "completed": true,
+  "durationMs": 154136,
+  "details": {
+   "level": 1,
+   "cuisine": "indian",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 2,
+   "burnt": 3,
+   "perfect": 0,
+   "precision": 45,
+   "satisfaction": 55,
+   "durationMs": 154136
   }
  },
  {
@@ -406,6 +514,33 @@
  },
  {
   "level": 2,
+  "seed": 1,
+  "profile": "offheat",
+  "actions": 245,
+  "log": "abf8c472aafa72ce13082c78",
+  "rejected": 10,
+  "errors": "4947fc5a5fe4dd86d6fb6199",
+  "state": "3265b12c0fa12da83b62e8ba",
+  "score": 7777,
+  "completed": true,
+  "durationMs": 134867,
+  "details": {
+   "level": 2,
+   "cuisine": "italian",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 3,
+   "perfect": 0,
+   "precision": 49,
+   "satisfaction": 58,
+   "durationMs": 134867
+  }
+ },
+ {
+  "level": 2,
   "seed": 17,
   "profile": "clean",
   "actions": 494,
@@ -483,6 +618,33 @@
    "precision": 11,
    "satisfaction": 11,
    "durationMs": 510000
+  }
+ },
+ {
+  "level": 2,
+  "seed": 17,
+  "profile": "offheat",
+  "actions": 218,
+  "log": "2958045a1f440e608ad2dbfc",
+  "rejected": 24,
+  "errors": "ecac7c97fbe03ff9315561dd",
+  "state": "64a7b229a4e791c6a6ce361e",
+  "score": 7610,
+  "completed": true,
+  "durationMs": 129110,
+  "details": {
+   "level": 2,
+   "cuisine": "italian",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 3,
+   "perfect": 0,
+   "precision": 44,
+   "satisfaction": 55,
+   "durationMs": 129110
   }
  },
  {
@@ -568,6 +730,33 @@
  },
  {
   "level": 2,
+  "seed": 123,
+  "profile": "offheat",
+  "actions": 243,
+  "log": "1a6a5d5300f7379366d356c0",
+  "rejected": 22,
+  "errors": "c7c08a2d81d39296b12fbf64",
+  "state": "54ff870c6ab78b976e58d7c6",
+  "score": 7531,
+  "completed": true,
+  "durationMs": 131486,
+  "details": {
+   "level": 2,
+   "cuisine": "italian",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 3,
+   "perfect": 0,
+   "precision": 43,
+   "satisfaction": 53,
+   "durationMs": 131486
+  }
+ },
+ {
+  "level": 2,
   "seed": 987654,
   "profile": "clean",
   "actions": 501,
@@ -645,6 +834,33 @@
    "precision": 34,
    "satisfaction": 32,
    "durationMs": 419496
+  }
+ },
+ {
+  "level": 2,
+  "seed": 987654,
+  "profile": "offheat",
+  "actions": 233,
+  "log": "72aa65cdcaa3230f8c491816",
+  "rejected": 18,
+  "errors": "e004b884f53e1e2bd310885a",
+  "state": "d983f59b4cb92df85ac33d03",
+  "score": 7782,
+  "completed": true,
+  "durationMs": 129730,
+  "details": {
+   "level": 2,
+   "cuisine": "italian",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 0,
+   "burnt": 3,
+   "perfect": 1,
+   "precision": 48,
+   "satisfaction": 57,
+   "durationMs": 129730
   }
  },
  {
@@ -730,6 +946,33 @@
  },
  {
   "level": 3,
+  "seed": 1,
+  "profile": "offheat",
+  "actions": 198,
+  "log": "a977ff49a55e8d033fff7a64",
+  "rejected": 0,
+  "errors": "4f53cda18c2baa0c0354bb5f",
+  "state": "387906911f172360881c437b",
+  "score": 8607,
+  "completed": true,
+  "durationMs": 102274,
+  "details": {
+   "level": 3,
+   "cuisine": "japanese",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 1,
+   "perfect": 0,
+   "precision": 68,
+   "satisfaction": 73,
+   "durationMs": 102274
+  }
+ },
+ {
+  "level": 3,
   "seed": 17,
   "profile": "clean",
   "actions": 448,
@@ -807,6 +1050,33 @@
    "precision": 28,
    "satisfaction": 30,
    "durationMs": 331548
+  }
+ },
+ {
+  "level": 3,
+  "seed": 17,
+  "profile": "offheat",
+  "actions": 209,
+  "log": "ee9d0b2c047494c126464408",
+  "rejected": 0,
+  "errors": "4f53cda18c2baa0c0354bb5f",
+  "state": "fc4e4849c44d6b2e2d18b7ae",
+  "score": 8062,
+  "completed": true,
+  "durationMs": 110848,
+  "details": {
+   "level": 3,
+   "cuisine": "japanese",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 2,
+   "perfect": 0,
+   "precision": 55,
+   "satisfaction": 64,
+   "durationMs": 110848
   }
  },
  {
@@ -892,6 +1162,33 @@
  },
  {
   "level": 3,
+  "seed": 123,
+  "profile": "offheat",
+  "actions": 231,
+  "log": "814dbc8314d1b1d46e6c8207",
+  "rejected": 15,
+  "errors": "bc5d0a84fc0784ff091fb9ea",
+  "state": "168d387a1396fb83d3436540",
+  "score": 7336,
+  "completed": true,
+  "durationMs": 127066,
+  "details": {
+   "level": 3,
+   "cuisine": "japanese",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 4,
+   "perfect": 0,
+   "precision": 37,
+   "satisfaction": 51,
+   "durationMs": 127066
+  }
+ },
+ {
+  "level": 3,
   "seed": 987654,
   "profile": "clean",
   "actions": 456,
@@ -969,6 +1266,33 @@
    "precision": 22,
    "satisfaction": 20,
    "durationMs": 423519
+  }
+ },
+ {
+  "level": 3,
+  "seed": 987654,
+  "profile": "offheat",
+  "actions": 359,
+  "log": "8b940e85c575d9920550d610",
+  "rejected": 90,
+  "errors": "ee5132499e7231b5ae716f8c",
+  "state": "36e10a0a1f4625f6976bd0cc",
+  "score": 7444,
+  "completed": true,
+  "durationMs": 236315,
+  "details": {
+   "level": 3,
+   "cuisine": "japanese",
+   "stars": 2,
+   "served": 6,
+   "wanted": 7,
+   "missed": 1,
+   "mistakes": 1,
+   "burnt": 1,
+   "perfect": 0,
+   "precision": 60,
+   "satisfaction": 64,
+   "durationMs": 236315
   }
  },
  {
@@ -1054,6 +1378,33 @@
  },
  {
   "level": 4,
+  "seed": 1,
+  "profile": "offheat",
+  "actions": 205,
+  "log": "0bbac40d2e84ea00346b4153",
+  "rejected": 10,
+  "errors": "29de65188c238aca757d39fb",
+  "state": "84531d5fb52825df4bfc06bc",
+  "score": 8268,
+  "completed": true,
+  "durationMs": 112027,
+  "details": {
+   "level": 4,
+   "cuisine": "mexican",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 2,
+   "burnt": 0,
+   "perfect": 1,
+   "precision": 61,
+   "satisfaction": 68,
+   "durationMs": 112027
+  }
+ },
+ {
+  "level": 4,
   "seed": 17,
   "profile": "clean",
   "actions": 443,
@@ -1131,6 +1482,33 @@
    "precision": 28,
    "satisfaction": 28,
    "durationMs": 390775
+  }
+ },
+ {
+  "level": 4,
+  "seed": 17,
+  "profile": "offheat",
+  "actions": 250,
+  "log": "d843b24a8a38215ac17b540e",
+  "rejected": 6,
+  "errors": "38ab9046a01625340086e913",
+  "state": "687bf0b4463c82f651b7a2a5",
+  "score": 7539,
+  "completed": true,
+  "durationMs": 131726,
+  "details": {
+   "level": 4,
+   "cuisine": "mexican",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 2,
+   "burnt": 2,
+   "perfect": 1,
+   "precision": 44,
+   "satisfaction": 55,
+   "durationMs": 131726
   }
  },
  {
@@ -1216,6 +1594,33 @@
  },
  {
   "level": 4,
+  "seed": 123,
+  "profile": "offheat",
+  "actions": 195,
+  "log": "dbd7724ed3e1e83440e95563",
+  "rejected": 3,
+  "errors": "9a891bad4bb926d1ed5db1d8",
+  "state": "19d5656fef2127095e1993a6",
+  "score": 8855,
+  "completed": true,
+  "durationMs": 105684,
+  "details": {
+   "level": 4,
+   "cuisine": "mexican",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 0,
+   "perfect": 1,
+   "precision": 75,
+   "satisfaction": 78,
+   "durationMs": 105684
+  }
+ },
+ {
+  "level": 4,
   "seed": 987654,
   "profile": "clean",
   "actions": 444,
@@ -1293,6 +1698,33 @@
    "precision": 34,
    "satisfaction": 29,
    "durationMs": 412555
+  }
+ },
+ {
+  "level": 4,
+  "seed": 987654,
+  "profile": "offheat",
+  "actions": 237,
+  "log": "0437fdfd43083d43a3f128d8",
+  "rejected": 19,
+  "errors": "b5af6eab98ba328affb1d97b",
+  "state": "b77f12f719d9b142d2074a86",
+  "score": 7851,
+  "completed": true,
+  "durationMs": 134852,
+  "details": {
+   "level": 4,
+   "cuisine": "mexican",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 3,
+   "burnt": 3,
+   "perfect": 1,
+   "precision": 53,
+   "satisfaction": 61,
+   "durationMs": 134852
   }
  },
  {
@@ -1378,6 +1810,33 @@
  },
  {
   "level": 5,
+  "seed": 1,
+  "profile": "offheat",
+  "actions": 239,
+  "log": "1358f8c8cea0eb6f8463ccf9",
+  "rejected": 191,
+  "errors": "fcd4d1160dce092684c246e8",
+  "state": "ba8b1830da8bb51a3d9a10eb",
+  "score": 6858,
+  "completed": true,
+  "durationMs": 220899,
+  "details": {
+   "level": 5,
+   "cuisine": "thai",
+   "stars": 1,
+   "served": 5,
+   "wanted": 7,
+   "missed": 2,
+   "mistakes": 0,
+   "burnt": 1,
+   "perfect": 3,
+   "precision": 67,
+   "satisfaction": 62,
+   "durationMs": 220899
+  }
+ },
+ {
+  "level": 5,
   "seed": 17,
   "profile": "clean",
   "actions": 473,
@@ -1455,6 +1914,33 @@
    "precision": 27,
    "satisfaction": 26,
    "durationMs": 418269
+  }
+ },
+ {
+  "level": 5,
+  "seed": 17,
+  "profile": "offheat",
+  "actions": 409,
+  "log": "d37356e8d22cb26c79f0144a",
+  "rejected": 256,
+  "errors": "c7ac91341f01bdb6f7b00935",
+  "state": "660409e2337a952d7d1b16fb",
+  "score": 4437,
+  "completed": false,
+  "durationMs": 349000,
+  "details": {
+   "level": 5,
+   "cuisine": "thai",
+   "stars": 0,
+   "served": 4,
+   "wanted": 7,
+   "missed": 3,
+   "mistakes": 0,
+   "burnt": 3,
+   "perfect": 0,
+   "precision": 27,
+   "satisfaction": 32,
+   "durationMs": 349000
   }
  },
  {
@@ -1540,6 +2026,33 @@
  },
  {
   "level": 5,
+  "seed": 123,
+  "profile": "offheat",
+  "actions": 351,
+  "log": "5462644a58ea50b84fd470af",
+  "rejected": 327,
+  "errors": "1157837aa6d7d68b9dc79246",
+  "state": "401a28823a5d671f58aa6e46",
+  "score": 4624,
+  "completed": false,
+  "durationMs": 348229,
+  "details": {
+   "level": 5,
+   "cuisine": "thai",
+   "stars": 0,
+   "served": 4,
+   "wanted": 7,
+   "missed": 3,
+   "mistakes": 0,
+   "burnt": 4,
+   "perfect": 0,
+   "precision": 32,
+   "satisfaction": 34,
+   "durationMs": 348229
+  }
+ },
+ {
+  "level": 5,
   "seed": 987654,
   "profile": "clean",
   "actions": 489,
@@ -1617,6 +2130,33 @@
    "precision": 17,
    "satisfaction": 13,
    "durationMs": 502869
+  }
+ },
+ {
+  "level": 5,
+  "seed": 987654,
+  "profile": "offheat",
+  "actions": 416,
+  "log": "f27aee32e2a598976b142750",
+  "rejected": 293,
+  "errors": "c238ca4d4d9cfd00bed50cc9",
+  "state": "e81b90b75a1f84f41873e282",
+  "score": 4596,
+  "completed": false,
+  "durationMs": 382357,
+  "details": {
+   "level": 5,
+   "cuisine": "thai",
+   "stars": 0,
+   "served": 4,
+   "wanted": 7,
+   "missed": 3,
+   "mistakes": 0,
+   "burnt": 3,
+   "perfect": 0,
+   "precision": 33,
+   "satisfaction": 31,
+   "durationMs": 382357
   }
  },
  {
@@ -1702,6 +2242,33 @@
  },
  {
   "level": 6,
+  "seed": 1,
+  "profile": "offheat",
+  "actions": 480,
+  "log": "f455f57678cda9d2509a4a09",
+  "rejected": 275,
+  "errors": "f2eb84d189be84abbc87a0e0",
+  "state": "47b83d6c11eb0557ec87dcbb",
+  "score": 5009,
+  "completed": false,
+  "durationMs": 397000,
+  "details": {
+   "level": 6,
+   "cuisine": "chinese",
+   "stars": 0,
+   "served": 4,
+   "wanted": 7,
+   "missed": 3,
+   "mistakes": 0,
+   "burnt": 4,
+   "perfect": 1,
+   "precision": 41,
+   "satisfaction": 42,
+   "durationMs": 397000
+  }
+ },
+ {
+  "level": 6,
   "seed": 17,
   "profile": "clean",
   "actions": 485,
@@ -1779,6 +2346,33 @@
    "precision": 25,
    "satisfaction": 21,
    "durationMs": 466115
+  }
+ },
+ {
+  "level": 6,
+  "seed": 17,
+  "profile": "offheat",
+  "actions": 423,
+  "log": "d2d555bfaaeb245f9c91ed28",
+  "rejected": 329,
+  "errors": "443dd88a6ae00d7c1e68645c",
+  "state": "b1e029c4f825dbb848af52a8",
+  "score": 3238,
+  "completed": false,
+  "durationMs": 397000,
+  "details": {
+   "level": 6,
+   "cuisine": "chinese",
+   "stars": 0,
+   "served": 3,
+   "wanted": 7,
+   "missed": 4,
+   "mistakes": 0,
+   "burnt": 6,
+   "perfect": 0,
+   "precision": 18,
+   "satisfaction": 23,
+   "durationMs": 397000
   }
  },
  {
@@ -1864,6 +2458,33 @@
  },
  {
   "level": 6,
+  "seed": 123,
+  "profile": "offheat",
+  "actions": 463,
+  "log": "a940514b98f8f10f76f37a66",
+  "rejected": 266,
+  "errors": "3bc59ad2251a5cf39e3de877",
+  "state": "f372cb27034433c14157db20",
+  "score": 5138,
+  "completed": false,
+  "durationMs": 382462,
+  "details": {
+   "level": 6,
+   "cuisine": "chinese",
+   "stars": 0,
+   "served": 4,
+   "wanted": 7,
+   "missed": 3,
+   "mistakes": 0,
+   "burnt": 2,
+   "perfect": 1,
+   "precision": 45,
+   "satisfaction": 43,
+   "durationMs": 382462
+  }
+ },
+ {
+  "level": 6,
   "seed": 987654,
   "profile": "clean",
   "actions": 480,
@@ -1941,6 +2562,33 @@
    "precision": 20,
    "satisfaction": 15,
    "durationMs": 508000
+  }
+ },
+ {
+  "level": 6,
+  "seed": 987654,
+  "profile": "offheat",
+  "actions": 423,
+  "log": "552dca642a49ff2d43769caa",
+  "rejected": 316,
+  "errors": "a6fb41b4770382ea920e4673",
+  "state": "490f9192bd630743470e8bc9",
+  "score": 2529,
+  "completed": false,
+  "durationMs": 397000,
+  "details": {
+   "level": 6,
+   "cuisine": "chinese",
+   "stars": 0,
+   "served": 2,
+   "wanted": 7,
+   "missed": 5,
+   "mistakes": 0,
+   "burnt": 3,
+   "perfect": 0,
+   "precision": 21,
+   "satisfaction": 22,
+   "durationMs": 397000
   }
  },
  {
@@ -2026,6 +2674,33 @@
  },
  {
   "level": 7,
+  "seed": 1,
+  "profile": "offheat",
+  "actions": 364,
+  "log": "f561c14a5537e55a9666dda7",
+  "rejected": 139,
+  "errors": "9055c2f5647050c798d8fe4c",
+  "state": "c4a81c377ffcb7645e1130ec",
+  "score": 6541,
+  "completed": true,
+  "durationMs": 264015,
+  "details": {
+   "level": 7,
+   "cuisine": "mediterranean",
+   "stars": 1,
+   "served": 5,
+   "wanted": 7,
+   "missed": 2,
+   "mistakes": 1,
+   "burnt": 2,
+   "perfect": 4,
+   "precision": 59,
+   "satisfaction": 59,
+   "durationMs": 264015
+  }
+ },
+ {
+  "level": 7,
   "seed": 17,
   "profile": "clean",
   "actions": 450,
@@ -2103,6 +2778,33 @@
    "precision": 42,
    "satisfaction": 36,
    "durationMs": 357559
+  }
+ },
+ {
+  "level": 7,
+  "seed": 17,
+  "profile": "offheat",
+  "actions": 215,
+  "log": "779f54983efdf2480b4ce952",
+  "rejected": 0,
+  "errors": "4f53cda18c2baa0c0354bb5f",
+  "state": "2b6637663e865bd3d75ef199",
+  "score": 9115,
+  "completed": true,
+  "durationMs": 112229,
+  "details": {
+   "level": 7,
+   "cuisine": "mediterranean",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 0,
+   "burnt": 1,
+   "perfect": 4,
+   "precision": 80,
+   "satisfaction": 82,
+   "durationMs": 112229
   }
  },
  {
@@ -2188,6 +2890,33 @@
  },
  {
   "level": 7,
+  "seed": 123,
+  "profile": "offheat",
+  "actions": 243,
+  "log": "f0321b31ef8e94646641384e",
+  "rejected": 7,
+  "errors": "c7335c3a6a8a778d5c8aa5f6",
+  "state": "7917bdd8761800955f1a52f4",
+  "score": 8573,
+  "completed": true,
+  "durationMs": 132624,
+  "details": {
+   "level": 7,
+   "cuisine": "mediterranean",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 0,
+   "burnt": 4,
+   "perfect": 3,
+   "precision": 67,
+   "satisfaction": 71,
+   "durationMs": 132624
+  }
+ },
+ {
+  "level": 7,
   "seed": 987654,
   "profile": "clean",
   "actions": 491,
@@ -2265,6 +2994,33 @@
    "precision": 42,
    "satisfaction": 35,
    "durationMs": 397000
+  }
+ },
+ {
+  "level": 7,
+  "seed": 987654,
+  "profile": "offheat",
+  "actions": 218,
+  "log": "c8f258831cacdb03658428e6",
+  "rejected": 1,
+  "errors": "6799557cfd8d365ce0552955",
+  "state": "8078681ed6c22d889f7e0630",
+  "score": 8980,
+  "completed": true,
+  "durationMs": 117187,
+  "details": {
+   "level": 7,
+   "cuisine": "mediterranean",
+   "stars": 2,
+   "served": 7,
+   "wanted": 7,
+   "missed": 0,
+   "mistakes": 1,
+   "burnt": 1,
+   "perfect": 4,
+   "precision": 78,
+   "satisfaction": 80,
+   "durationMs": 117187
   }
  }
 ]

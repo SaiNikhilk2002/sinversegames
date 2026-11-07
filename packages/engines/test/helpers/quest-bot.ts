@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { seededRng } from "../../src/core/seeded";
 import { applyQuest, createQuest, currentStep, questHint, questResult, type QuestAction, type QuestState } from "../../src/cuisine-quest";
 
-export type BotProfile = "clean" | "human" | "messy";
+export type BotProfile = "clean" | "human" | "messy" | "offheat";
 
 /**
  * Plays a campaign shift through public intents only. Rejected actions are not
@@ -11,25 +11,31 @@ export type BotProfile = "clean" | "human" | "messy";
  * - clean: first waiting ticket, fixed 160 ms pace.
  * - human: seeded pacing, moves between tickets.
  * - messy: long pauses, wrong ingredients and finishes, early flips and restarts.
+ * - offheat: otherwise careful, but keeps nudging active batches off their recipe heat.
  */
 export function playBot(level: number, seed: number, profile: BotProfile) {
   const state = createQuest(seed, { level });
   const log: QuestAction[] = [];
   const errors: string[] = [];
-  const rng = seededRng(seed * 31 + level * 7 + (profile === "clean" ? 0 : profile === "human" ? 1 : 2));
+  const rng = seededRng(seed * 31 + level * 7 + (profile === "clean" ? 0 : profile === "human" ? 1 : profile === "messy" ? 2 : 3));
   const send = (action: QuestAction) => {
     const result = applyQuest(state, action);
     if (result.ok) log.push(action);
     else errors.push(result.error ?? "");
     return result.ok;
   };
-  const pace = () => (profile === "clean" ? 160 : profile === "human" ? 160 + rng.int(740) : 160 + rng.int(rng.int(8) === 0 ? 14_000 : 1_400));
+  const pace = () => (profile === "clean" ? 160 : profile === "human" || profile === "offheat" ? 160 + rng.int(740) : 160 + rng.int(rng.int(8) === 0 ? 14_000 : 1_400));
   let guard = 0;
   while (!state.finished && guard++ < 6000) {
     const waiting = state.orders.filter((o) => o.status === "waiting");
     const order = profile === "clean" ? waiting[0] : waiting[rng.int(waiting.length)];
     const t = state.t + pace();
     if (!order) { send({ kind: "wait", t }); continue; }
+    if (profile === "offheat") {
+      const step = currentStep(order);
+      if (step?.kind === "cook" && order.startedAt !== null && order.heat === step.heat && rng.int(3) === 0) { send({ kind: "heat", order: order.id, value: step.heat === 1 ? 2 : step.heat === 5 ? 4 : step.heat + (rng.int(2) ? 1 : -1), t }); continue; }
+      if (step?.kind === "cook" && order.startedAt !== null && order.heat !== step.heat && rng.int(3) !== 0) { send({ kind: "wait", t }); continue; }
+    }
     if (profile === "messy") {
       const roll = rng.int(40);
       const step = currentStep(order);

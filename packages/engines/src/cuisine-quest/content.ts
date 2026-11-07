@@ -46,6 +46,11 @@ export const RECIPES: Recipe[] = [
   recipe("shakshuka", "Shakshuka", 7, "#c95033", "Soft eggs nestled in a rich tomato-and-pepper base.", [I("tomato"), I("pepper"), I("egg"), I("spice"), T("chop", "Chop the tomato and pepper"), C("temper", 3, 3500, false, 1), C("boil", 2, 5000)]),
 ];
 export const byRecipe = new Map(RECIPES.map(r => [r.id, r]));
+const ingredientsOf = (recipe: Recipe) => recipe.steps.flatMap(step => step.kind === "ingredient" ? [step.ingredient] : []);
+/** Every ingredient any recipe uses, derived so the list can't drift from the recipes. */
+export const INGREDIENTS = [...new Set(RECIPES.flatMap(ingredientsOf))];
+/** What the pantry offers for a recipe: everything it needs, plus water and spice as decoys. */
+export const pantryFor = (recipe: Recipe) => [...new Set([...ingredientsOf(recipe), "water", "spice"])].slice(0, 6);
 export const CUISINES: Cuisine[] = [
   { level: 1, id: "indian", name: "Indian Kitchen", place: "The copper courtyard", lesson: "Spread batter, control tawa heat and time your first flip.", challenge: "A double order followed by two street-food guests.", color: "#edaa50", dark: "#3d2722", wall: "#b66c44", recipes: RECIPES.filter(r => r.level === 1).map(r => r.id), garnish: "herbs", motif: "arches" },
   { level: 2, id: "italian", name: "Italian Trattoria", place: "The sunlit bakehouse", lesson: "Knead, stretch and layer before tending the oven.", challenge: "Coordinate the oven and pasta pot during dinner service.", color: "#ef7b5d", dark: "#3d2427", wall: "#bb795e", recipes: RECIPES.filter(r => r.level === 2).map(r => r.id), garnish: "herbs", motif: "brick" },
