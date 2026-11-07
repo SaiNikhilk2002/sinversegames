@@ -194,6 +194,7 @@ export function RoomView({ code }: { code: string }) {
         <client.Game key={room.matchId} code={code} room={room} game={state.game!} selfId={player.id} send={send} />
       ) : (
         <>
+          {room.status === "finished" && (state.results ?? room.lastResults) && client.Results && <client.Results results={(state.results ?? room.lastResults)!} selfId={player.id} />}
           {room.status === "finished" && (state.results ?? room.lastResults) && <ResultsPanel results={(state.results ?? room.lastResults)!} selfId={player.id} room={room} send={send} />}
           <div id="room-lobby" className="scroll-mt-4">
             <Lobby room={room} selfId={player.id} send={send} onLeave={leave} />

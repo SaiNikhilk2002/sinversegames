@@ -317,6 +317,24 @@ export function GameCover({ gameId, className }: { gameId: GameId; className?: s
       return <Frame label="Sinverse Cricket: floodlights above an original oval and a rising cricket ball" className={className} bg="#102d3a"><image href="/sinverse-cricket/cover.svg" width="320" height="200" /></Frame>;
     case "cuisine-quest":
       return <Frame label="Cuisine Quest cover: a chef's passport and a world of kitchens" className={className} bg="#254841"><image href="/cuisine-quest/cover.svg" width="320" height="200" /></Frame>;
+    case "chef-rivals":
+      return (
+        <Frame label="Chef Rivals cover: two chefs face off across a glowing cooking stage" className={className} bg="#2a1533">
+          <circle cx={W / 2} cy={H * 0.42} r={H * 0.36} fill="#ff8a5c" opacity=".22" />
+          <rect y={H * 0.74} width={W} height={H * 0.26} fill="#3d2149" />
+          {[[W * 0.28, "#ff6b4a"], [W * 0.72, "#7c5cff"]].map(([x, apron], i) => (
+            <g key={i} transform={`translate(${x} ${H * 0.3}) scale(${i ? -1 : 1} 1)`}>
+              <path d="M-22 -8q-16 -30 8 -30q14 -18 28 0q24 0 8 30Z" fill="#fff6ea" />
+              <circle r="24" cy="12" fill={i ? "#c98a5e" : "#f0c39a"} />
+              <path d="M-30 36q30 -14 60 0v62h-60Z" fill="#fff6ea" />
+              <path d="M-18 46h36v52h-36Z" fill={String(apron)} />
+              <path d="M28 44l38 -16" stroke="#fff6ea" strokeWidth="13" strokeLinecap="round" />
+              <path d="M62 30l26 -12" stroke="#d6ddd3" strokeWidth="7" strokeLinecap="round" />
+            </g>
+          ))}
+          <path d={`M${W / 2 - 16} ${H * 0.3}l24 -6 -10 26 18 -2 -30 40 8 -32 -16 2Z`} fill="#ffc83d" />
+        </Frame>
+      );
     case "kitchen-rush":
       return <KitchenRushCover className={className} />;
     case "bumper-blitz":

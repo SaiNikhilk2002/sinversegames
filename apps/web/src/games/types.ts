@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { Ack, GameStatePayload, RoomSnapshot } from "@platform/shared";
+import type { Ack, GameStatePayload, MatchResults, RoomSnapshot } from "@platform/shared";
 
 /** Client half of the game integration contract (the server half is GameEngine). */
 export interface GameClientProps<V = unknown> {
@@ -22,4 +22,6 @@ export interface GameClient {
   Settings: ComponentType<GameSettingsProps>;
   /** Short summary of the current settings for non-hosts. */
   summarize: (config: Record<string, unknown>) => string[];
+  /** Optional game-specific reveal shown above the shared results panel. */
+  Results?: ComponentType<{ results: MatchResults; selfId: string }>;
 }

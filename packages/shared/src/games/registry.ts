@@ -14,11 +14,12 @@ export const GAME_IDS = [
   "bumper-blitz",
   "cuisine-quest",
   "sinverse-cricket",
+  "chef-rivals",
 ] as const;
 export type GameId = (typeof GAME_IDS)[number];
 
 /** Games played in realtime rooms (engines in packages/engines, rooms on the realtime server). */
-export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail", "bumper-blitz"] as const;
+export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail", "bumper-blitz", "chef-rivals"] as const;
 export type MultiplayerGameId = (typeof MULTIPLAYER_GAME_IDS)[number];
 
 /** Single-player games: played in the browser, scores verified by replaying the move log on the server. */
@@ -318,6 +319,24 @@ export const GAMES: readonly GameMeta[] = [
       { title: "Build a bowling plan", body: "Set line, length and variation. Release near the centre of the moving meter; late oversteps cost a no-ball and free hit." },
       { title: "Watch the field", body: "Request a run only when the gap is there. Throws and runner positions decide run-outs. Review any completed delivery before continuing." },
     ], keywords: ["cricket simulation", "3d cricket", "original cricket game", "batting bowling game", "short cricket match"],
+  },
+  {
+    id: "chef-rivals", slug: "chef-rivals", kind: "multiplayer", name: "Chef Rivals",
+    tagline: "Same basket. Same clock. Two chefs. One winner.",
+    description: "A head-to-head cooking duel from the Cuisine Quest kitchens. Two chefs cook the same mystery basket at the same time, then the judges decide.",
+    longDescription: [
+      "Chef Rivals puts two chefs on one stage. You both get the same theme, mystery ingredient, guests and clock, and you can watch your rival work while you cook.",
+      "Choose your own order of attack across the tickets. The judges score correctness, cooking craft, timing, technique and presentation, plus a secret challenge revealed only at the end. Good cooking beats fast clicking.",
+    ],
+    categories: ["cooking", "strategy", "arcade"], minPlayers: 2, maxPlayers: 2, avgDurationMinutes: [3, 5], modes: ["private-room", "public-match", "two-player"], featured: false, popular: false, addedAt: "2026-11-07",
+    theme: { from: "#ff6b4a", to: "#7c5cff", ink: "#fff6ea" },
+    howToPlay: [
+      { title: "Meet the challenge", body: "A theme and mystery ingredient are revealed, and both chefs get the same tickets." },
+      { title: "Cook at the same time", body: "Follow each ticket's recipe: ingredients, preparation, heat, timing and plating. Two batches can run at once, so plan your order." },
+      { title: "Serve it right", body: "Give each guest the finish they asked for before their patience runs out." },
+      { title: "Face the judges", body: "Scores are revealed category by category, including a secret challenge. Quality counts far more than speed." },
+    ],
+    keywords: ["cooking duel", "multiplayer cooking game", "chef vs chef", "two player cooking game", "online cooking competition"],
   },
 ];
 

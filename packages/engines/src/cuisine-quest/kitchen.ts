@@ -42,6 +42,10 @@ export interface ShiftRules {
   batches: number;
   /** A hard deadline. Unresolved guests leave and the shift ends. Null means guests decide the end. */
   limitMs: number | null;
+  /** When false, a gesture's distance from its marker costs no quality, so mouse, touch and keyboard compete equally. Default true. */
+  gesturePrecision?: boolean;
+  /** Minimum time between gestures. Default GESTURE_GAP_MS. */
+  gestureGapMs?: number;
 }
 export interface ShiftPlan { level: number; seed: number; orders: OrderSpec[]; rules: ShiftRules; intro: string }
 
@@ -213,17 +217,17 @@ export function applyQuest(s: QuestState, a: QuestAction): { ok: boolean; error?
     if (step.kind === "ingredient" || o.startedAt !== null) return { ok: false, error: "That station cannot start now" };
     const occupied = s.orders.find(x => x !== o && x.status === "waiting" && x.startedAt !== null && currentStep(x)?.station === step.station);
     if (occupied) return { ok: false, error: `Station busy with ticket ${occupied.id + 1}. Work on another step.` };
-    o.startedAt = s.t; o.lastGestureAt = s.t - GESTURE_GAP_MS; notify(s, step.label, "info", step.kind === "cook" ? step.method : step.technique); return { ok: true };
+    o.startedAt = s.t; o.lastGestureAt = s.t - (s.rules.gestureGapMs ?? GESTURE_GAP_MS); notify(s, step.label, "info", step.kind === "cook" ? step.method : step.technique); return { ok: true };
   }
   if (a.kind === "gesture") {
     if (step.kind !== "technique" || o.startedAt === null) return { ok: false, error: "Start the preparation station first" };
-    if (s.t - o.lastGestureAt < GESTURE_GAP_MS) return { ok: false, error: "Slow, steady movements. Follow the next marker." };
+    if (s.t - o.lastGestureAt < (s.rules.gestureGapMs ?? GESTURE_GAP_MS)) return { ok: false, error: "Slow, steady movements. Follow the next marker." };
     const target = PATHS[step.technique][o.node];
     if (!target) return { ok: false, error: "Preparation already complete" };
     const distance = Math.hypot(a.x - target[0], a.y - target[1]);
     o.lastGestureAt = s.t;
     if (a.node !== o.node || distance > 160) { mistake(s, o, "Follow the numbered marker. You can correct the next movement.", 3); return { ok: true }; }
-    o.quality = Math.max(10, o.quality - Math.floor(distance / 55));
+    if (s.rules.gesturePrecision !== false) o.quality = Math.max(10, o.quality - Math.floor(distance / 55));
     o.node++;
     notify(s, `${step.technique === "plate" ? "Plating" : "Technique"} ${o.node}/${PATHS[step.technique].length}`, "good", step.technique);
     if (o.node === PATHS[step.technique].length) { nextStep(o); notify(s, `${step.label} — complete.`, "good", "prepared"); }

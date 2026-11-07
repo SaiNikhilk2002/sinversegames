@@ -6,6 +6,7 @@ import { Spinner } from "@/components/ui/primitives";
 import { ColorClashSettings, summarizeColorClash } from "./color-clash/settings";
 import { DoodleDuelSettings, summarizeDoodleDuel } from "./doodle-duel/settings";
 import { BumperBlitzSettings, summarizeBumperBlitz } from "./bumper-blitz/settings";
+import { ChefRivalsSettings, summarizeChefRivals } from "./chef-rivals/settings";
 import { TokenTrailSettings, summarizeTokenTrail } from "./token-trail/settings";
 import type { GameClient } from "./types";
 
@@ -20,6 +21,12 @@ const loading = () => (
  * game they're playing. Adding a game = one entry here.
  */
 export const GAME_CLIENTS: Record<MultiplayerGameId, GameClient> = {
+  "chef-rivals": {
+    Game: dynamic(() => import("./chef-rivals/rivals-game").then((m) => m.ChefRivalsGame), { ssr: false, loading }),
+    Settings: ChefRivalsSettings,
+    summarize: summarizeChefRivals,
+    Results: dynamic(() => import("./chef-rivals/rivals-results").then((m) => m.RivalsResults), { ssr: false }),
+  },
   "color-clash": {
     Game: dynamic(() => import("./color-clash/color-clash-game").then((m) => m.ColorClashGame), { ssr: false, loading }),
     Settings: ColorClashSettings,

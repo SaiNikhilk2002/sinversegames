@@ -4,6 +4,7 @@ import type { GameId } from "@platform/shared";
 export const GAME_THEME: Record<GameId, { accent: string; deep: string; ink: string }> = {
   "sinverse-cricket": { accent: "#55e0bf", deep: "#102d3a", ink: "#f1f8ef" },
   "cuisine-quest": { accent: "#e8bf7a", deep: "#254841", ink: "#fff1cf" },
+  "chef-rivals": { accent: "#ff8a5c", deep: "#2a1533", ink: "#fff6ea" },
   "kitchen-rush": { accent: "#e0533c", deep: "#3a1d12", ink: "#fffaf0" },
   "bumper-blitz": { accent: "#ff4f8b", deep: "#0b0620", ink: "#ffffff" },
   "token-trail": { accent: "#ffc83d", deep: "#2a1a12", ink: "#f3e6cc" },

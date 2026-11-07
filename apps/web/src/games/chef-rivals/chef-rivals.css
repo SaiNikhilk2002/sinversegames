@@ -1,0 +1,117 @@
+/* Chef Rivals: a competition stage. Movement is transforms and opacity only. */
+.cr-game { padding-top:0; }
+.cr-game .cq-eyebrow { color:var(--cq-accent); }
+.cr-clock-warn { color:#ffd166;animation:cr-pulse 1s ease-in-out infinite; }
+@keyframes cr-pulse { 50% { transform:scale(1.07); } }
+
+/* Stage */
+.cr-stage { display:grid;grid-template-columns:1fr 1fr;gap:10px;flex-shrink:0;margin:2px 0 6px; }
+.cr-lane { position:relative;min-width:0;height:clamp(92px,17vh,150px);overflow:hidden;border-radius:12px;background:linear-gradient(#ffffff12,#ffffff06);box-shadow:inset 0 0 0 1px #ffffff1c;container-type:inline-size; }
+.cr-lane-self { box-shadow:inset 0 0 0 2px color-mix(in oklab,var(--cq-accent) 70%,transparent); }
+.cr-lane-label { position:absolute;top:5px;left:8px;right:8px;z-index:2;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;font-size:11px; }
+.cr-lane-label strong { font:800 12px var(--font-outfit),sans-serif; }
+.cr-offline { display:inline-flex;align-items:center;gap:3px;padding:0 6px;border-radius:99px;background:#7a2f2a;color:#fff;font-size:10px; }
+.cr-counter { position:absolute;left:0;right:0;bottom:0;height:34%;display:flex;gap:2px;align-items:stretch;padding:0 4px;background:#0000002e;border-top:2px solid #ffffff24; }
+.cr-st { flex:1;min-width:0;display:grid;place-items:center;color:#ffffff66;border-radius:5px 5px 0 0;transition:color .2s,background-color .2s; }
+.cr-st-busy { color:#fff;background:color-mix(in oklab,var(--cq-accent) 45%,transparent); }
+.cr-track { position:absolute;inset:0 6px 0 6px;pointer-events:none;container-type:inline-size; }
+.cr-walker { position:absolute;bottom:18%;left:0;width:clamp(44px,8vh,72px);transform:translateX(calc(var(--cr-pos) * (100cqw - 100%)));transition:transform .45s cubic-bezier(.3,.8,.3,1);will-change:transform; }
+.cr-entering .cr-walker { animation:cr-enter .8s cubic-bezier(.2,.9,.3,1.2) both; }
+@keyframes cr-enter { from { opacity:0;translate:-50px 0; } to { opacity:1;translate:0 0; } }
+
+/* Chef animation, one small set of keyframes for each real pose. */
+.cr-chef { display:block;width:100%;height:auto;overflow:visible; }
+.cr-chef * { transform-box:fill-box; }
+.cr-body { transform-origin:50% 100%;animation:cr-breathe 2.6s ease-in-out infinite; }
+.cr-arm-r { transform-origin:0% 50%; }
+.cr-arm-l { transform-origin:100% 0%; }
+.cr-head { transform-origin:50% 90%; }
+.cr-eyes { transform-origin:50% 50%;animation:cr-blink 4.3s linear infinite; }
+@keyframes cr-breathe { 50% { transform:scale(1.01,.985); } }
+@keyframes cr-blink { 0%,94%,100% { transform:scaleY(1); } 97% { transform:scaleY(.1); } }
+.cr-pose-chop .cr-arm-r { animation:cr-chop .32s ease-in-out infinite; }
+.cr-pose-mix .cr-arm-r,.cr-pose-stir .cr-arm-r { animation:cr-stir .8s linear infinite; }
+.cr-pose-flip .cr-arm-r { animation:cr-flip 1.2s ease-in-out infinite; }
+.cr-pose-cook .cr-arm-r { animation:cr-tend 1.6s ease-in-out infinite; }
+.cr-pose-roll .cr-arm-r,.cr-pose-roll .cr-arm-l { animation:cr-roll .7s ease-in-out infinite; }
+.cr-pose-plate .cr-arm-r { animation:cr-tend 1s ease-in-out infinite; }
+.cr-pose-serve .cr-body { animation:cr-hop .7s ease-in-out infinite; }
+.cr-pose-gather .cr-arm-r { animation:cr-reach .7s ease-in-out infinite; }
+@keyframes cr-chop { 50% { transform:rotate(22deg); } }
+@keyframes cr-stir { 0%,100% { transform:rotate(-8deg) translateY(0); } 25% { transform:rotate(4deg) translateY(-2px); } 50% { transform:rotate(10deg); } 75% { transform:rotate(2deg) translateY(2px); } }
+@keyframes cr-flip { 0%,70%,100% { transform:rotate(0); } 82% { transform:rotate(-24deg); } }
+@keyframes cr-tend { 50% { transform:rotate(-7deg); } }
+@keyframes cr-roll { 50% { transform:translateX(5px); } }
+@keyframes cr-hop { 50% { transform:translateY(-5%); } }
+@keyframes cr-reach { 50% { transform:rotate(-14deg) translateY(-3px); } }
+.cr-mood-celebrate .cr-body,.cr-mood-win .cr-body { animation:cr-jump .55s ease-in-out infinite; }
+.cr-mood-celebrate .cr-arm-l,.cr-mood-win .cr-arm-l { animation:cr-cheer .55s ease-in-out infinite; }
+.cr-mood-oops .cr-head { animation:cr-shake .3s ease-in-out 3; }
+.cr-mood-lose .cr-head { transform:rotate(7deg) translateY(2px); }
+@keyframes cr-jump { 50% { transform:translateY(-9%) scale(.98,1.03); } }
+@keyframes cr-cheer { 0%,100% { transform:rotate(120deg); } 50% { transform:rotate(150deg); } }
+@keyframes cr-shake { 25% { transform:rotate(-8deg); } 75% { transform:rotate(8deg); } }
+
+/* Introduction */
+.cr-reveal { flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:6px; }
+.cr-reveal h2 { font:900 clamp(26px,5.5vw,56px)/1.05 var(--font-outfit),sans-serif;letter-spacing:-.03em;animation:cr-rise .6s both; }
+@keyframes cr-rise { from { opacity:0;transform:translateY(14px) scale(.97); } to { opacity:1;transform:none; } }
+.cr-versus { position:relative;display:flex;justify-content:center;gap:clamp(34px,10vw,110px); }
+.cr-versus-chef { width:clamp(62px,14vh,110px);display:flex;flex-direction:column;align-items:center;font-size:12px; }
+.cr-side-0 { animation:cr-from-left .7s .1s cubic-bezier(.2,.9,.3,1.1) both; }
+.cr-side-1 { animation:cr-from-right .7s .1s cubic-bezier(.2,.9,.3,1.1) both; }
+@keyframes cr-from-left { from { opacity:0;transform:translateX(-46px); } to { opacity:1;transform:none; } }
+@keyframes cr-from-right { from { opacity:0;transform:translateX(46px); } to { opacity:1;transform:none; } }
+.cr-vs { position:absolute;top:36%;left:50%;translate:-50% 0;font:900 22px var(--font-outfit),sans-serif;color:var(--cq-accent); }
+.cr-mystery { display:flex;align-items:center;gap:10px;padding:6px 16px 6px 8px;border-radius:99px;background:#ffffff14;box-shadow:inset 0 0 0 1px #ffffff2a;animation:cr-rise .6s 1.2s both;text-align:left; }
+.cr-mystery svg { width:42px;height:42px; }
+.cr-mystery span { display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.8; }
+.cr-mystery strong { font:800 19px var(--font-outfit),sans-serif;text-transform:capitalize; }
+.cr-basket { display:flex;flex-wrap:wrap;justify-content:center;gap:8px;animation:cr-rise .6s 2.2s both; }
+.cr-basket div { width:88px;font-size:10px; }
+.cr-basket svg { width:100%;height:52px; }
+.cr-count { font:900 clamp(90px,24vh,190px)/1 var(--font-outfit),sans-serif;color:var(--cq-accent);animation:cr-count .9s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes cr-count { from { opacity:0;transform:scale(1.6); } 30% { opacity:1; } to { opacity:1;transform:scale(1); } }
+
+/* Live board */
+.cr-scoreboard>div { display:flex;align-items:center;gap:6px;font-size:12px; }
+.cr-scoreboard>div strong { margin-left:auto;font:800 15px var(--font-outfit),sans-serif; }
+.cr-done { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;color:var(--cq-accent); }
+.cr-done p { color:#f6efd9; }
+.cr-no-pause { font-size:12px;margin:8px 0; }
+
+/* Judges */
+.cr-judging { position:relative;overflow:hidden;margin-bottom:18px;padding:clamp(16px,3vw,30px);border-radius:20px;color:#fff6ea;background:radial-gradient(90% 70% at 50% 0%,#5a2d6e,#2a1533 70%);box-shadow:0 0 0 2px #ff9a6b55; }
+.cr-judging-top { text-align:center; }
+.cr-judging .cq-eyebrow { color:#ffb48a; }
+.cr-judging h2 { margin:4px 0 8px;font:900 clamp(26px,5vw,46px)/1.08 var(--font-outfit),sans-serif;letter-spacing:-.02em; }
+.cr-skip { padding:5px 12px;border-radius:99px;font-size:12px;text-decoration:underline;min-height:32px; }
+.cr-judging-chefs { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0; }
+.cr-judge-chef { display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;font-size:13px;padding:8px;border-radius:14px;transition:background-color .4s; }
+.cr-judge-chef[data-winner="true"] { background:#ffc83d22;box-shadow:inset 0 0 0 2px #ffc83d; }
+.cr-judge-chef .cr-chef { width:clamp(70px,16vw,120px); }
+.cr-judge-dish { width:min(100%,220px);height:clamp(70px,16vw,130px);display:grid;place-items:center; }
+.cr-judge-dish svg { width:100%;height:100%;animation:cr-rise .7s both; }
+.cr-no-dish { font-size:12px;opacity:.75; }
+.cr-judge-chef small { font-size:11px;opacity:.85; }
+.cr-total { font:900 clamp(26px,5vw,42px) var(--font-outfit),sans-serif;font-variant-numeric:tabular-nums; }
+.cr-rows { margin:0;padding:0;list-style:none; }
+.cr-rows li { display:grid;grid-template-columns:64px 1fr 64px;align-items:center;gap:8px;padding:6px 0;text-align:center;font-size:13px;border-top:1px solid #ffffff1c;transition:opacity .35s,transform .35s; }
+.cr-row-hidden { opacity:.35; }
+.cr-row-in { opacity:1;animation:cr-rise .35s both; }
+.cr-rows strong { font:800 16px var(--font-outfit),sans-serif;font-variant-numeric:tabular-nums; }
+.cr-rows small { display:block;font-size:11px;opacity:.8; }
+.cr-lead { color:#ffd166; }
+.cr-lead::after { content:" ▲";font-size:10px; }
+.cr-encourage { margin:12px 0 0;text-align:center;font-size:14px; }
+.cr-confetti { position:absolute;inset:0;pointer-events:none;overflow:hidden; }
+.cr-confetti i { position:absolute;top:-16px;left:calc(var(--i) * 4.5%);width:8px;height:13px;border-radius:2px;background:hsl(calc(var(--i) * 37) 90% 65%);animation:cr-fall 2.6s calc(var(--i) * 45ms) cubic-bezier(.3,.5,.6,1) 1 both; }
+@keyframes cr-fall { from { transform:translateY(0) rotate(0); opacity:1; } to { transform:translateY(620px) rotate(calc(var(--i) * 70deg)); opacity:0; } }
+
+/* Low effects and reduced motion keep every state change but drop decoration. */
+.low-effects .cr-confetti { display:none; }
+.low-effects .cr-body,.low-effects .cr-eyes { animation:none; }
+@media (prefers-reduced-motion:reduce) { .cr-confetti { display:none; } .cr-chef *,.cr-walker,.cr-reveal *,.cr-count,.cr-clock-warn,.cr-row-in,.cr-judge-dish svg { animation:none!important; } .cr-walker { transition:none; } }
+.reduce-motion .cr-confetti { display:none; }
+@media (max-width:720px) { .cr-lane { height:82px; } .cr-walker { width:40px;bottom:14%; } .cr-rows li { grid-template-columns:52px 1fr 52px;font-size:12px; } .cr-basket div { width:72px; } }
+@media (max-height:620px) { .cr-lane { height:70px; } .cr-walker { width:34px; } .cr-counter svg { width:12px;height:12px; } }

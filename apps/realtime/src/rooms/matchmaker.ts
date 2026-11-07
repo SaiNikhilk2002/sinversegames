@@ -13,7 +13,7 @@ interface QueueEntry {
 }
 
 /** Preferred match sizes; matches start smaller if players have waited long enough. */
-const TARGET_SIZE: Record<MultiplayerGameId, number> = { "color-clash": 4, "doodle-duel": 6, "token-trail": 4, "bumper-blitz": 6 };
+const TARGET_SIZE: Record<MultiplayerGameId, number> = { "chef-rivals": 2, "color-clash": 4, "doodle-duel": 6, "token-trail": 4, "bumper-blitz": 6 };
 
 /**
  * Public matchmaking. A searching player is first placed into an open public
