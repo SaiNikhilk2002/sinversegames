@@ -71,3 +71,11 @@
 .low-effects .kc-station[data-hazard="true"] { animation:none; }
 @media (prefers-reduced-motion:reduce) { .kc-intro *,.kc-crew>div,.kc-combo,.kc-station { animation:none!important; } .kc-cook,.kc-patience b { transition:none; } }
 @media (max-width:640px) { .kc-ticket span,.kc-guest { display:none; } .kc-shelf { flex-direction:column; } .kc-plates { justify-content:center; } .kc-plate { height:52px; } .kc-crate { min-height:50px; } .kc-stat small { font-size:9px; } .kc-top { gap:7px; } }
+
+/* Keep each guest inside their seat: the figure scales to the seat height. */
+.kc-seats { justify-content:center; }
+.kc-seat { max-width:440px; overflow:hidden; }
+.kc-guest { width:auto; height:100%; aspect-ratio:100/130; max-width:38%; flex-shrink:0; }
+.kc-guest svg { width:100%; height:100%; }
+.kc-stations { align-items:center; }
+.kc-station { max-height:100%; aspect-ratio:12/11; }

@@ -115,3 +115,12 @@
 .reduce-motion .cr-confetti { display:none; }
 @media (max-width:720px) { .cr-lane { height:82px; } .cr-walker { width:40px;bottom:14%; } .cr-rows li { grid-template-columns:52px 1fr 52px;font-size:12px; } .cr-basket div { width:72px; } }
 @media (max-height:620px) { .cr-lane { height:70px; } .cr-walker { width:34px; } .cr-counter svg { width:12px;height:12px; } }
+
+/* The stage takes height from the cooking panel, so the panel scrolls rather than letting the coach overlap its controls. */
+.cr-game .cq-station { overflow-y:auto;overscroll-behavior:contain; }
+.cr-game .cq-pantry,.cr-game .cq-preparation,.cr-game .cq-cooking,.cr-game .cq-ready-plate { justify-content:flex-start;flex:0 0 auto; }
+.cr-game .cq-pantry-cue svg { width:64px;height:64px; }
+.cr-game .cq-ingredients button { min-height:66px; }
+.cr-game .cq-ingredients svg { width:46px;height:42px; }
+.cr-game .cq-guide { margin-top:auto;position:relative;z-index:1; }
+@media (max-height:820px) { .cr-lane { height:clamp(74px,13vh,112px); } .cr-walker { width:clamp(36px,6.5vh,56px); } }
