@@ -44,7 +44,15 @@ Every phase must be independently testable, reversible, and run with no producti
 | Browser | Complete solo T20 and ODI with simulated overs, a shortened Test, two separate browser identities for 1v1, a tournament from fixtures to final, plus regressions for Cricket 2 and every other game |
 | Devices | Physical phones and Safari, reported as untested until actually done |
 
-## Decisions needed from the owner
+## Owner decisions (2026-11-07)
+
+| Topic | Decision |
+|---|---|
+| Content | Original Sinverse teams and fictional players by default. Real competitions and teams sit behind the licence-aware content system. Unlicensed logos, jerseys, photos, likenesses and broadcast assets are never reproduced. The system stays ready for authorised IPL, ODI, T20 and other content |
+| Long formats | ODI and Test offer three experiences, chosen before the match starts: full manual play, key-moments play, or quick simulation. Simulated overs are always labelled as simulated. Nothing is simulated silently. Scorecards, player statistics and outcomes stay meaningful in all three |
+| Worktrees | Keep the Cuisine Quest, Cricket 2 and Cricket Universe worktrees until their branches are merged and verified. Then propose a consolidation plan. Delete nothing without approval |
+
+## Earlier open questions
 
 1. **Real-world content.** Ship original content only until rights are confirmed (recommended), or seek licences first? Without licences, the IPL and international catalogues can be built as structure but not shown with real names.
 2. **Base branch.** Confirm building on Cricket 2, which means rebasing after PR #4 merges.
