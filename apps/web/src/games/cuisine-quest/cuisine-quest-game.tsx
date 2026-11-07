@@ -9,6 +9,7 @@ import { createLoop, playMusic, sfx, stopMusic, unlockAudio } from "@/lib/sound"
 import { updateSettings, useSettings } from "@/lib/settings";
 import type { SoloGameProps, SoloSetupProps } from "../solo-types";
 import { FoodArt, KitchenBackdrop } from "./art";
+import { CuisineModes } from "./cuisine-modes";
 import { RecipeBook, StationPanel, TicketCard } from "./kitchen-ui";
 import { QUEST_SONGS } from "./music";
 import { expectJson } from "@/lib/read-json";
@@ -54,6 +55,7 @@ export function CuisineQuestSetup({ onStart, busy }: SoloSetupProps) {
       <div className="cq-destination-scene"><KitchenBackdrop level={level} /><span className="cq-postmark">KITCHEN {String(level).padStart(2, "0")}<br />{cuisine.id.toUpperCase()}</span><div className="cq-destination-food"><FoodArt recipe={cuisine.recipes[0]!} /></div></div>
       <div className="cq-destination-copy"><p className="cq-eyebrow">{cuisine.place}</p><h3>{cuisine.name}</h3><p>{cuisine.lesson}</p><p className="cq-challenge">Final service: {cuisine.challenge}</p><div className="cq-menu-preview">{cuisine.recipes.map(id => <div key={id} data-testid={`cq-recipe-${id}`}><FoodArt recipe={id} /><span>{byRecipe.get(id)!.name}</span>{journey?.recipes[id] && <small className={`cq-mastery cq-mastery-${journey.recipes[id].tier}`} title={`${journey.recipes[id].plates} plates, best ${journey.recipes[id].best}%`}>{journey.recipes[id].tier}</small>}</div>)}</div>{loaded && journey && <ul className="cq-challenges" aria-label="Chef's challenges" data-testid="cq-challenges">{challengesFor(level).map(challenge => { const done = earned.includes(challenge.id); return <li key={challenge.id} className={done ? "cq-seal-done" : ""} data-seal={challenge.id} data-done={done}><Award size={18} aria-hidden /><div><strong>{challenge.title}</strong><small>{challenge.description}</small></div><span className="sr-only">{done ? "Earned" : "Not earned yet"}</span></li>; })}</ul>}<div className="cq-destination-bottom"><div><Stars count={progress.stars} /><small>{progress.bestScore ? `Best ${progress.bestScore.toLocaleString()} · ${progress.completedRuns} completed` : "A fresh page in your passport"}</small></div><button type="button" className="cq-primary" disabled={busy || loading || !progress.unlocked} data-testid="start-run" onClick={() => { unlockAudio(); onStart({ level }); }}>{busy ? "Opening…" : progress.completedRuns ? "Revisit kitchen" : "Enter kitchen"}<ChevronRight size={20} /></button></div></div>
     </div>
+    <CuisineModes />
     <div className="cq-map-foot"><p>One saved star opens the next kitchen. Replay freely to improve your craft. First cuisine completions earn Sin Coins; new records and achievements can earn bonuses within the daily cap.</p><div><h3>{cuisine.name} · best plates</h3>{board?.length ? <ol>{board.slice(0,3).map((row, i) => <li key={i}><span>{i+1}. {row.name}</span><strong>{row.score.toLocaleString()}</strong></li>)}</ol> : <p>{board ? "No saved plates yet. Set the first record." : "Cuisine rankings are unavailable right now."}</p>}</div></div>
   </section>;
 }

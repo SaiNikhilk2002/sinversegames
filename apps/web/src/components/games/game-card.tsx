@@ -31,7 +31,7 @@ export function GameCard({ game, size = "md", className }: { game: GameMeta; siz
       style={{ "--accent": theme.accent } as React.CSSProperties}
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-[22px] border-2 border-white/5 bg-[#120f24] shadow-[0_12px_30px_-18px_rgb(0_0_0/0.9)] transition duration-300",
-        "hover:-translate-y-1.5 hover:border-[var(--accent)] hover:shadow-[0_22px_44px_-20px_var(--accent)] focus-visible:border-[var(--accent)]",
+        "hover:-translate-y-1.5 hover:border-[var(--accent)] hover:shadow-[0_22px_44px_-20px_var(--accent)] focus-visible:-translate-y-1.5 focus-visible:border-[var(--accent)] active:translate-y-0 active:duration-100",
         className,
       )}
     >

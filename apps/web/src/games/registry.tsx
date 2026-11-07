@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { MultiplayerGameId } from "@platform/shared";
-import { Spinner } from "@/components/ui/primitives";
+import { BrandLoader } from "@/components/ui/brand-loader";
 import { ColorClashSettings, summarizeColorClash } from "./color-clash/settings";
 import { DoodleDuelSettings, summarizeDoodleDuel } from "./doodle-duel/settings";
 import { BumperBlitzSettings, summarizeBumperBlitz } from "./bumper-blitz/settings";
@@ -13,7 +13,7 @@ import type { GameClient } from "./types";
 
 const loading = () => (
   <div className="flex justify-center py-24">
-    <Spinner label="Loading game" />
+    <BrandLoader label="Loading game" />
   </div>
 );
 

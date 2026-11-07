@@ -57,6 +57,15 @@
   --color-sun: #ffb23d;
   --color-mint: #2fd6a8;
   --color-danger: #ff4d5e;
+  /* Secondary palette, for accents and game identities. Not for body text on light surfaces. */
+  --color-electric: #3d8bff;
+  --color-coral: #ff6b4a;
+  --color-aqua: #38d9e8;
+  --color-lime: #8fdc4f;
+  /* Meaning. Always pair these with an icon or words, never colour alone. */
+  --color-success: var(--color-mint);
+  --color-warning: var(--color-sun);
+  --color-error: var(--color-danger);
 
   --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -67,6 +76,16 @@
   --shadow-card: var(--shadow);
 
   --animate-float: float 6s ease-in-out infinite;
+
+  /* Motion. Use these rather than one-off timings. */
+  --motion-instant: 90ms;
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 380ms;
+  --motion-stage: 650ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.3, 1);
   --animate-pulse-ring: pulse-ring 1.6s ease-out infinite;
 }
 
@@ -129,6 +148,30 @@ body {
     scroll-behavior: auto !important;
   }
 }
+/*
+ * Shared motion. Route entrances use opacity only: a transform here would capture
+ * the position:fixed game screens below it. Exits aren't animated, so navigation
+ * is never delayed.
+ */
+.sg-page { animation: sg-fade var(--motion-base) var(--ease-out) backwards; }
+@keyframes sg-fade { from { opacity: 0; } }
+.sg-stagger > * { animation: sg-rise var(--motion-slow) var(--ease-out) backwards; animation-delay: calc(min(var(--sg-i, 0), 8) * 45ms); }
+.sg-stagger > :nth-child(2) { --sg-i: 1; } .sg-stagger > :nth-child(3) { --sg-i: 2; } .sg-stagger > :nth-child(4) { --sg-i: 3; }
+.sg-stagger > :nth-child(5) { --sg-i: 4; } .sg-stagger > :nth-child(6) { --sg-i: 5; } .sg-stagger > :nth-child(7) { --sg-i: 6; }
+.sg-stagger > :nth-child(8) { --sg-i: 7; } .sg-stagger > :nth-child(n + 9) { --sg-i: 8; }
+@keyframes sg-rise { from { opacity: 0; transform: translateY(12px); } }
+.sg-loader { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--ink-muted); font-size: 13px; }
+.sg-loader-mark { position: relative; display: grid; place-items: center; animation: sg-breathe 1.4s var(--ease-in-out) infinite; }
+.sg-loader-mark::after { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid transparent; border-top-color: var(--color-hot); border-right-color: var(--color-brand-400); animation: cc-spin 0.9s linear infinite; }
+@keyframes sg-breathe { 50% { transform: scale(0.94); } }
+
+/*
+ * Low effects: for slow devices and anyone who prefers calm. Keeps every state
+ * change and all feedback; removes decoration that only loops, plus blur.
+ */
+.low-effects .animate-float, .low-effects .kr .kr-coals, .low-effects .kr svg .kr-body, .low-effects svg .tt-bob, .low-effects .mj-petal, .low-effects .sg-stagger > * { animation: none !important; }
+.low-effects * { backdrop-filter: none !important; }
+
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;

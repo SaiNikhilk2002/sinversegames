@@ -134,6 +134,15 @@ describe("Chef Rivals over real sockets", () => {
     expect(ctx.recorded.some(r => r.roomCode === code && r.results.reason === "completed")).toBe(false);
   });
 
+  it.each([["chef-rivals", 2], ["kitchen-rush-coop", 2]] as const)("public matchmaking pairs players for %s", { timeout: 30_000 }, async (gameId, count) => {
+    const players = await Promise.all(Array.from({ length: count }, (_, i) => join(`queue-${gameId}-${i}`, `Q${i}`)));
+    for (const p of players) expect((await p.emit("match:queue", { gameId })).ok).toBe(true);
+    clock += 5000; // Past the wait for a fuller table, so the queue settles for the minimum.
+    const matched = await Promise.all(players.map(p => p.waitFor("match:status", s => s.state === "matched", 15_000)));
+    expect(new Set(matched.map(m => m.roomCode)).size).toBe(1);
+    expect(players[0]!.last("room:state").gameId).toBe(gameId);
+  });
+
   it("offers rematch with a fresh match and challenge state", { timeout: 40_000 }, async () => {
     const { a, b } = await startDuel("rematch");
     await reachCooking(a, b);
