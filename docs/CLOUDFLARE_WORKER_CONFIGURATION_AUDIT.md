@@ -253,3 +253,32 @@ The review correction is saved in a separate local commit whose full hash is sup
 The review correction is now remote as `52c0a825d25db405e732b915703b84ed3c862c48`, still PR #4's head. This follow-up started from that clean checkout; it did not push it. GitHub's latest terminal head check reports **failure** for build **`b66be585-f842-454d-b669-f67207bbb68c`**, completed November 7 at **01:11:14 IST**. The bot comment instead lists the earlier failed `b7a6c63f-232a-471b-9948-63f9ad3a6476` run with an empty URL cell. No successful hosted Preview URL was obtained, and the latest check has zero error annotations. Its exact cause requires the latest run's full existing log; the prior missing-Worker diagnosis is not silently assigned to it.
 
 [November 7 release-readiness evidence](RELEASE_READINESS_2026_11_07.md) records the exact public observations, passed seven configuration/five helper cases, unchanged instruction/lock hashes and remaining Preview isolation/gameplay gate. Read-only Railway metadata independently verifies production realtime is active on `2aeab766…`; both public health endpoints are healthy. No source config, instruction file, production resource or dashboard setting changed. Earlier “approval pending” and local-build statements above describe their original audit dates; they are not current claims that this commit is still unpushed or that its hosted Preview has passed.
+
+## Supplied 01:11 log and confirmed settings — 2026-11-07
+
+The owner subsequently supplied the run tail ending at **01:11:12.542 IST**. It confirms this excerpt's failure: after the Next.js route table, the build stage succeeds at 01:11:02.209, then the logged command is **`Executing user deploy command: npx wrangler preview`**. That downloads Wrangler **4.158.0** and fails because **`apps/web/.open-next/worker.js` is absent**. The timing is consistent with the previously inspected `b66be585-…` check, but this excerpt contains neither Build ID nor checked-out commit; timing alone does not establish that mapping.
+
+The owner also explicitly confirms these saved settings:
+
+| Field | Confirmed value |
+| --- | --- |
+| Root directory | `/` |
+| Production and Preview build command | `pnpm cloudflare:build` |
+| Production deploy command | `pnpm cloudflare:deploy` |
+| Preview command | `pnpm cloudflare:preview:deploy` |
+
+**These settings are correct.** Re-entering the same values is not a source fix or evidence that this failed run used them. The current settings and the command recorded by the run must be reconciled against that run's configuration, checkout and build connection. An older run/settings snapshot or another connection remains a possibility, not an established cause.
+
+Read-only GitHub inspection during this follow-up still finds PR #4 at `52c0a825d25db405e732b915703b84ed3c862c48` with the same failed `b66be585-f842-454d-b669-f67207bbb68c` check, completed at **01:11:14 IST**; it exposes no newer successful run. Inspection of both package files at that exact commit confirms:
+
+- `cloudflare:build` delegates to app `cf:build`, which runs OpenNext, prepares the cache, then requires nonempty Worker output and an assets directory before success.
+- `cloudflare:preview:deploy` delegates to app `cf:preview:deploy`, which prepares the cache, validates artifacts, then runs installed `wrangler preview --config wrangler.jsonc`. Neither script invokes `npx`.
+- The app keeps `build: next build`, as required by OpenNext. The ordinary root `build` runs the web/realtime Node builds and does not emit a Worker. The supplied `apps/web build:` prefix resembles that path, but the actual build-command header is still missing.
+
+The earlier retained Linux build log shows the intended command continuing after the route table through `OpenNext — Generating bundle`, `Worker saved in .open-next/worker.js`, cache preparation and `OPENNEXT_ARTIFACT_CHECK`. This is prior local evidence, not a newly executed build or proof about the hosted run. No successful intended command that omits its required artifact has been reproduced.
+
+Cloudflare documents separate Build, Deploy and Preview command fields, and says saved settings apply to subsequent builds/retries. It also states that Workers Builds does **not** honor Wrangler custom-build configuration, so adding a `build.command` to either Wrangler file would not reconcile these dashboard commands. [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/). OpenNext requires the app's `build` script to invoke Next directly. [OpenNext setup](https://opennext.js.org/cloudflare/get-started#6-update-the-packagejson-file).
+
+The remaining diagnostic input is the **existing failed run's** checked-out commit/Build ID, working directory and `Executing user build command: ...` header, with any OpenNext output before Preview. Current field values alone do not supply that run-specific evidence. Do not change Worker names, domains, artifact paths, dependencies or caches to explain a discrepancy those changes have not been shown to cause.
+
+Fresh local validation in this follow-up: normalized configuration passes, all **five helper tests** pass, and all **seven command/configuration tests** pass without a browser, web/realtime server or database connection. No application/build configuration changed, so full application builds and gameplay suites were not repeated. Root instruction files remain unchanged and byte-identical; the lockfile retains its recorded hash. This follow-up changes documentation only, on local `feature/sinverse-cricket-2` at `dc4eda6` (one existing commit ahead of its tracked branch). No commit, push, retry, dashboard change or deployment was performed. Hosted Preview remains unverified.

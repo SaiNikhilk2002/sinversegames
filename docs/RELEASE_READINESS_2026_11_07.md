@@ -1,5 +1,7 @@
 # Release readiness audit — 2026-11-07
 
+Subsequent owner evidence: the supplied 01:11 run tail confirms a missing Worker entry and a bare `npx wrangler preview` invocation, while the owner confirms all saved Build/Deploy/Preview fields already match the required commands. The run's build-command header and checkout are still absent. See [the settings/run discrepancy follow-up](CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md#supplied-0111-log-and-confirmed-settings--2026-11-07); the observations below retain their original audit scope.
+
 ## Scope and starting state
 
 Applied the supplied SinverseGames operating prompt to the highest-priority release checks. Started from clean `feature/sinverse-cricket-2` at **`52c0a825d25db405e732b915703b84ed3c862c48`**, matching PR #4's current remote head. Inspected recent commits, staged/unstaged state, both complete root manuals, web instructions, current Cricket 2 validation, deployment configuration, artifact helper/tests and the earlier Cloudflare audit. This is a read-only remote investigation plus local configuration tests and documentation; it does not introduce a gameplay or infrastructure change.
