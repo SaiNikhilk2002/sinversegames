@@ -1,5 +1,7 @@
 # Sinverse Cricket visual review — 2026-11-05
 
+For the subsequent input, toss, run-up and broadcast upgrade, see [Sinverse Cricket 2.0 implementation and validation](SINVERSE_CRICKET_2_IMPLEMENTATION.md). The evidence below belongs to the earlier visual milestone.
+
 Review basis: actual local production-browser play and headless Chromium WebGL2 captures. [Gameplay clip](../artifacts/cricket/duel-desktop.webm), [batting](../artifacts/cricket/batting-live.png), [replay](../artifacts/cricket/replay-side.png), [High stadium](../artifacts/cricket/high-stadium.png), [320 controls](../artifacts/cricket/controls-320.png), [tactical play](../artifacts/cricket/tactical-430.png). The cover SVG is promotional art and is not evidence of gameplay rendering.
 
 The first slice has a consistent navy/mint/gold interface, original team palettes, terraces/floodlights/rope/creases/screens, shaped articulated players with equipment, generated jersey names/numbers and real ball movement. Batting and bowling cameras establish before release; event tracking and replay use the actual trajectory. The scoreboard remains readable and touch controls fit the tested widths. Reduced motion suppresses automatic cinematic replay.

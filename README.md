@@ -146,10 +146,17 @@ See [DEPLOYMENT.md](DEPLOYMENT.md): Cloudflare Workers (web, via OpenNext) + Rai
 ```bash
 pnpm --filter @platform/web cf:preview   # web app in the real Workers runtime (Linux/WSL only)
 pnpm cloudflare:build                   # build Worker without publishing
-pnpm cloudflare:preview:check           # prepare static cache and package locally; fixed --dry-run
+pnpm cloudflare:config:check            # validate canonical Worker, both domains and Preview separation
+pnpm cloudflare:artifact:check          # require Worker file/assets; print safe CI/artifact identifiers
+pnpm cloudflare:check                   # production Worker/assets packaging; fixed --dry-run
+pnpm cloudflare:preview:check           # route-free Preview settings projection; fixed --dry-run
 ```
 
+Inside Workers Builds (`WORKERS_CI=1`), the root `pnpm build` builds the OpenNext Worker instead of the Node build. The root also pins Wrangler 4.155.0, so Cloudflare's default `pnpm run build` and `npx wrangler preview` work for Preview branches. Production on `main` must use the approved commands. `pnpm cloudflare:deploy` checks the branch, the build record and the artifact first, and bare root Wrangler commands are blocked after a production or local build. See [default build commands and deploy safeguards](docs/CLOUDFLARE_DEFAULT_BUILD.md).
+
 Workers Builds Preview command: `pnpm cloudflare:preview:deploy` (publishes a branch Preview; not a local check). Production keeps `pnpm cloudflare:deploy`. See [preview configuration and verification](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md); the open-beta Wrangler Preview command requires the checked-in `previews` block and Preview-only runtime secrets.
+
+The confirmed existing production Worker is `sinversegames`, serving `sinversegames.com` and `www.sinversegames.com`. Both Wrangler configurations declare that name and those Custom Domains. [Worker configuration audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) separates production deployment, branch Preview, local packaging and per-commit GitHub checks. No production routes or resources are copied into the Preview packaging projection.
 
 ## Project conventions
 

@@ -1,3 +1,4 @@
+import { finishCricketToss } from "./cricket-helpers";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import {
@@ -14,7 +15,7 @@ test.use({
   trace: "off",
   launchOptions: { args: ["--enable-unsafe-swiftshader"] },
 }); // Signed run tokens/session cookies are not evidence artifacts.
-const evidence = "../../artifacts/cricket";
+const evidence = "../../artifacts/cricket-2/regression";
 async function range(page: Page, label: string, value: number) {
   await page
     .getByRole("slider", { name: label, exact: true })
@@ -96,10 +97,7 @@ test("Cricket: play both innings through real controls, replay, verify and save 
   });
   await page.screenshot({ path: `${evidence}/stadium-desktop.png` });
   const model = new CricketMatch(run.seed, run.config);
-  await page.getByLabel("Toss call").selectOption(model.tossFace);
-  await page
-    .getByRole("button", { name: "Call the toss", exact: true })
-    .click();
+  await finishCricketToss(page, model.tossFace);
   model.toss({ k: "toss", call: model.tossFace, decision: "bat", t: 0 });
   await page
     .getByRole("button", { name: "More control +", exact: true })
@@ -269,7 +267,7 @@ test("Cricket: seven responsive widths, touch layout, keyboard focus and rendere
     expect(bounds!.x).toBe(0);
     expect(bounds!.width).toBe(width);
     const toss = page.getByRole("button", {
-      name: "Call the toss",
+      name: "Heads",
       exact: true,
     });
     await expect(toss).toBeInViewport();
@@ -283,9 +281,7 @@ test("Cricket: seven responsive widths, touch layout, keyboard focus and rendere
       await page.screenshot({ path: `${evidence}/toss-320.png` });
   }
   await page.setViewportSize({ width: 320, height: 640 });
-  await page
-    .getByRole("button", { name: "Call the toss", exact: true })
-    .click();
+  await finishCricketToss(page);
   await expect(page.getByTestId("cricket-primary")).toBeInViewport();
   await page.screenshot({ path: `${evidence}/controls-320.png` });
   await page.getByRole("button", { name: "Pause match", exact: true }).click();
@@ -360,9 +356,7 @@ test("Cricket: unavailable WebGL2 falls back and the tactical over remains playa
     "data-renderer",
     "tactical",
   );
-  await page
-    .getByRole("button", { name: "Call the toss", exact: true })
-    .click();
+  await finishCricketToss(page);
   await page.getByTestId("cricket-primary").click();
   if (await page.getByRole("meter", { name: "Release timing" }).isVisible()) {
     await page.waitForTimeout(560);

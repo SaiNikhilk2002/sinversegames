@@ -1,11 +1,19 @@
 {
-  "$schema": "apps/web/node_modules/wrangler/config-schema.json",
+  "$schema": "node_modules/wrangler/config-schema.json",
   // Lets Wrangler commands run from the repository root, which is where Workers
-  // Builds runs a bare `npx wrangler preview`. It describes the same Worker as
-  // apps/web/wrangler.jsonc, so keep the two in step
+  // Builds' default `npx wrangler preview` runs. The root devDependency pins the
+  // same Wrangler as apps/web, and the root `build` produces the OpenNext Worker
+  // inside Workers Builds (docs/CLOUDFLARE_DEFAULT_BUILD.md). It describes the
+  // same Worker as apps/web/wrangler.jsonc, so keep the two in step
   // (apps/web/e2e/cloudflare-config.spec.ts checks they match).
   // Secrets are set with `wrangler secret put`, never here.
-  "name": "sinversegames-web",
+  "name": "sinversegames",
+  // Existing production Custom Domains. Keep these in sync with the app config;
+  // Worker Previews use their own URLs and do not deploy production routes.
+  "routes": [
+    { "pattern": "sinversegames.com", "custom_domain": true },
+    { "pattern": "www.sinversegames.com", "custom_domain": true }
+  ],
   "main": "apps/web/.open-next/worker.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],

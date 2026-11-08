@@ -1,0 +1,23 @@
+{
+  "balls": 12,
+  "verified": true,
+  "result": {
+    "score": 90,
+    "completed": false,
+    "durationMs": 84247,
+    "details": {
+      "format": "duel",
+      "matchFinished": 1,
+      "result": "tie",
+      "runs": 0,
+      "wicketsTaken": 2,
+      "sixes": 0,
+      "fours": 0,
+      "balls": 6,
+      "overs": "1.0",
+      "scorecard": "[{\"team\":0,\"runs\":0,\"wickets\":4,\"balls\":6,\"striker\":1,\"nonStriker\":5,\"nextBatter\":6,\"batsmen\":[{\"name\":\"Ari Vale\",\"runs\":0,\"balls\":1,\"fours\":0,\"sixes\":0,\"dismissal\":\"stumped\"},{\"name\":\"Nilan Moss\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Dev Rowan\",\"runs\":0,\"balls\":2,\"fours\":0,\"sixes\":0,\"dismissal\":\"stumped\"},{\"name\":\"Kiran Tide\",\"runs\":0,\"balls\":2,\"fours\":0,\"sixes\":0,\"dismissal\":\"stumped\"},{\"name\":\"Tavi Reed\",\"runs\":0,\"balls\":1,\"fours\":0,\"sixes\":0,\"dismissal\":\"bowled\"},{\"name\":\"Milo Fen\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Ravi Quill\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Ishan Cove\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Nero Elm\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Samir Flint\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Luca Bay\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null}],\"bowlers\":[{\"name\":\"Neel Cedar\",\"balls\":6,\"runs\":0,\"wickets\":4,\"wides\":0,\"noBalls\":0},{\"name\":\"Soren Pike\",\"balls\":0,\"runs\":0,\"wickets\":0,\"wides\":0,\"noBalls\":0}],\"extras\":{\"wides\":0,\"noBalls\":0,\"byes\":0,\"legByes\":0},\"fall\":[{\"score\":0,\"wicket\":1,\"ball\":\"0.1\",\"batter\":\"Ari Vale\"},{\"score\":0,\"wicket\":2,\"ball\":\"0.3\",\"batter\":\"Dev Rowan\"},{\"score\":0,\"wicket\":3,\"ball\":\"0.5\",\"batter\":\"Kiran Tide\"},{\"score\":0,\"wicket\":4,\"ball\":\"0.6\",\"batter\":\"Tavi Reed\"}],\"over\":[],\"partnership\":0,\"freeHit\":false},{\"team\":1,\"runs\":0,\"wickets\":2,\"balls\":6,\"striker\":1,\"nonStriker\":3,\"nextBatter\":4,\"batsmen\":[{\"name\":\"Rohan Ash\",\"runs\":0,\"balls\":5,\"fours\":0,\"sixes\":0,\"dismissal\":\"caught\"},{\"name\":\"Kai Ember\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Ayan Grove\",\"runs\":0,\"balls\":1,\"fours\":0,\"sixes\":0,\"dismissal\":\"caught\"},{\"name\":\"Rey Sol\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Darin Voss\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Leon Dune\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Neel Cedar\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Soren Pike\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Yuvan Fern\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Ezra Shore\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null},{\"name\":\"Arun Wren\",\"runs\":0,\"balls\":0,\"fours\":0,\"sixes\":0,\"dismissal\":null}],\"bowlers\":[{\"name\":\"Ravi Quill\",\"balls\":6,\"runs\":0,\"wickets\":2,\"wides\":0,\"noBalls\":0},{\"name\":\"Ishan Cove\",\"balls\":0,\"runs\":0,\"wickets\":0,\"wides\":0,\"noBalls\":0}],\"extras\":{\"wides\":0,\"noBalls\":0,\"byes\":0,\"legByes\":0},\"fall\":[{\"score\":0,\"wicket\":1,\"ball\":\"0.5\",\"batter\":\"Rohan Ash\"},{\"score\":0,\"wicket\":2,\"ball\":\"0.6\",\"batter\":\"Ayan Grove\"}],\"over\":[],\"partnership\":0,\"freeHit\":false}]",
+      "simulation": 1
+    }
+  },
+  "errors": []
+}

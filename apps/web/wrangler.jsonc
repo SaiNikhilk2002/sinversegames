@@ -4,7 +4,13 @@
   // Secrets (AUTH_SECRET, ADMIN_TOKEN, DATABASE_URL) are set with
   // `wrangler secret put`, never here. NEXT_PUBLIC_* values are inlined at build
   // time and must be present in the build environment.
-  "name": "sinversegames-web",
+  "name": "sinversegames",
+  // Preserve the existing production Custom Domains on every approved deploy.
+  // Production routes do not belong in the previews block.
+  "routes": [
+    { "pattern": "sinversegames.com", "custom_domain": true },
+    { "pattern": "www.sinversegames.com", "custom_domain": true }
+  ],
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],

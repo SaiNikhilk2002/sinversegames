@@ -1,5 +1,7 @@
 # Deployment
 
+Current release verification: [2026-11-07 audit](docs/RELEASE_READINESS_2026_11_07.md). Production web/realtime health returns 200, and read-only Railway active-deployment metadata confirms realtime commit `2aeab766414668602f75a78a6cc03b2fe4c7f57c`. PR #4 at `52c0a825…` remains open with a failed Cloudflare Preview check and no verified Preview URL. This does not establish real-player persistence or provider acceptance; the audit lists the remaining gates. No deployment or external configuration changed during that verification.
+
 SinverseGames runs on three services:
 
 | Piece | Host | How | Cost* |
@@ -97,24 +99,54 @@ Active matches live in memory, so a redeploy ends games in progress. Players see
 
 ## 4. Cloudflare Workers: web app
 
-**Workers & Pages → Create → Import a repository →** `sinversegames`:
+Configure the existing **Workers & Pages → sinversegames** Worker connected to this repository. The owner's production evidence confirms this name and both existing Custom Domains; preserve that Worker rather than creating another service. See the [Worker configuration audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) for source history, exact configuration selection and GitHub check evidence.
 
 | Setting | Value |
 | --- | --- |
-| Project name | `sinversegames-web` (must match `name` in `apps/web/wrangler.jsonc`) |
+| Worker name | `sinversegames` (matches both Wrangler configurations and the confirmed existing production Worker) |
+| Production branch | `main` |
 | Root directory | `/` (repository root; leave empty) |
 | Build command | `pnpm cloudflare:build` |
 | Production deploy command | `pnpm cloudflare:deploy` (unchanged) |
 | Preview command (non-production branches) | `pnpm cloudflare:preview:deploy` |
 | Build variables | `NEXT_PUBLIC_SITE_URL=https://<your-domain>`, `NEXT_PUBLIC_REALTIME_URL=https://rt.<your-domain>`, `NEXT_PUBLIC_SUPPORT_EMAIL=…` (platform name is fixed) |
 
-The build and both deployment commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Keep `pnpm cloudflare:deploy` as the production command: never use a bare `npx wrangler deploy` for production. The root `wrangler.jsonc` means it no longer stops with the workspace-detection error, so it would now publish whatever was last built, with none of the safeguards of the script.
+Both root `wrangler.jsonc` and `apps/web/wrangler.jsonc` declare the existing production Custom Domains `sinversegames.com` and `www.sinversegames.com` using `custom_domain: true`. These declarations preserve the provided production routing contract; they do not create redirects or change DNS in a local build/check. Production routes stay at the top level. Keep Preview settings in `previews`, whose resources and secrets must be configured separately from production. A Preview command must invoke `wrangler preview`, and must never run the production deploy command. The root scripts select the app workspace and explicitly pass its `wrangler.jsonc` to OpenNext/Wrangler; the root Wrangler config supports equivalent bare-root commands.
+
+The build and both deployment commands target `apps/web` from the root. `cloudflare:deploy` runs `opennextjs-cloudflare deploy`, which populates the static-assets cache (prerendered pages) and then runs `wrangler deploy`. Keep `pnpm cloudflare:deploy` as the production command: never use a bare `npx wrangler deploy` for production. `cloudflare:deploy` first runs `PRODUCTION_DEPLOY_CHECK`. That check confirms both configs, both domains and the artifact, and in Workers Builds it also requires branch `main` and a production build record for the same commit. After a local or production `cf:build`, a bare root `wrangler deploy` stops at a deliberately missing entry file, before uploading. See [default build commands and deploy safeguards](docs/CLOUDFLARE_DEFAULT_BUILD.md) for what that covers and its limits.
+
+### Missing `apps/web/.open-next/worker.js` after a successful build
+
+The 2026-11-06 log ends with `apps/web build: Done`, then `npx wrangler preview` downloads Wrangler 4.158.0 and fails because the Worker entry point does not exist. The tail matches the repository's normal Node build; it does not include the configured build-command header or an OpenNext packaging stage. A successful `next build` creates `.next`, while the Cloudflare adapter must also generate `.open-next/worker.js` and `.open-next/assets`. This is a different failure from the earlier missing `previews` block.
+
+In the existing Worker's **Settings > Build**, save these values, then retry the failed build:
+
+| Field | Value |
+| --- | --- |
+| Root directory | Repository root (`/`; leave empty if the UI uses an empty field for root) |
+| Build command | `pnpm cloudflare:build` |
+| Preview command | `pnpm cloudflare:preview:deploy` |
+| Production deploy command | `pnpm cloudflare:deploy` |
+
+The build script runs the installed OpenNext adapter and prepares the static cache. The Preview script uses the installed pinned Wrangler 4.155.0. The unpinned Wrangler download is a separate configuration issue; the reported fatal error is the absent generated entry point. The paths in both Wrangler configurations already agree with the adapter output.
+
+The next build log should continue past the Next.js route list into OpenNext's Worker generation. Keep the app's `build` script as `next build`: OpenNext invokes that script internally. Keep the generated `.open-next` output ignored. [OpenNext documents this build arrangement](https://opennext.js.org/cloudflare/get-started#6-update-the-packagejson-file); [Cloudflare documents the Build settings location and that retries use the saved settings](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/#build-settings).
+
+The repository already contains the required commands. A code commit alone cannot update the dashboard's configured Build command. See [the follow-up verification record](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md#follow-up-missing-worker-entry-point-2026-11-06) for local results and the remaining hosted check.
+
+**If the saved fields already match this table:** compare them with the failed run's actual `Executing user build command` and deploy/Preview command headers, checked-out commit and build connection. The owner confirmed matching fields on November 7, while the supplied 01:11 excerpt still explicitly invokes `npx wrangler preview`; it does not show the build-command header. That discrepancy requires run-specific evidence, rather than another source-script change. [Current follow-up](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md#supplied-0111-log-and-confirmed-settings--2026-11-07). Cloudflare also states that Workers Builds does not honor Wrangler custom-build settings, so a Wrangler `build.command` cannot replace the dashboard Build command. [Build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
+
+**Follow-up at 11:03 IST, November 6:** public GitHub records identify build `77abdaf8-0f7d-4da8-bda9-9c0a4f569776` on `f0e5957`, which already includes the name/domain reconciliation. This is a new failure, not the older `26f066e` run. Its log explicitly runs the default `npx wrangler preview`, so change the separate **Preview command** field to `pnpm cloudflare:preview:deploy`; the Production Deploy command shown in the screenshot does not select the PR command. Keep Build command `pnpm cloudflare:build`, root `/` and production branch `main`. A current screenshot is not evidence of the failed run's saved build settings: its build-command header is still needed to explain why packaging did not leave the entry point. See [the matched-run diagnosis](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md#follow-up-the-1103-ist-preview-failure).
+
+The local `cloudflare:build` script now ends with a file/assets assertion and an `OPENNEXT_ARTIFACT_CHECK` JSON line containing only Worker/config/artifact paths, byte count and validated non-secret CI commit/build identifiers. It fails the build if the configured entry or assets are absent. `pnpm cloudflare:artifact:check` runs the same local check without rebuilding. After an approved source update, require this marker before accepting a successful build stage. If the build marker is present but Preview cannot find that same absolute entry, compare the build/deploy working directories and any intervening cleanup; if the marker is absent, verify the checked-out commit and actual build-command line first. Changing the Preview command alone does not establish why an artifact was absent.
+
+The Preview deployment script also checks artifacts immediately after its own local cache preparation and before `wrangler preview`. Every stage is joined with `&&`, so a cache or artifact-check failure stops before publishing. The production publishing command remains separate. The final local review and command-order regression are recorded in the [audit review](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md#final-local-review-before-push-approval).
 
 ### Worker Previews and the reported missing-block failure
 
 The supplied build log completed Next.js/OpenNext and failed only on the dashboard command `npx wrangler preview` (4.157.0). That command is absent from repository scripts. [Workers Builds uses it by default for new Workers, and requires the Preview workflow after a one-time switch](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/). The log establishes which workflow ran; it does not identify who selected it or when. This project now supports that workflow with a `previews` block. Do not substitute the production deploy command or switch this build to version uploads to silence the error.
 
-**Why the error persisted after the first fix, and the current fix.** The first fix added `previews` to `apps/web/wrangler.jsonc` and relied on a dashboard change. A bare `npx wrangler preview` runs at the repository root, where no config existed, so the same error returned. The root [`wrangler.jsonc`](wrangler.jsonc) now describes the same Worker, with paths into `apps/web/.open-next`, so that command works unchanged, and `pnpm cloudflare:build` now also prepares the prerender cache that a bare preview upload needs. `apps/web/e2e/cloudflare-config.spec.ts` fails if the two configs drift apart. A bare `npx` still downloads the latest Wrangler rather than the pinned one, so the command below remains the better dashboard value.
+**Why the error persisted after the first fix, and the current fix.** The first fix added `previews` to `apps/web/wrangler.jsonc` and relied on a dashboard change. A bare `npx wrangler preview` runs at the repository root, where no config existed, so the same error returned. The root [`wrangler.jsonc`](wrangler.jsonc) now describes the same Worker, with paths into `apps/web/.open-next`, so that command works unchanged, and `pnpm cloudflare:build` now also prepares the prerender cache that a bare preview upload needs. `apps/web/e2e/cloudflare-config.spec.ts` fails if the two configs drift apart. The root now pins Wrangler 4.155.0 as a devDependency, so a bare `npx wrangler` uses it. Inside Workers Builds, the root `pnpm run build` builds the Worker on non-production branches. The command below remains the recommended dashboard value.
 
 The recommended setting is still **`pnpm cloudflare:preview:deploy`** in the dashboard's **Preview command** field, with repository root `/` and build command `pnpm cloudflare:build`. It runs in `apps/web`, prepares OpenNext's prerender cache with `populateCache local`, then invokes the installed **Wrangler 4.155.0** as `wrangler preview --config wrangler.jsonc`. Package scripts resolve the pinned local binary; no `npx` download or dependency upgrade is needed. The preparation step copies static cache files into `.open-next/assets/cdn-cgi/_next_cache`, which the Preview upload must include. For the current static-assets cache adapter it writes local files only; changing the cache backend later requires reviewing this workflow.
 
@@ -122,7 +154,9 @@ Keep `.open-next/worker.js`, `.open-next/assets`, compatibility settings, placem
 
 `pnpm --filter @platform/web cf:preview` remains the existing **local** OpenNext/Wrangler dev server. It is different from the dashboard Preview deployment. `wrangler versions upload` creates version URLs using that version's production resources; it is not the branch Preview workflow configured by the supplied log. No `preview_urls` toggle is added.
 
-Local verification after building: **`pnpm cloudflare:preview:check`** prepares the same cache and runs pinned `wrangler deploy --dry-run`, packaging the shared Worker/assets payload without uploading or changing routes. Wrangler 4.155.0's beta `preview` command has no `--dry-run`; do not run it as a packaging test. The check validates the common entry/assets/compatibility configuration, and the QA harness separately validates `previews.vars`. It cannot verify remote Preview creation, permissions or dashboard Base secrets. See [preview QA](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md) for exact results and the remaining owner check. No publishing or dashboard change was performed during this fix.
+Local verification: **`pnpm cloudflare:config:check`** validates the canonical name, both domains, root/app configuration agreement and Preview separation without building. After **`pnpm cloudflare:build`**, run **`pnpm cloudflare:check`** for production packaging and **`pnpm cloudflare:preview:check`** for Preview packaging. Both packaging scripts prepare the local static cache and hard-code pinned `wrangler deploy --dry-run`; neither can upload. The production check uses the app config including both Custom Domains. The Preview check generates an ignored configuration containing common code/assets settings and only the explicit `previews` variables/resources, with no production routes, variables, bindings or schedules. Its `workers_dev: false` applies only to that local packaging projection; the real Worker's workers.dev setting is not changed.
+
+Wrangler 4.155.0's beta `preview` command has no `--dry-run`, so the Preview check packages this local projection instead of invoking the Preview API. It cannot verify remote Preview creation, permissions, Base settings/secrets, or runtime resource isolation. Production routes must not be placed inside `previews`; [Cloudflare documents that routes do not target Previews](https://developers.cloudflare.com/workers/previews/configuration/). A real branch Preview remains unverified until an authorized upload produces a Preview deployment/URL and its runtime behavior is checked. See the [current audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) and [historical Preview QA](docs/CLOUDFLARE_PREVIEW_QA_REPORT.md).
 
 The repository-root `.node-version` and `apps/web/.node-version` both pin **24.14.0**, the reproducible build baseline. Root `engines.node` allows `>=24.14.0 <25`, so Node 24.22.2 satisfies the compatibility range; it is not the exact pinned baseline. `packageManager` keeps pnpm at **11.15.1**. Install with `pnpm install --frozen-lockfile`; do not regenerate the lockfile to change the Node pin.
 
@@ -203,7 +237,7 @@ Email sign-in uses [Resend](https://resend.com/docs/api-reference/emails/send-em
 
 The November 2026 takeover is local only. Historical deploy and migration instructions above are a reference, not approval to run them. See [CODEX_TAKEOVER_REPORT.md](docs/CODEX_TAKEOVER_REPORT.md) and [RELIABILITY_INVESTIGATION.md](docs/RELIABILITY_INVESTIGATION.md).
 
-The observed GitHub check is **Workers Builds: sinversegames**, but this checkout's Wrangler name is **sinversegames-web**. Confirm the intended existing Worker and the failed build's logs before reconciling these names; do not create or redirect a production Worker based on an assumption. Also verify that the dashboard uses the repository root and the workspace-aware build/deploy commands above.
+The canonical Worker is now **sinversegames**, matching the owner's confirmed production evidence; both local configs retain both existing production Custom Domains. The earlier `sinversegames-web` name came from the original setup and was copied into the root config. GitHub checks belong to specific commit/build IDs: a successful `main` production deployment does not replace a failed feature-branch Preview check. The [current audit](docs/CLOUDFLARE_WORKER_CONFIGURATION_AUDIT.md) records the observed check IDs, outcomes, known earlier failure and remaining unavailable logs. A plain workers.dev endpoint and a version ID alone do not verify a branch Preview.
 
 Keep preview data, signing secrets, and realtime rooms separate from production. Worker Previews use the checked-in `previews` configuration and Preview-only Base secrets under the existing parent Worker; an uploaded version URL does not provide that boundary. Use a non-production PostgreSQL database, isolated realtime service and matching Preview-only signing secrets. Compile `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_REALTIME_URL` for that preview and allow only its exact browser origin on its realtime service. Do not add broad `*.workers.dev` access to the production origin list.
 

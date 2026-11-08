@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      wrangler:
+        specifier: 4.155.0
+        version: 4.155.0(@types/node@22.20.5)
 
   apps/realtime:
     dependencies:

@@ -1,0 +1,126 @@
+{
+  "seen": {
+    "six": "ball 1",
+    "wicket": "ball 2",
+    "dot": "ball 4",
+    "four": "ball 5"
+  },
+  "log": [
+    {
+      "ball": 1,
+      "want": "six",
+      "kind": "six",
+      "wicket": null,
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": 0.02,
+        "tick": 156
+      },
+      "contactTick": 163
+    },
+    {
+      "ball": 2,
+      "want": "four",
+      "kind": "wicket",
+      "wicket": "caught",
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": 0.34,
+        "tick": 176
+      },
+      "contactTick": 184
+    },
+    {
+      "ball": 3,
+      "want": "four",
+      "kind": "wicket",
+      "wicket": "caught",
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": 0.24,
+        "tick": 156
+      },
+      "contactTick": 163
+    },
+    {
+      "ball": 4,
+      "want": "four",
+      "kind": "dot",
+      "wicket": null,
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": -0.46,
+        "tick": 203
+      },
+      "contactTick": 209
+    },
+    {
+      "ball": 5,
+      "want": "four",
+      "kind": "four",
+      "wicket": null,
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": -0.4,
+        "tick": 202
+      },
+      "contactTick": 209
+    },
+    {
+      "ball": 6,
+      "want": "runs",
+      "kind": "dot",
+      "wicket": null,
+      "shot": {
+        "kind": "loft",
+        "direction": 0,
+        "power": 1,
+        "foot": 0,
+        "face": 0.52,
+        "tick": 160
+      },
+      "contactTick": 163
+    },
+    {
+      "bowled": 1,
+      "said": "CAUGHT. The wicket falls."
+    },
+    {
+      "bowled": 2,
+      "said": "DOT · 0/1 after 0.2"
+    },
+    {
+      "bowled": 3,
+      "said": "DOT · 0/1 after 0.3"
+    },
+    {
+      "bowled": 4,
+      "said": "CAUGHT. The wicket falls."
+    },
+    {
+      "bowled": 5,
+      "said": "SIX. Clean over the rope."
+    },
+    {
+      "bowled": 6,
+      "said": "DOT · 6/2 after 1.0"
+    }
+  ],
+  "errors": [],
+  "graphics": "low"
+}
