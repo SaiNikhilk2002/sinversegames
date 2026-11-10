@@ -1,0 +1,56 @@
+[
+  {
+    "want": "straight-drive-and-run",
+    "found": false
+  },
+  {
+    "want": "cover-drive-fielded-and-thrown",
+    "found": true,
+    "recorded": true,
+    "outcome": "DOT",
+    "wicket": null,
+    "runs": 0,
+    "matched": true
+  },
+  {
+    "want": "cover-drive-fielded-and-thrown",
+    "frames": 89,
+    "fps": 20.1
+  },
+  {
+    "want": "pull-shot",
+    "found": false
+  },
+  {
+    "want": "catch",
+    "found": true,
+    "recorded": true,
+    "outcome": "CAUGHT",
+    "wicket": "caught",
+    "runs": 0,
+    "matched": true
+  },
+  {
+    "want": "catch",
+    "frames": 79,
+    "fps": 20.2
+  },
+  {
+    "want": "run-out",
+    "found": false
+  },
+  {
+    "want": "boundary",
+    "found": true,
+    "recorded": true,
+    "outcome": "6",
+    "wicket": null,
+    "runs": 0,
+    "matched": true
+  },
+  {
+    "want": "boundary",
+    "frames": 102,
+    "fps": 20.2
+  }
+]

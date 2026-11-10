@@ -127,7 +127,10 @@ type Actor = {
   body?: RealisticBody;
   /** Motion clips for the realistic body, and this frame's plan for them. */
   motion?: MotionPlayer;
-  plan?: { speed: number; shot: { clip: OneShot; time: number; weight: number } | null; lower: number; upper: number } | null;
+  plan?: { speed: number; shot: { clip: OneShot; time: number; weight: number } | null; lower: number; upper: number; twist: number; lean: number } | null;
+  /** Radians the body still has to turn, and how fast it is turning (rad/s). */
+  turnLeft?: number;
+  turnRate?: number;
   /** Ground speed from the simulation's positions (m/s), lightly smoothed. */
   ground?: number;
   motionLower?: number;
@@ -268,7 +271,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       for (const [team, c] of captains.entries()) c.body = wear(c.a, 1, team, true, c.a.mesh.castShadow);
       if (motion) {
         motionLibrary = motion;
-        for (const actor of actors) if (actor.body && actor.a.role !== "umpire") actor.motion = new MotionPlayer(motion, RIG.thigh + RIG.shin);
+        for (const [n, actor] of actors.entries()) if (actor.body && actor.a.role !== "umpire") actor.motion = new MotionPlayer(motion, RIG.thigh + RIG.shin, n * 31 + actor.team);
       }
       realisticReady = true;
     })
@@ -619,7 +622,10 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         const diff = ((want - actor.facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
         // Bodies turn at a human rate: quick on the spot, slower at a sprint.
         const turnRate = (actor.ground ?? 0) > 3 ? 4.5 : 8.5;
-        actor.facing += feed.reducedMotion ? diff : Math.max(-turnRate * dt, Math.min(turnRate * dt, diff * Math.min(1, dt * 9)));
+        const turned = feed.reducedMotion ? diff : Math.max(-turnRate * dt, Math.min(turnRate * dt, diff * Math.min(1, dt * 9)));
+        actor.facing += turned;
+        actor.turnLeft = diff - turned;
+        actor.turnRate = dt > 0 ? (actor.turnRate ?? 0) + (turned / dt - (actor.turnRate ?? 0)) * Math.min(1, dt * 10) : 0;
         a.root.position.set(px, 0, pz);
         a.root.rotation.y = actor.facing;
         actor.prev.set(px, 0, pz);
@@ -650,13 +656,27 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
               walking = (ceremony?.stage === "entry" || (dead && !!wicket && deadAge > 1.1)) && g > 0.3 && simAction !== "dive",
               runUp = n === BOWLER && tick > 0 && tick < RELEASE_TICK - GATHER[style] / STEP - 6,
               batterRun = (n === STRIKER || n === NON_STRIKER) && running && g > 0.45;
-            if (chasing || walking || runUp) lower = upper = 1;
+            const recovering = fielder && simAction === "dive" && dead && deadAge > 1.2,
+              getUp = motionLibrary.info.get("LayToIdle")!,
+              boundaryCheer = n === NON_STRIKER && dead && !!outcome?.boundary && deadAge > 0.4 && deadAge < 0.4 + motionLibrary.info.get("Yes")!.duration;
+            if (recovering && deadAge - 1.2 < getUp.duration + 0.3) {
+              // Up off the turf after a dive, rather than lying there or snapping upright.
+              shot = { clip: "LayToIdle", time: deadAge - 1.2, weight: clamp01((deadAge - 1.2) / 0.25) * clamp01((getUp.duration + 0.3 - (deadAge - 1.2)) / 0.3) };
+              lower = upper = 1;
+            } else if (boundaryCheer) {
+              // The non-striker acknowledges a boundary: a thumbs-up, from a standstill.
+              shot = { clip: "Yes", time: deadAge - 0.4, weight: clamp01((deadAge - 0.4) / 0.2) };
+              upper = 1;
+            } else if (chasing || walking || runUp) lower = upper = 1;
             else if (batterRun) lower = 1; // legs run; arms keep the bat
           }
           const k = feed.reducedMotion ? 1 : Math.min(1, dt * 7);
           actor.motionLower = (actor.motionLower ?? 0) + (lower - (actor.motionLower ?? 0)) * k;
           actor.motionUpper = (actor.motionUpper ?? 0) + (upper - (actor.motionUpper ?? 0)) * k;
-          actor.plan = actor.motionLower > 0.01 || actor.motionUpper > 0.01 ? { speed: g, shot, lower: actor.motionLower, upper: actor.motionUpper } : null;
+          // Into a turn the head and chest lead and the body leans with speed (presentation only).
+          const twist = feed.reducedMotion ? 0 : Math.max(-0.55, Math.min(0.55, actor.turnLeft ?? 0)) * clamp01(g / 1.5),
+            lean = feed.reducedMotion ? 0 : Math.max(-0.2, Math.min(0.2, -(actor.turnRate ?? 0) * g * 0.025));
+          actor.plan = actor.motionLower > 0.01 || actor.motionUpper > 0.01 ? { speed: g, shot, lower: actor.motionLower, upper: actor.motionUpper, twist, lean } : null;
         }
 
         // ---- which clip -------------------------------------------------------
@@ -855,6 +875,8 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
             motionFrame = actor.motion.pose(loco, actor.plan.shot);
             motionFrame.lower = actor.plan.lower;
             motionFrame.upper = actor.plan.upper;
+            motionFrame.twist = actor.plan.twist;
+            motionFrame.lean = actor.plan.lean;
           }
           actor.body.sync(motionFrame);
         }

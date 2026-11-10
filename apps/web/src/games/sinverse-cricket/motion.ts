@@ -121,6 +121,11 @@ export interface MotionLibrary {
 }
 
 const sanitize = (name: string) => T.PropertyBinding.sanitizeNodeName(name);
+const IDENTITY = new T.Quaternion();
+/** q raised to the power k: the same axis, k times the angle. */
+function power(q: T.Quaternion, k: number) {
+  return k === 1 ? q : new T.Quaternion().copy(IDENTITY).slerp(q, k);
+}
 const tq = new T.Quaternion(),
   tq2 = new T.Quaternion(),
   tv = new T.Vector3(),
@@ -290,7 +295,14 @@ export interface MotionFrame {
   hips: T.Vector3;
   lower: number;
   upper: number;
+  /** Yaw (radians) the head and chest lead a turn by, ahead of the hips. */
+  twist: number;
+  /** Roll (radians) of the whole body into a curve. */
+  lean: number;
 }
+
+/** Longest a stride may be stretched beyond the clip's own, before it would look like bounding. */
+export const MAX_STRIDE = 1.45;
 
 const LOCO: LocoClip[] = ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop"];
 /** Fastest playback, in clip lengths per second, relative to normal speed. */
@@ -308,13 +320,25 @@ export class MotionPlayer {
   private locoWeights = [1, 0, 0, 0];
   private poseA = new Map<Joint, T.Quaternion>();
   private poseB = new Map<Joint, T.Quaternion>();
-  readonly frame: MotionFrame = { pose: new Map(), hips: new T.Vector3(), lower: 0, upper: 0 };
+  readonly frame: MotionFrame = { pose: new Map(), hips: new T.Vector3(), lower: 0, upper: 0, twist: 0, lean: 0 };
+  /** Stride length relative to the clip's, set by `locomotion` so feet keep pace with the ground. */
+  stride = 1;
+  /** This player's own cadence and arm carriage: small, fixed, deterministic differences. */
+  private cadence: number;
+  private armSwing: number;
   constructor(
     private lib: MotionLibrary,
     /** This athlete's hip-to-ankle length, metres. */
     private leg: number,
+    /** Any integer identifying the player; the same one always moves the same way. */
+    variant = 0,
   ) {
     this.rigs = lib.libraries.map((l) => new Rig(l));
+    let h = Math.imul(variant + 11, 2654435761) >>> 0;
+    const next = () => ((h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0), (h >>> 8) / 16777216);
+    this.cadence = 0.94 + next() * 0.12;
+    this.armSwing = 0.85 + next() * 0.3;
+    this.idleTime = next() * 3;
   }
   /** Seconds per cycle of the current moving blend. */
   private cycle() {
@@ -377,8 +401,16 @@ export class MotionPlayer {
       rate += (w * (speed / Math.max(0.05, this.clipSpeed(clip)))) / info.duration;
       moving += w;
     }
-    // Cadence is capped at a human sprint's; past it the stride, not the legs' speed, would have to grow.
-    if (moving > 0) this.phase = (this.phase + dt * Math.min(rate / moving, MAX_RATE / this.cycle())) % 1;
+    // Feet stay planted by matching ground speed with cadence and stride together:
+    // cadence rises up to a human sprint's (capped, and a little different per
+    // player), and the stride lengthens for the rest, up to MAX_STRIDE.
+    if (moving > 0) {
+      const wanted = rate / moving,
+        applied = Math.min(wanted, (MAX_RATE * this.cadence) / this.cycle());
+      this.phase = (this.phase + dt * applied) % 1;
+      const stride = Math.min(MAX_STRIDE, Math.max(1, wanted / Math.max(1e-6, applied)));
+      this.stride += (stride - this.stride) * Math.min(1, dt * 8);
+    } else this.stride += (1 - this.stride) * Math.min(1, dt * 8);
     this.idleTime += dt;
     return LOCO.map((clip, i) => {
       const info = this.lib.info.get(clip)!;
@@ -416,8 +448,47 @@ export class MotionPlayer {
       }
       have = true;
     }
-    if (have) for (const [j, q] of this.poseA) (out.pose.get(j) ?? out.pose.set(j, new T.Quaternion()).get(j)!).copy(q);
+    if (have) {
+      this.lengthen(this.poseA, loco ? this.stride : 1, loco && !shot ? this.armSwing : 1);
+      for (const [j, q] of this.poseA) (out.pose.get(j) ?? out.pose.set(j, new T.Quaternion()).get(j)!).copy(q);
+    }
     return out;
+  }
+
+  /**
+   * Scales leg swing (relative to the hips and knees) by `stride`, and arm swing
+   * (relative to the chest) by `arms`, keeping each foot and hand's own angle
+   * to its limb. A longer stride over the same cadence covers more ground.
+   */
+  private lengthen(pose: Map<Joint, T.Quaternion>, stride: number, arms: number) {
+    if (Math.abs(stride - 1) < 1e-3 && Math.abs(arms - 1) < 1e-3) return;
+    const knee = 1 + (stride - 1) * 0.6;
+    for (const side of ["Left", "Right"] as const) {
+      const hips = pose.get("Hips")!,
+        up = pose.get(`${side}UpLeg`)!,
+        leg = pose.get(`${side}Leg`)!,
+        foot = pose.get(`${side}Foot`)!,
+        toe = pose.get(`${side}ToeBase`)!;
+      const legRel = tq.copy(up).invert().multiply(leg),
+        footRel = new T.Quaternion().copy(leg).invert().multiply(foot),
+        toeRel = new T.Quaternion().copy(foot).invert().multiply(toe);
+      const upRel = new T.Quaternion().copy(hips).invert().multiply(up);
+      up.copy(hips).multiply(power(upRel, stride));
+      leg.copy(up).multiply(power(legRel, knee));
+      foot.copy(leg).multiply(footRel);
+      toe.copy(foot).multiply(toeRel);
+      if (Math.abs(arms - 1) > 1e-3) {
+        const chest = pose.get("Spine2")!,
+          arm = pose.get(`${side}Arm`)!,
+          fore = pose.get(`${side}ForeArm`)!,
+          hand = pose.get(`${side}Hand`)!;
+        const foreRel = new T.Quaternion().copy(arm).invert().multiply(fore),
+          handRel = new T.Quaternion().copy(fore).invert().multiply(hand);
+        arm.copy(chest).multiply(power(new T.Quaternion().copy(chest).invert().multiply(arm), arms));
+        fore.copy(arm).multiply(foreRel);
+        hand.copy(fore).multiply(handRel);
+      }
+    }
   }
   private rigOf(clip: string) {
     const lib = this.lib.libraryOf.get(clip)!;

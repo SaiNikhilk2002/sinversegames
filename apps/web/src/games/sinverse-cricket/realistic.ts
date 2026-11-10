@@ -319,6 +319,9 @@ const LIMBS = [
 ] as const;
 
 const short = (name: string) => name.replace(/^mixamorig:?/, "");
+const FORWARD = new T.Vector3(0, 0, 1);
+/** Share of a turn's yaw each joint turns by (absolute, not cumulative): the head leads, the chest follows, the hips last. */
+const TURN_LEAD: Partial<Record<string, number>> = { Spine1: 0.15, Spine2: 0.3, Neck: 0.45, Head: 0.6 };
 /** Most an arm may be lengthened to meet the driver's reach. */
 export const ARM_STRETCH_MAX = 1.12;
 
@@ -421,6 +424,10 @@ export class RealisticBody {
   readonly equipment: T.Mesh[] = [];
   /** How much the arms were lengthened to fit the driver's reach (1 = not at all). */
   armStretch = 1;
+  /** Ankle joint height when standing, in model units (before the root's scale). */
+  private ankleHeight = 0.08;
+  /** Per foot: whether it is pinned, where, and how strongly (eased). */
+  private locks = [0, 1].map(() => ({ on: false, at: new T.Vector3(), weight: 0, lastY: Infinity, low: Infinity }));
 
   constructor(
     readonly source: GLTF,
@@ -606,6 +613,7 @@ export class RealisticBody {
       for (const c of bone.children) if ((c as T.Bone).isBone) visit(c as T.Bone, joint);
     };
     visit(this.findBone("Hips"), null);
+    this.ankleHeight = this.findBone("LeftFoot").getWorldPosition(new T.Vector3()).y - this.root.getWorldPosition(new T.Vector3()).y;
     for (const limb of LIMBS) {
       const u = this.byName.get(limb.upper)!.bone,
         l = this.byName.get(limb.lower)!.bone,
@@ -644,15 +652,21 @@ export class RealisticBody {
     d.root.getWorldQuaternion(tq2).invert();
     this.armature.updateWorldMatrix(true, false);
     const armatureQ = this.armature.getWorldQuaternion(new T.Quaternion()).premultiply(tq2);
+    const twist = motion?.twist ?? 0,
+      lean = motion?.lean ?? 0;
     for (const j of this.joints) {
       if (j.driver) j.world.copy(j.driver.getWorldQuaternion(tq).premultiply(tq2)).multiply(j.offset);
       else j.world.copy(j.parent ? j.parent.world : armatureQ).multiply(j.rest);
+      const name = short(j.bone.name) as MotionJoint;
       if (motion && (lower > 0 || upper > 0)) {
-        const name = short(j.bone.name) as MotionJoint,
-          clip = motion.pose.get(name);
+        const clip = motion.pose.get(name);
         const w = LOWER.has(name) ? lower : upper;
         if (clip && w > 0) j.world.slerp(tq.copy(clip).multiply(j.offset), w);
       }
+      // Into a turn the body leans, and the head and chest lead the hips.
+      if (name === "Hips" && lean) j.world.premultiply(tq.setFromAxisAngle(FORWARD, lean));
+      const lead = twist ? TURN_LEAD[name] : undefined;
+      if (lead) j.world.premultiply(tq.setFromAxisAngle(UP, twist * lead));
       const parentQ = j.parent ? j.parent.world : armatureQ;
       j.bone.quaternion.copy(tq.copy(parentQ).invert().multiply(j.world));
     }
@@ -666,8 +680,54 @@ export class RealisticBody {
     this.armature.worldToLocal(pelvis);
     this.hips.bone.position.copy(pelvis);
     this.root.updateMatrixWorld(true);
+    // A clip-driven stride never puts a foot through the turf: lift the pelvis if
+    // the lower ankle is below its standing height. (Flight phases are left alone.)
+    if (motion && lower > 0.5) {
+      const lowest = Math.min(this.bone("LeftFoot").getWorldPosition(tv).y, this.bone("RightFoot").getWorldPosition(tv2).y),
+        floor = this.ankleHeight * this.root.getWorldScale(tv3).y;
+      if (lowest < floor) {
+        const lift = this.armature.worldToLocal(tv4.set(0, floor - lowest, 0).add(this.armature.getWorldPosition(new T.Vector3()))).sub(this.armature.worldToLocal(this.armature.getWorldPosition(new T.Vector3())));
+        this.hips.bone.position.add(lift);
+        this.root.updateMatrixWorld(true);
+      }
+    }
     // Hands and feet onto the driver's exact joints, unless the clip owns them.
     for (const limb of LIMBS) if ((limb.end.endsWith("Hand") ? upper : lower) < 0.5) this.reach(limb);
+    // Clip-driven feet are pinned to the turf while planted.
+    if (motion && lower > 0.5) this.lockFeet();
+    else for (const lock of this.locks) (lock.on = false), (lock.weight = 0), (lock.low = Infinity);
+  }
+
+  /**
+   * Foot locking. A foot that touches down is pinned where it landed and the leg
+   * solves to it while the body moves over it, so planted feet never skate,
+   * whatever the speed. It lets go as the foot lifts, or before the leg would
+   * overstretch, easing out over a few frames so nothing pops.
+   */
+  private lockFeet() {
+    const scale = this.root.getWorldScale(tv3).y;
+    for (const [k, limb] of LIMBS.slice(2).entries()) {
+      const lock = this.locks[k]!,
+        foot = this.bone(limb.end).getWorldPosition(new T.Vector3()),
+        hip = this.bone(limb.upper).getWorldPosition(new T.Vector3()),
+        [l1, l2] = this.lengths.get(limb.upper)!,
+        reach = (l1 + l2) * scale * 0.995,
+        falling = foot.y <= lock.lastY + 1e-4;
+      lock.lastY = foot.y;
+      // Contact is judged against this foot's own recent lowest point (clips plant
+      // the ankle at different heights), which creeps up slowly so it can follow.
+      lock.low = Math.min(lock.low + 0.0015 * scale, foot.y);
+      const floor = lock.low;
+      if (!lock.on && foot.y < floor + 0.02 * scale && falling) {
+        lock.on = true;
+        lock.at.set(foot.x, 0, foot.z);
+      } else if (lock.on && (foot.y > floor + 0.06 * scale || hip.distanceTo(tv.set(lock.at.x, foot.y, lock.at.z)) > reach)) lock.on = false;
+      lock.weight += ((lock.on ? 1 : 0) - lock.weight) * 0.45;
+      if (lock.weight < 0.01) continue;
+      const target = new T.Vector3(lock.at.x, foot.y, lock.at.z).lerp(foot, 1 - lock.weight);
+      // The clip's own knee is the bend direction, so the knee keeps facing forward.
+      this.reachTo(limb, target, this.bone(limb.lower).getWorldPosition(new T.Vector3()));
+    }
   }
 
   /** World position of the middle of a hand's palm, where a held ball sits. */
@@ -679,6 +739,11 @@ export class RealisticBody {
   }
 
   private reach(limb: (typeof LIMBS)[number]) {
+    this.reachTo(limb, this.driver.bones[limb.target].getWorldPosition(new T.Vector3()), this.driver.bones[limb.hint].getWorldPosition(new T.Vector3()));
+  }
+
+  /** Two-bone reach of `limb`'s end joint to `target` (world), bending towards `hint`. */
+  private reachTo(limb: (typeof LIMBS)[number], target: T.Vector3, hint: T.Vector3) {
     const upper = this.byName.get(limb.upper)!.bone,
       lower = this.byName.get(limb.lower)!.bone,
       end = this.byName.get(limb.end)!,
@@ -686,9 +751,7 @@ export class RealisticBody {
       [l1r, l2r] = this.lengths.get(limb.upper)!,
       l1 = l1r * scale,
       l2 = l2r * scale;
-    const S = upper.getWorldPosition(new T.Vector3()),
-      target = this.driver.bones[limb.target].getWorldPosition(new T.Vector3()),
-      hint = this.driver.bones[limb.hint].getWorldPosition(new T.Vector3());
+    const S = upper.getWorldPosition(new T.Vector3());
     const toT = tv.copy(target).sub(S),
       raw = toT.length(),
       dist = Math.min(l1 + l2 - 1e-4, Math.max(Math.abs(l1 - l2) + 1e-4, raw));

@@ -4,7 +4,7 @@ import * as T from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RIG } from "../src/games/sinverse-cricket/animation";
 import { buildAthlete } from "../src/games/sinverse-cricket/character";
-import { MotionPlayer, prepareMotion } from "../src/games/sinverse-cricket/motion";
+import { MAX_STRIDE, MotionPlayer, prepareMotion } from "../src/games/sinverse-cricket/motion";
 import { KitMaterials, RealisticBody, SQUAD, prepareSquad } from "../src/games/sinverse-cricket/realistic";
 
 /**
@@ -24,7 +24,47 @@ const parse = (path: string): Promise<GLTF> => {
 const motion = Promise.all([parse("../public/sinverse-cricket/motion/ual1.glb"), parse("../public/sinverse-cricket/motion/ual2.glb")]).then(([a, b]) => prepareMotion(a, b));
 const leg = RIG.thigh + RIG.shin;
 
+/** Average ground speed of the planted foot (m/s) while an athlete runs forward at `speed`. */
+async function footSlip(speed: number) {
+  const lib = await motion,
+    [model] = prepareSquad([await parse(`../public/sinverse-cricket/athletes/${SQUAD[1]}-lo.glb`)]);
+  const driver = buildAthlete("field", 5, 0, 1),
+    body = new RealisticBody(model!, driver, new KitMaterials(), 0),
+    player = new MotionPlayer(lib, leg, 5),
+    dt = 1 / 120,
+    samples: { y: number; x: number; z: number }[] = [];
+  for (let i = 0; i < 480; i++) {
+    driver.root.position.z += speed * dt;
+    driver.root.updateMatrixWorld(true);
+    const frame = player.pose(player.locomotion(dt, speed), null);
+    frame.lower = frame.upper = 1;
+    body.sync(frame);
+    const f = body.bone("LeftFoot").getWorldPosition(new T.Vector3());
+    if (i > 120) samples.push({ y: f.y, x: f.x, z: f.z });
+  }
+  const floor = Math.min(...samples.map((s) => s.y));
+  let slip = 0,
+    n = 0;
+  for (let i = 1; i < samples.length; i++)
+    if (samples[i]!.y < floor + 0.02 && samples[i - 1]!.y < floor + 0.02) {
+      slip += Math.hypot(samples[i]!.x - samples[i - 1]!.x, samples[i]!.z - samples[i - 1]!.z) / dt;
+      n++;
+    }
+  return { slip: n ? slip / n : NaN, stride: player.stride, planted: n };
+}
+
 test.describe("Cricket motion clips", () => {
+  test("a planted foot stays put on the ground, from a walk up to a full 7 m/s sprint", async () => {
+    for (const speed of [1.4, 3.5, 5.5, 7]) {
+      const { slip, stride, planted } = await footSlip(speed);
+      console.log(`${speed} m/s: planted foot moves ${slip.toFixed(2)} m/s (${((slip / speed) * 100).toFixed(0)}% of body speed), stride x${stride.toFixed(2)}, ${planted} planted samples`);
+      expect(planted, `${speed} m/s has a planted phase`).toBeGreaterThan(5);
+      // Foot locking: a planted foot may roll a little, but it must not skate with the body.
+      expect(slip / speed, `${speed} m/s foot slip ratio`).toBeLessThan(0.1);
+      expect(stride).toBeLessThanOrEqual(MAX_STRIDE + 1e-6);
+    }
+  });
+
   test("locomotion clips have plausible human ground speeds, in order", async () => {
     const lib = await motion,
       player = new MotionPlayer(lib, leg);
