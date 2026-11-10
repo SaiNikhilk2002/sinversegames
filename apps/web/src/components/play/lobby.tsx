@@ -65,9 +65,9 @@ export function Lobby({
               <GameArt gameId={room.gameId} className="size-full scale-125 blur-xl" />
             </div>
             <span className="absolute inset-x-0 bottom-0 h-1" style={{ background: theme.accent }} aria-hidden />
-            <p className="relative text-xs font-black tracking-[0.25em] uppercase opacity-75">{room.visibility === "public" ? "Public room" : "Private room"} · {game.name}</p>
+            <p className="relative text-xs font-semibold tracking-[0.25em] uppercase opacity-75">{room.visibility === "public" ? "Public room" : "Private room"} · {game.name}</p>
             <div className="relative mt-2 flex flex-wrap items-center gap-4">
-              <p className="font-mono text-4xl font-black tracking-[0.2em] sm:text-5xl" style={{ color: theme.accent, textShadow: "0 3px 0 rgb(0 0 0 / 0.4)" }} data-testid="room-code">
+              <p className="font-mono text-4xl font-semibold tracking-[0.2em] sm:text-5xl" style={{ color: theme.accent, textShadow: "0 3px 0 rgb(0 0 0 / 0.4)" }} data-testid="room-code">
                 {room.code}
               </p>
               <Button variant="secondary" size="sm" className="border-0 bg-white/15 text-inherit hover:bg-white/25" onClick={() => copy("code")} icon={copied === "code" ? <Check className="size-4" /> : <Copy className="size-4" />}>
@@ -103,7 +103,7 @@ export function Lobby({
                 initial={{ opacity: 0, x: -24, scale: 0.96 }}
                 animate={{ opacity: !p.connected ? 0.6 : 1, x: 0, scale: 1 }}
                 transition={{ type: "spring", stiffness: 420, damping: 30 }}
-                className="flex items-center gap-3 rounded-2xl border-2 bg-surface-2 p-3 transition-colors"
+                className="flex items-center gap-3 rounded-2xl border bg-surface-2 p-3 transition-colors"
                 style={{ borderColor: p.ready || p.isHost ? theme.accent : "var(--line)", boxShadow: p.ready ? `0 0 0 3px ${theme.accent}22` : undefined }}
               >
                 <Avatar name={p.name} color={p.color} size={40} />

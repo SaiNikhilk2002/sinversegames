@@ -67,19 +67,19 @@ export function PlayHub({ gameId }: { gameId: MultiplayerGameId }) {
   const waited = Math.max(0, Math.round((now - (match.since ?? now)) / 1000));
   return (
     <div style={{ "--accent": theme.accent } as React.CSSProperties}>
-      <section className="relative overflow-hidden border-b-[3px]" style={{ background: theme.deep, borderColor: theme.accent, color: theme.ink }}>
+      <section className="relative overflow-hidden border-b border-white/10" style={{ background: theme.deep, color: theme.ink }}>
         <div className="pointer-events-none absolute inset-0 opacity-25" aria-hidden>
           <GameArt gameId={gameId} className="size-full scale-125 blur-2xl" />
         </div>
         <div className="relative mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8 sm:flex-row sm:items-center sm:px-6">
-          <div className="w-full max-w-xs shrink-0 overflow-hidden rounded-2xl border-[3px] shadow-[0_20px_40px_-20px_rgb(0_0_0/0.9)] sm:w-60" style={{ borderColor: theme.accent }}>
+          <div className="w-full max-w-xs shrink-0 overflow-hidden rounded-2xl border border-white/15 shadow-[0_24px_48px_-24px_rgb(0_0_0/0.9)] sm:w-60">
             <GameArt gameId={gameId} className="block aspect-[16/10] w-full" />
           </div>
           <div className="flex-1">
-            <p className="text-xs font-black tracking-[0.25em] uppercase opacity-70">
+            <p className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">
               {game.minPlayers}–{game.maxPlayers} players
             </p>
-            <h1 className="font-display text-4xl font-black tracking-tight sm:text-5xl">{game.name}</h1>
+            <h1 className="type-title mt-1">{game.name}</h1>
             <p className="mt-1 opacity-80">{game.tagline}</p>
           </div>
           <ConnectionBadge status={status} />
@@ -87,42 +87,42 @@ export function PlayHub({ gameId }: { gameId: MultiplayerGameId }) {
       </section>
 
       <div className="mx-auto grid max-w-5xl gap-5 px-4 py-8 sm:px-6 md:grid-cols-2">
-        <div className="flex flex-col rounded-[24px] border-2 border-line bg-surface p-6">
-          <span className="grid size-12 place-items-center rounded-2xl border-2 border-[#17142b] text-[#17142b] shadow-[0_3px_0_#17142b]" style={{ background: theme.accent }}>
-            <Lock className="size-6" aria-hidden />
+        <div className="flex min-w-0 flex-col rounded-2xl border border-line bg-surface p-6 shadow-card">
+          <span className="grid size-11 place-items-center rounded-xl text-[#0f0f1a]" style={{ background: theme.accent }}>
+            <Lock className="size-5" aria-hidden />
           </span>
-          <h2 className="mt-4 font-display text-2xl font-black">Play with friends</h2>
+          <h2 className="mt-4 font-display text-2xl font-semibold">Play with friends</h2>
           <p className="mt-1 text-sm text-ink-muted">Open a private table and send the link. Only people with the link or code can sit down.</p>
           <Button className="mt-5" size="lg" onClick={() => createRoom("private")} loading={busy === "private"} disabled={!connected}>
             Create private room
           </Button>
-          <div className="mt-5 border-t-2 border-dashed border-line pt-5">
-            <p className="mb-2 text-sm font-bold">Have a code?</p>
+          <div className="mt-6 border-t border-line pt-5">
+            <p className="mb-2 text-sm font-medium text-ink-muted">Have a code?</p>
             <JoinCodeForm compact />
           </div>
         </div>
 
-        <div className="relative flex flex-col overflow-hidden rounded-[24px] border-2 border-line bg-surface p-6">
-          <span className="grid size-12 place-items-center rounded-2xl border-2 border-[#17142b] bg-[#ff4f8b] text-[#17142b] shadow-[0_3px_0_#17142b]">
-            <Globe2 className="size-6" aria-hidden />
+        <div className="relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface p-6 shadow-card">
+          <span className="grid size-11 place-items-center rounded-xl bg-surface-3 text-ink">
+            <Globe2 className="size-5" aria-hidden />
           </span>
-          <h2 className="mt-4 font-display text-2xl font-black">Play with anyone</h2>
+          <h2 className="mt-4 font-display text-2xl font-semibold">Play with anyone</h2>
           <p className="mt-1 text-sm text-ink-muted">Quick match finds other players. Public games start automatically once everyone is ready.</p>
           {searching ? (
-            <div className="mt-5 flex items-center gap-4 rounded-2xl border-2 p-4" style={{ borderColor: theme.accent }} role="status" aria-live="polite">
+            <div className="mt-5 flex items-center gap-4 rounded-2xl border p-4" style={{ borderColor: theme.accent }} role="status" aria-live="polite">
               <span className="relative grid size-16 shrink-0 place-items-center" aria-hidden>
                 {[0, 1, 2].map((k) => (
-                  <span key={k} className="hub-radar absolute inset-0 rounded-full border-2" style={{ borderColor: theme.accent, animationDelay: `${k * 0.6}s` }} />
+                  <span key={k} className="hub-radar absolute inset-0 rounded-full border" style={{ borderColor: theme.accent, animationDelay: `${k * 0.6}s` }} />
                 ))}
                 <span className="grid size-9 place-items-center rounded-full text-[#17142b]" style={{ background: theme.accent }}>
                   <Radar className="size-5" />
                 </span>
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-display text-lg font-black">Finding players…</p>
+                <p className="font-display text-lg font-semibold">Finding players…</p>
                 <div className="mt-1 flex items-center gap-1" aria-label={`${match.queued ?? 1} in queue`}>
                   {Array.from({ length: game.maxPlayers }, (_, k) => (
-                    <span key={k} className={cn("size-3 rounded-full border-2 transition", k < (match.queued ?? 1) ? "scale-110" : "opacity-40")} style={{ borderColor: theme.accent, background: k < (match.queued ?? 1) ? theme.accent : "transparent" }} />
+                    <span key={k} className={cn("size-3 rounded-full border transition", k < (match.queued ?? 1) ? "scale-110" : "opacity-40")} style={{ borderColor: theme.accent, background: k < (match.queued ?? 1) ? theme.accent : "transparent" }} />
                   ))}
                   <span className="ml-2 text-sm text-ink-muted tabular-nums">
                     {match.queued ?? 1} in queue · {waited}s

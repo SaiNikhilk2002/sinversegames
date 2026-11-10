@@ -1,1 +1,1 @@
-export { PageLoading as default } from "@/components/layout/page-loading";
+export { LeaderboardLoading as default } from "@/components/layout/page-loading";

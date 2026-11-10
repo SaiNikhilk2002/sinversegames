@@ -185,18 +185,18 @@ export function AccountPanel({
       <Link href="/profile" className="text-sm font-semibold text-ink-muted">
         &larr; Your player profile
       </Link>
-      <header className="my-6 overflow-hidden rounded-3xl border-2 border-[#7268c6] bg-[#211b46] p-5 text-[#f6efff] sm:p-8">
-        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#d9c2ff]">
+      <header className="my-6 overflow-hidden rounded-3xl border border-line bg-surface p-5 shadow-card sm:p-8">
+        <p className="type-eyebrow flex items-center gap-2">
           <ShieldCheck size={18} /> One player. Every adventure.
         </p>
         <h1
           ref={title}
           tabIndex={-1}
-          className="mt-3 font-display text-3xl font-black sm:text-5xl"
+          className="type-title mt-3"
         >
           {onboarding ? "Make it yours." : "Your player, everywhere."}
         </h1>
-        <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#d4cdeb]">
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-muted">
           Keep your Sin Coins, hard-earned badges and chef's passport together.
           Email or Google connects to your existing player; your progress stays yours.
         </p>

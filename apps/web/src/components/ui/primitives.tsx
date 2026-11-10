@@ -14,22 +14,26 @@ type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[#ff4f8b] text-white shadow-[0_4px_0_#a3194f] hover:-translate-y-px hover:brightness-110 active:translate-y-0.5 active:shadow-[0_1px_0_#a3194f] disabled:shadow-none",
-  secondary: "bg-surface-2 text-ink hover:bg-surface-3 border border-line",
-  outline: "border border-line text-ink hover:bg-surface-2",
+    "bg-primary text-primary-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_8px_22px_-12px_var(--color-primary)] hover:bg-primary-hover",
+  secondary: "bg-surface-2 text-ink border border-line hover:bg-surface-3 hover:border-line-strong",
+  outline: "border border-line-strong text-ink hover:bg-surface-2",
   ghost: "text-ink-muted hover:text-ink hover:bg-surface-2",
   danger: "bg-danger text-white hover:brightness-110",
 };
 const sizes: Record<Size, string> = {
-  sm: "h-9 px-3 text-sm gap-1.5 rounded-xl",
+  sm: "h-9 px-3.5 text-sm gap-1.5 rounded-lg",
   md: "h-11 px-5 text-[15px] gap-2 rounded-xl",
-  lg: "h-14 px-7 text-base gap-2.5 rounded-2xl",
+  lg: "h-12 px-6 text-base gap-2.5 rounded-xl",
 };
 
+/**
+ * Buttons. One primary per view; secondary for the alternative; ghost for
+ * tertiary actions. Hover lifts colour, press settles slightly; no bounces.
+ */
 export const buttonClass = (variant: Variant = "primary", size: Size = "md", extra?: string) =>
   cn(
-    "inline-flex select-none items-center justify-center font-semibold whitespace-nowrap transition duration-150",
-    "disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sun",
+    "inline-flex select-none items-center justify-center font-semibold whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out",
+    "disabled:pointer-events-none disabled:opacity-45 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
     variants[variant],
     sizes[size],
     extra,
@@ -69,29 +73,58 @@ export function Card({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
 export function Badge({ className, tone = "neutral", ...rest }: HTMLAttributes<HTMLSpanElement> & { tone?: "neutral" | "brand" | "hot" | "mint" | "sun" }) {
   const tones = {
     neutral: "bg-surface-2 text-ink-muted border-line",
-    brand: "bg-brand-500/15 text-brand-600 dark:text-brand-300 border-brand-500/25",
-    hot: "bg-hot/15 text-hot border-hot/25",
-    mint: "bg-mint/15 text-emerald-700 dark:text-mint border-mint/25",
-    sun: "bg-sun/15 text-amber-700 dark:text-sun border-sun/30",
+    brand: "bg-brand-500/12 text-brand-600 dark:text-brand-300 border-brand-500/20",
+    hot: "bg-primary/12 text-primary border-primary/20",
+    mint: "bg-mint/12 text-emerald-700 dark:text-mint border-mint/20",
+    sun: "bg-sun/12 text-amber-700 dark:text-sun border-sun/25",
   };
   return (
     <span
-      className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold", tones[tone], className)}
+      className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium", tones[tone], className)}
       {...rest}
     />
   );
 }
 
-export function SectionHeading({ title, subtitle, action, id }: { title: string; subtitle?: string; action?: ReactNode; id?: string }) {
+export function SectionHeading({ title, subtitle, action, id, eyebrow }: { title: string; subtitle?: string; action?: ReactNode; id?: string; eyebrow?: string }) {
   return (
-    <div className="mb-5 flex items-end justify-between gap-4">
-      <div>
-        <h2 id={id} className="font-display text-2xl font-bold tracking-tight sm:text-3xl">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+      <div className="min-w-0">
+        {eyebrow && <p className="type-eyebrow mb-2">{eyebrow}</p>}
+        <h2 id={id} className="type-section">
           {title}
         </h2>
-        {subtitle && <p className="mt-1 text-ink-muted">{subtitle}</p>}
+        {subtitle && <p className="mt-1.5 max-w-2xl text-[15px] text-ink-muted">{subtitle}</p>}
       </div>
       {action}
+    </div>
+  );
+}
+
+/** A placeholder block with the same footprint as the content it stands in for. */
+export function Skeleton({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div aria-hidden className={cn("skeleton", className)} {...rest} />;
+}
+
+/** An empty or error state: what happened, and the one thing to do next. */
+export function EmptyState({ icon, title, body, action, className }: { icon?: ReactNode; title: string; body?: ReactNode; action?: ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex flex-col items-center rounded-2xl border border-dashed border-line-strong px-6 py-12 text-center", className)}>
+      {icon && <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-surface-2 text-ink-muted [&_svg]:size-5">{icon}</div>}
+      <p className="font-display text-lg font-semibold">{title}</p>
+      {body && <div className="mt-1.5 max-w-sm text-sm text-ink-muted">{body}</div>}
+      {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+/** One figure with its label: big number, quiet caption. Only for real data. */
+export function Stat({ label, value, hint, className }: { label: string; value: ReactNode; hint?: ReactNode; className?: string }) {
+  return (
+    <div className={cn("rounded-2xl border border-line bg-surface p-4", className)}>
+      <p className="text-xs font-medium text-ink-faint">{label}</p>
+      <p className="mt-1 font-display text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
     </div>
   );
 }
@@ -115,7 +148,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       ref={ref}
       className={cn(
         "h-12 w-full rounded-xl border border-line bg-surface-2 px-4 text-base text-ink placeholder:text-ink-faint",
-        "outline-none transition focus:border-brand-400 focus:ring-4 focus:ring-brand-500/20",
+        "outline-none transition hover:border-line-strong focus:border-brand-400 focus:bg-surface focus:ring-4 focus:ring-brand-500/15",
         className,
       )}
       {...rest}
@@ -137,7 +170,7 @@ export function Switch({ checked, onChange, label, description, disabled }: { ch
         aria-label={label}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={cn("relative h-7 w-12 shrink-0 rounded-full transition", checked ? "bg-brand-500" : "bg-surface-3")}
+        className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", checked ? "bg-primary" : "bg-surface-3")}
       >
         <span className={cn("absolute top-1 left-1 size-5 rounded-full bg-white shadow transition-transform", checked && "translate-x-5")} />
       </button>
