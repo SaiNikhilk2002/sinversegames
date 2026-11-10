@@ -1,0 +1,62 @@
+[
+  {
+    "ball": 1,
+    "shot": {
+      "kind": "cover",
+      "direction": 0,
+      "power": 0.6,
+      "foot": 0,
+      "face": -0.24,
+      "tick": 156
+    },
+    "contact": 163,
+    "pickup": 538,
+    "thrown": 576,
+    "end": 710,
+    "outcome": {
+      "bat": 0,
+      "wides": 0,
+      "noBalls": 0,
+      "byes": 0,
+      "legByes": 0,
+      "wicket": null,
+      "dismissed": "striker",
+      "boundary": 0,
+      "completedRuns": 0,
+      "timing": 0.8501125426806563,
+      "total": 0,
+      "legal": true,
+      "label": "DOT"
+    }
+  },
+  {
+    "ball": 2,
+    "shot": {
+      "kind": "straight",
+      "direction": 0,
+      "power": 0.6,
+      "foot": 0,
+      "face": -0.24,
+      "tick": 156
+    },
+    "contact": 163,
+    "pickup": 598,
+    "thrown": 636,
+    "end": 787,
+    "outcome": {
+      "bat": 0,
+      "wides": 0,
+      "noBalls": 0,
+      "byes": 0,
+      "legByes": 0,
+      "wicket": null,
+      "dismissed": "striker",
+      "boundary": 0,
+      "completedRuns": 0,
+      "timing": 0.8791060935869063,
+      "total": 0,
+      "legal": true,
+      "label": "DOT"
+    }
+  }
+]

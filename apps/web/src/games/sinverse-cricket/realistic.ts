@@ -4,6 +4,7 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { TEAMS } from "@platform/engines/sinverse-cricket";
 import { BAT, RIG } from "./animation";
 import type { Athlete } from "./character";
+import { LOWER, type Joint as MotionJoint, type MotionFrame } from "./motion";
 
 /**
  * Realistic athletes. The scene keeps posing the existing procedural rig (the
@@ -627,9 +628,17 @@ export class RealisticBody {
     }
   }
 
-  /** Copies the driver's current pose. Call after the driver is posed and its matrices updated. */
-  sync() {
-    const d = this.driver;
+  /**
+   * Copies the driver's current pose. Call after the driver is posed and its
+   * matrices updated. With a motion frame, the lower body (hips and legs) and the
+   * upper body (spine, arms, head) blend towards the motion clip by their region
+   * weights; a region mostly on the clip keeps the clip's hands or feet instead
+   * of reaching for the driver's.
+   */
+  sync(motion?: MotionFrame | null) {
+    const d = this.driver,
+      lower = motion ? motion.lower : 0,
+      upper = motion ? motion.upper : 0;
     d.root.updateMatrixWorld(true);
     // Rotations in the driver root's frame: real = driver * offset.
     d.root.getWorldQuaternion(tq2).invert();
@@ -638,19 +647,35 @@ export class RealisticBody {
     for (const j of this.joints) {
       if (j.driver) j.world.copy(j.driver.getWorldQuaternion(tq).premultiply(tq2)).multiply(j.offset);
       else j.world.copy(j.parent ? j.parent.world : armatureQ).multiply(j.rest);
+      if (motion && (lower > 0 || upper > 0)) {
+        const name = short(j.bone.name) as MotionJoint,
+          clip = motion.pose.get(name);
+        const w = LOWER.has(name) ? lower : upper;
+        if (clip && w > 0) j.world.slerp(tq.copy(clip).multiply(j.offset), w);
+      }
       const parentQ = j.parent ? j.parent.world : armatureQ;
       j.bone.quaternion.copy(tq.copy(parentQ).invert().multiply(j.world));
     }
-    // Place the pelvis so the real hip joints sit on the driver's hip joints.
+    // Place the pelvis so the real hip joints sit on the driver's hip joints, or
+    // where the clip puts them (its stride, bob and sway) as the lower body blends in.
     this.root.updateMatrixWorld(true);
     const realHips = this.bone("LeftUpLeg").getWorldPosition(tv).add(this.bone("RightUpLeg").getWorldPosition(tv2)).multiplyScalar(0.5),
       driverHips = d.bones.lThigh.getWorldPosition(tv3).add(d.bones.rThigh.getWorldPosition(tv4)).multiplyScalar(0.5);
+    if (motion && lower > 0) driverHips.lerp(d.root.localToWorld(new T.Vector3().copy(motion.hips)), lower);
     const pelvis = this.hips.bone.getWorldPosition(new T.Vector3()).add(driverHips).sub(realHips);
     this.armature.worldToLocal(pelvis);
     this.hips.bone.position.copy(pelvis);
     this.root.updateMatrixWorld(true);
-    // Hands and feet onto the driver's exact joints.
-    for (const limb of LIMBS) this.reach(limb);
+    // Hands and feet onto the driver's exact joints, unless the clip owns them.
+    for (const limb of LIMBS) if ((limb.end.endsWith("Hand") ? upper : lower) < 0.5) this.reach(limb);
+  }
+
+  /** World position of the middle of a hand's palm, where a held ball sits. */
+  palm(left: boolean, out: T.Vector3) {
+    const side = left ? "Left" : "Right",
+      hand = this.bone(side + "Hand").getWorldPosition(out),
+      knuckle = this.byName.get(side + "HandMiddle1")?.bone.getWorldPosition(tv) ?? hand;
+    return hand.lerp(knuckle, 0.75);
   }
 
   private reach(limb: (typeof LIMBS)[number]) {

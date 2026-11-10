@@ -1,6 +1,7 @@
 import * as T from "three";
 import { PEOPLE, closestPair, place } from "./spacing";
 import { KitMaterials, RealisticBody, equipmentKit, loadSquad, modelFor } from "./realistic";
+import { MotionPlayer, loadMotion, type MotionLibrary, type OneShot } from "./motion";
 import {
   RELEASE_TICK,
   STEP,
@@ -19,6 +20,7 @@ import {
   DELIVERY,
   IMPACT_TICKS,
   RIG,
+  GATHER,
   FootPlanter,
   applyGait,
   applyShotBody,
@@ -123,6 +125,15 @@ type Actor = {
   kitCanvas: HTMLCanvasElement | null;
   /** Realistic body worn over this actor once the squad has loaded. */
   body?: RealisticBody;
+  /** Motion clips for the realistic body, and this frame's plan for them. */
+  motion?: MotionPlayer;
+  plan?: { speed: number; shot: { clip: OneShot; time: number; weight: number } | null; lower: number; upper: number } | null;
+  /** Ground speed from the simulation's positions (m/s), lightly smoothed. */
+  ground?: number;
+  motionLower?: number;
+  motionUpper?: number;
+  /** Clip time of a throw still playing out after the simulation moved on. */
+  throwClock?: number;
 };
 
 function canvasOf(size: number) {
@@ -203,6 +214,10 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   const spots = new Float32Array(PEOPLE * 2),
     holds = new Uint8Array(PEOPLE);
   let spacing = Infinity;
+  const ballShown = new T.Vector3(),
+    ballOffset = new T.Vector3();
+  let ballHeld = false,
+    ballTick = -1;
   for (let n = 0; n < ACTORS; n++) {
     const role: Role = n <= NON_STRIKER ? "bat" : n === BOWLER ? "bowl" : n === KEEPER ? "keeper" : n === UMPIRE ? "umpire" : "field";
     const close = n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
@@ -234,8 +249,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   const equipment = equipmentKit();
   const closeDetail = quality === "high" || quality === "ultra";
   let realisticReady = false;
-  Promise.all([loadSquad("lo"), closeDetail ? loadSquad("hi") : Promise.resolve(null)])
-    .then(([lo, hi]) => {
+  let motionLibrary: MotionLibrary | null = null;
+  Promise.all([loadSquad("lo"), closeDetail ? loadSquad("hi") : Promise.resolve(null), loadMotion().catch((error) => (console.warn("motion clips unavailable; using built-in motion", error), null))])
+    .then(([lo, hi, motion]) => {
       if (disposed) return;
       kits = new KitMaterials();
       const wear = (a: Athlete, number: number, team: number, close: boolean, cast: boolean) => {
@@ -250,6 +266,10 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         actor.body = wear(actor.a, actor.number, actor.team, close, actor.a.mesh.castShadow);
       }
       for (const [team, c] of captains.entries()) c.body = wear(c.a, 1, team, true, c.a.mesh.castShadow);
+      if (motion) {
+        motionLibrary = motion;
+        for (const actor of actors) if (actor.body && actor.a.role !== "umpire") actor.motion = new MotionPlayer(motion, RIG.thigh + RIG.shin);
+      }
       realisticReady = true;
     })
     .catch((error) => console.warn("realistic athletes unavailable; using built-in bodies", error));
@@ -574,6 +594,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           actor.speed += (measured - actor.speed) * Math.min(1, dTick * 0.12);
         }
         const moving = actor.speed > 0.35;
+        // Ground speed for the motion clips: the simulation's own movement, not the gait's.
+        if (dTick < 0 || !Number.isFinite(actor.ground ?? 0)) actor.ground = 0;
+        else if (dTick > 0) actor.ground = (actor.ground ?? 0) + (moved / (dTick * STEP) - (actor.ground ?? 0)) * Math.min(1, dTick * 0.2);
         if (simAction !== actor.action) {
           actor.action = simAction;
           actor.actionTick = tick;
@@ -584,6 +607,8 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         // ---- facing -----------------------------------------------------------
         let want: number;
         if ((ceremony?.stage === "entry" || dead && wicket && deadAge > 1.1) && moving) want = Math.atan2(dx, dz);
+        // A fielder with the ball turns to throw at the stumps the engine throws to.
+        else if (n >= 2 && n < UMPIRE && n !== KEEPER && (simAction === "pickup" || simAction === "throw")) want = Math.atan2(-px, STUMPS_Z - pz);
         else if (n === STRIKER && !running && frame.runner === 0) want = Math.PI / 2;
         else if (moved > 0.002 && moving && (n === BOWLER || n <= NON_STRIKER || actor.speed > 2.2)) want = Math.atan2(dx, dz);
         else if (n === UMPIRE) want = 0;
@@ -592,11 +617,47 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         else if (n === KEEPER && !hit) want = Math.PI;
         else want = Math.atan2(frame.ball.x - px, frame.ball.z - pz);
         const diff = ((want - actor.facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-        actor.facing += diff * (feed.reducedMotion ? 1 : Math.min(1, dt * 9));
+        // Bodies turn at a human rate: quick on the spot, slower at a sprint.
+        const turnRate = (actor.ground ?? 0) > 3 ? 4.5 : 8.5;
+        actor.facing += feed.reducedMotion ? diff : Math.max(-turnRate * dt, Math.min(turnRate * dt, diff * Math.min(1, dt * 9)));
         a.root.position.set(px, 0, pz);
         a.root.rotation.y = actor.facing;
         actor.prev.set(px, 0, pz);
         actor.prevTick = tick;
+
+        // ---- motion clips for the realistic body (presentation only) ------------
+        if (actor.motion && motionLibrary) {
+          const g = actor.ground ?? 0,
+            throwInfo = motionLibrary.info.get("OverhandThrow")!,
+            fielder = n >= 2 && n !== UMPIRE && (n !== BOWLER || tick > RELEASE_TICK + 40);
+          let lower = 0,
+            upper = 0,
+            shot: { clip: OneShot; time: number; weight: number } | null = null;
+          if (fielder && (simAction === "pickup" || simAction === "throw")) {
+            // The clip's release lands on the engine's release tick (38 ticks after pickup).
+            const time = simAction === "pickup" ? throwInfo.release - 38 * STEP + actionAge : throwInfo.release + actionAge;
+            actor.throwClock = time;
+            shot = { clip: "OverhandThrow", time, weight: simAction === "pickup" ? clamp01(actionAge / 0.12) : 1 };
+            lower = upper = 1;
+          } else if (actor.throwClock !== undefined && actor.throwClock < throwInfo.duration) {
+            // Follow-through finishes after the ball has gone.
+            actor.throwClock += dt;
+            shot = { clip: "OverhandThrow", time: actor.throwClock, weight: clamp01((throwInfo.duration - actor.throwClock) / 0.3) };
+            lower = upper = 1;
+          } else {
+            actor.throwClock = undefined;
+            const chasing = fielder && g > 0.45 && (simAction === "run" || simAction === "ready"),
+              walking = (ceremony?.stage === "entry" || (dead && !!wicket && deadAge > 1.1)) && g > 0.3 && simAction !== "dive",
+              runUp = n === BOWLER && tick > 0 && tick < RELEASE_TICK - GATHER[style] / STEP - 6,
+              batterRun = (n === STRIKER || n === NON_STRIKER) && running && g > 0.45;
+            if (chasing || walking || runUp) lower = upper = 1;
+            else if (batterRun) lower = 1; // legs run; arms keep the bat
+          }
+          const k = feed.reducedMotion ? 1 : Math.min(1, dt * 7);
+          actor.motionLower = (actor.motionLower ?? 0) + (lower - (actor.motionLower ?? 0)) * k;
+          actor.motionUpper = (actor.motionUpper ?? 0) + (upper - (actor.motionUpper ?? 0)) * k;
+          actor.plan = actor.motionLower > 0.01 || actor.motionUpper > 0.01 ? { speed: g, shot, lower: actor.motionLower, upper: actor.motionUpper } : null;
+        }
 
         // ---- which clip -------------------------------------------------------
         const p = actor.target;
@@ -648,6 +709,16 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
             // Stretch the body towards a wide or low ball rather than just the arms.
             p[CH.hipX] = p[CH.hipX]! + lx * 0.45 * w;
             p[CH.roll] = p[CH.roll]! - lx * 0.5 * w;
+          }
+        }
+        if (n === KEEPER && frame.mode === "throw") {
+          // The keeper reads the throw and takes it in front of the stumps.
+          const away = Math.hypot(ball.x - px, ball.z - pz);
+          const [lx, ly, lz] = toLocal(actor, ball.x, ball.y, ball.z);
+          if (away < 9 && Math.hypot(lx, ly - 1, lz) < 1.9) {
+            const w = clamp01((9 - away) / 5);
+            setHand(p, true, lx + 0.055, ly, lz, w);
+            setHand(p, false, lx - 0.055, ly, lz, w);
           }
         }
         if (n === KEEPER && dead && wicket === "stumped" && deadAge < 0.5) {
@@ -774,14 +845,50 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         blobs.setMatrixAt(n, dummy.matrix);
       }
 
+      // ---- realistic bodies follow their drivers (before the ball, which they hold) ----
+      if (realisticReady)
+        for (const actor of actors) {
+          if (!actor.a.root.visible || !actor.body) continue;
+          let motionFrame = null;
+          if (actor.motion && actor.plan) {
+            const loco = actor.motion.locomotion(dt, actor.plan.speed);
+            motionFrame = actor.motion.pose(loco, actor.plan.shot);
+            motionFrame.lower = actor.plan.lower;
+            motionFrame.upper = actor.plan.upper;
+          }
+          actor.body.sync(motionFrame);
+        }
+
       // ---- ball -------------------------------------------------------------------
+      // The simulation's ball is authoritative. What's drawn sits in the hand that
+      // holds it and leaves that hand on release, with the difference to the
+      // simulated flight fading out in a few frames, so it never jumps.
       const b = frame.ball;
       ball.visible = !preMatch;
       blobs.visible = !preMatch;
-      if (tick >= RELEASE_TICK) ball.position.set(b.x, b.y, b.z);
-      if (dead && wicket === "caught") {
-        const catcher = frame.actions.findIndex(action => action === "catch");
-        if (catcher >= 0) ball.position.copy(handCentre(actors[catcher + 2]!.a, false, tmp));
+      if (tick >= RELEASE_TICK) {
+        if (rewound || tick < ballTick || tick > ballTick + 90) {
+          ballOffset.set(0, 0, 0);
+          ballHeld = false;
+          ballShown.set(b.x, b.y, b.z);
+        }
+        const holding = frame.mode === "struck" ? frame.actions.findIndex((action) => action === "pickup") : -1,
+          caught = dead && wicket === "caught" ? frame.actions.findIndex((action) => action === "catch" || action === "dive") : -1,
+          holder = holding >= 0 ? holding : caught;
+        if (holder >= 0) {
+          const actor = actors[holder + 2]!;
+          if (actor.body) actor.body.palm(false, tmp);
+          else handCentre(actor.a, false, tmp);
+          ballShown.lerp(tmp, feed.reducedMotion || !ballHeld && rewound ? 1 : 1 - Math.exp(-dt / 0.045));
+          ballHeld = true;
+        } else {
+          if (ballHeld) ballOffset.copy(ballShown).sub(tmp2.set(b.x, b.y, b.z));
+          ballHeld = false;
+          ballOffset.multiplyScalar(feed.reducedMotion ? 0 : Math.exp(-dt / 0.09));
+          ballShown.set(b.x + ballOffset.x, b.y + ballOffset.y, b.z + ballOffset.z);
+        }
+        ballTick = tick;
+        ball.position.copy(ballShown);
       }
       ball.scale.setScalar(Math.max(1, Math.min(2.4, camera.position.distanceTo(ball.position) / 16)));
       ball.rotation.x = tick * 0.14;
@@ -919,10 +1026,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         camera.fov += (pick.fov - camera.fov) * (snap ? 1 : kP);
         camera.updateProjectionMatrix();
       }
-      if (realisticReady) {
-        for (const actor of actors) if (actor.a.root.visible) actor.body?.sync();
-        for (const c of captains) if (c.a.root.visible) c.body?.sync();
-      }
+      if (realisticReady) for (const c of captains) if (c.a.root.visible) c.body?.sync();
       renderer.render(scene, camera);
     },
     metrics: () => ({

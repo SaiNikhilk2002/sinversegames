@@ -38,6 +38,21 @@ The source shirt has a MakeHuman logo printed on it. The build replaces the shir
 | https://static.makehumancommunity.org/mpfb/faq/use_in_closed_source.html | Use in closed-source games |
 | https://static.makehumancommunity.org/about/license.html | Code GPL-3.0, assets CC0 |
 
+## Motion clips
+
+`apps/web/public/sinverse-cricket/motion/ual1.glb` and `ual2.glb` hold clips extracted (with `extract_motion.py`, skeleton only, no meshes) from Quaternius's **Universal Animation Library** and **Universal Animation Library 2**, Standard editions. Both packs' own `License.txt` files say **CC0 1.0 Universal**. The author's pack page says they are "free to use in personal, educational and commercial projects".
+
+| Library | Clips used |
+|---|---|
+| Universal Animation Library | Idle_Loop, Walk_Loop, Jog_Fwd_Loop, Sprint_Loop, Crouch_Idle_Loop, Roll, Dance_Loop |
+| Universal Animation Library 2 | OverhandThrow, LayToIdle, Slide_Start, Slide_Loop, Slide_Exit, Yes |
+
+| Source | Licence |
+|---|---|
+| https://quaternius.com/packs/universalanimationlibrary.html | CC0 |
+| https://opengameart.org/content/universal-animation-library | CC0 (download used) |
+| https://opengameart.org/content/universal-animation-library-2 | CC0 (download used) |
+
 ## Not used, and why
 
 | Asset or service | Reason |
