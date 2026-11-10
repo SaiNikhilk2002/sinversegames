@@ -1,5 +1,6 @@
 import * as T from "three";
 import { PEOPLE, closestPair, place } from "./spacing";
+import { KitMaterials, RealisticBody, equipmentKit, loadSquad, modelFor } from "./realistic";
 import {
   RELEASE_TICK,
   STEP,
@@ -120,6 +121,8 @@ type Actor = {
   team: number;
   kit: T.Texture | null;
   kitCanvas: HTMLCanvasElement | null;
+  /** Realistic body worn over this actor once the squad has loaded. */
+  body?: RealisticBody;
 };
 
 function canvasOf(size: number) {
@@ -220,8 +223,35 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   const captains = [0, 1].map(team => {
     const a = buildAthlete("field", 1, team, q.closeDetail, teamKits[team]!.material);
     a.root.visible = false; a.mesh.castShadow = !!q.shadows; scene.add(a.root);
-    return { a, pose: makePose() };
+    return { a, pose: makePose() } as { a: Athlete; pose: Pose; body?: RealisticBody };
   });
+
+  // ---- realistic bodies -------------------------------------------------------
+  // The procedural bodies show until the squad has loaded, and stay if it can't.
+  let kits: KitMaterials | null = null;
+  const equipment = equipmentKit();
+  let realisticReady = false;
+  loadSquad()
+    .then((squad) => {
+      if (disposed) return;
+      let base: T.MeshStandardMaterial | null = null;
+      squad[0]!.scene.traverse((o) => {
+        const m = (o as T.Mesh).material as T.MeshStandardMaterial | undefined;
+        if (!base && m && m.name === "kit") base = m;
+      });
+      if (!base) throw new Error("athlete model has no kit material");
+      kits = new KitMaterials(base);
+      const wear = (a: Athlete, number: number, team: number, cast: boolean) => {
+        const body = new RealisticBody(squad[modelFor(a.role, number, team)]!, a, kits!, a.role === "umpire" ? -1 : team, () => {});
+        equipment.dress(body, a.role, team, a.bones.bat, cast);
+        body.setShadows(cast);
+        return body;
+      };
+      for (const actor of actors) actor.body = wear(actor.a, actor.number, actor.team, actor.a.mesh.castShadow);
+      for (const [team, c] of captains.entries()) c.body = wear(c.a, 1, team, c.a.mesh.castShadow);
+      realisticReady = true;
+    })
+    .catch((error) => console.warn("realistic athletes unavailable; using built-in bodies", error));
 
   // Ground contact shadows for everyone and the ball: one instanced draw.
   const blobTex = (() => {
@@ -393,6 +423,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       paintKit(actor.kitCanvas.getContext("2d")!, team, number, true);
       actor.kit.needsUpdate = true;
     } else actor.a.mesh.material = teamKits[team]!.material;
+    actor.body?.setTeam(team);
     actor.team = team;
     actor.number = number;
   };
@@ -887,6 +918,10 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         camera.fov += (pick.fov - camera.fov) * (snap ? 1 : kP);
         camera.updateProjectionMatrix();
       }
+      if (realisticReady) {
+        for (const actor of actors) if (actor.a.root.visible) actor.body?.sync();
+        for (const c of captains) if (c.a.root.visible) c.body?.sync();
+      }
       renderer.render(scene, camera);
     },
     metrics: () => ({
@@ -927,6 +962,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         textures.add(kit.tex);
         materials.add(kit.material);
       }
+      for (const m of kits?.all() ?? []) materials.add(m);
+      for (const m of equipment.materials) materials.add(m);
+      for (const g of equipment.geometries) geometries.add(g);
       stadium.dispose();
       textures.forEach((t) => t.dispose());
       materials.forEach((m) => m.dispose());

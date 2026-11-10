@@ -1,0 +1,21 @@
+{
+  "id": "athlete-04",
+  "note": "Fictional athlete built only from CC0 MakeHuman system assets. Not based on any real person.",
+  "age": 0.62,
+  "muscle": 0.68,
+  "weight": 0.6,
+  "height": 0.5,
+  "proportions": 0.6,
+  "race": {
+    "african": 0.1,
+    "asian": 0.7,
+    "caucasian": 0.2
+  },
+  "skin": "middleage_asian_male/middleage_asian_male.mhmat",
+  "eyebrows": "eyebrow009/eyebrow009.mhclo",
+  "hair": "short01/short01.mhclo",
+  "clothes": [
+    "male_casualsuit06/male_casualsuit06.mhclo",
+    "shoes01/shoes01.mhclo"
+  ]
+}

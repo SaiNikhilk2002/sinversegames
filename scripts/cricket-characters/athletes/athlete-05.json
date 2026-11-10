@@ -1,0 +1,21 @@
+{
+  "id": "athlete-05",
+  "note": "Fictional athlete built only from CC0 MakeHuman system assets. Not based on any real person.",
+  "age": 0.5,
+  "muscle": 0.75,
+  "weight": 0.46,
+  "height": 0.56,
+  "proportions": 0.72,
+  "race": {
+    "african": 0.6,
+    "asian": 0.3,
+    "caucasian": 0.1
+  },
+  "skin": "toigo_light_skin_male_bronze/toigo_light_skin_male_bronze.mhmat",
+  "eyebrows": "eyebrow001/eyebrow001.mhclo",
+  "hair": "afro01/afro01.mhclo",
+  "clothes": [
+    "male_casualsuit06/male_casualsuit06.mhclo",
+    "shoes01/shoes01.mhclo"
+  ]
+}
