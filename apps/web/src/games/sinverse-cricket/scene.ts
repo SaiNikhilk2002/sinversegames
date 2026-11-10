@@ -1,6 +1,6 @@
 import * as T from "three";
+import { PEOPLE, closestPair, place } from "./spacing";
 import {
-  CREASE_Z,
   RELEASE_TICK,
   STEP,
   STUMPS_Z,
@@ -17,9 +17,7 @@ import {
   CLIPS,
   DELIVERY,
   IMPACT_TICKS,
-  RELEASE_ROOT,
   RIG,
-  RUN_UP,
   FootPlanter,
   applyGait,
   applyShotBody,
@@ -27,10 +25,8 @@ import {
   blendPose,
   bowlingStyle,
   clamp01,
-  creaseZ,
   makePose,
   nominalImpact,
-  runUpProgress,
   sampleClip,
   selectBowler,
   selectFielder,
@@ -94,6 +90,8 @@ export interface SceneDriver {
     /** Metres a planted foot slid (worst recent). */
     footSlip?: number;
     excite?: number;
+    /** Metres between the two closest people on the field this frame (centre to centre). */
+    spacing?: number;
   };
 }
 const v3 = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
@@ -199,6 +197,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
     return { tex, material: kitMaterial(tex) };
   });
   const actors: Actor[] = [];
+  const spots = new Float32Array(PEOPLE * 2),
+    holds = new Uint8Array(PEOPLE);
+  let spacing = Infinity;
   for (let n = 0; n < ACTORS; n++) {
     const role: Role = n <= NON_STRIKER ? "bat" : n === BOWLER ? "bowl" : n === KEEPER ? "keeper" : n === UMPIRE ? "umpire" : "field";
     const close = n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
@@ -486,6 +487,29 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       aim.visible = !!feed.aim && !preMatch && tick === 0;
       if (feed.aim) aim.position.set(feed.aim.line, 0.025, 10.0584 - feed.aim.length);
 
+      // ---- where everyone stands this frame ------------------------------------
+      // Display positions only: lanes and separation live in spacing.ts and never
+      // write to the fielders or the match.
+      place(
+        {
+          tick,
+          style,
+          runner: frame.runner,
+          batterGroundZ: frame.batterGroundZ,
+          bowlerFootZ: frame.bowlerFootZ,
+          fielders: frame.fielders,
+          actions: frame.actions,
+          travel: frame.travel,
+          huddleAge: dead && wicket ? deadAge - 1.1 : -1,
+          dismissedStriker: outcome?.dismissed === "striker",
+          entry: ceremony?.stage === "entry" ? clamp01(ceremony.age / 2.4) : -1,
+          keepClear: !preMatch || ceremony?.stage === "entry",
+        },
+        spots,
+        holds,
+      );
+      spacing = closestPair(spots, ACTORS);
+
       for (let n = 0; n < ACTORS; n++) {
         const actor = actors[n]!,
           a = actor.a;
@@ -495,57 +519,12 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         // Outfielders can update on alternate frames on the lowest preset.
         if (q.fielderEvery > 1 && n >= 2 && n < BOWLER && n % 2 !== frameNo % 2 && actor.clip) continue;
 
-        // ---- where the simulation says this actor is -------------------------
-        let px = 0,
-          pz = 0,
-          simAction: Fielder["action"] = "ready",
-          travel = 0;
-        if (n === STRIKER || n === NON_STRIKER) {
-          const end = n === STRIKER ? 1 : -1;
-          pz = creaseZ(end, frame.runner);
-          px = (n === STRIKER ? -0.38 : 0.72) + (frame.runner > 0 ? 0.28 : 0);
-          if (n === STRIKER && frame.runner === 0) pz = frame.batterGroundZ;
-        } else if (n === UMPIRE) {
-          px = -1.05;
-          pz = -STUMPS_Z - 1.55;
-        } else {
-          const f = frame.fielders[n - 2]!;
-          px = f.x;
-          pz = f.z;
-          simAction = frame.actions[n - 2] ?? "ready";
-          travel = frame.travel[n - 2] ?? 0;
-        }
-        if (n === BOWLER) {
-          const follow = tick > RELEASE_TICK ? ((u) => u * u * (3 - 2 * u))(clamp01((tick - RELEASE_TICK - 6) / 60)) * 1.75 : 0;
-          const fade = 1 - clamp01(travel * 2);
-          if (tick <= RELEASE_TICK) {
-            const u = runUpProgress(tick, style),
-              startZ = -8.5 + RELEASE_ROOT.z - RUN_UP[style];
-            pz = startZ + (RUN_UP[style] + (frame.bowlerFootZ + CREASE_Z + 0.23)) * u;
-            px = 0.55 + RELEASE_ROOT.x + (1 - u) * 0.5;
-          } else {
-            pz += (RELEASE_ROOT.z + follow) * fade;
-            px += RELEASE_ROOT.x * fade;
-          }
-        }
-        // Presentation positions never write to the fielders or match.
-        if (dead && wicket && deadAge > 1.1) {
-          const u = clamp01((deadAge - 1.1) / 3.2);
-          const dismissed = (outcome?.dismissed === "striker" ? STRIKER : NON_STRIKER);
-          if (n === dismissed) { px += u * 4; pz += u * 2.8; }
-          else if (n >= 2 && n < UMPIRE && simAction !== "dive") {
-            const anchor = frame.fielders.find((_, k) => frame.actions[k] === "catch" || frame.actions[k] === "throw") ?? frame.fielders[9]!;
-            const angle = n * 2.4;
-            const maxTravel = Math.min(1, (deadAge - 1.1) * 3 / Math.max(1, Math.hypot(anchor.x - px, anchor.z - pz)));
-            px += (anchor.x + Math.sin(angle) * 1.3 - px) * maxTravel;
-            pz += (anchor.z + Math.cos(angle) * 1.3 - pz) * maxTravel;
-          }
-        }
-        if (ceremony?.stage === "entry") {
-          const u = clamp01(ceremony.age / 2.4);
-          px += (n % 2 ? -1.4 : 1.4) * (1 - u);
-          pz -= 2.2 * (1 - u);
-        }
+        // ---- where this actor is: placed and kept clear of others above --------
+        const px = spots[n * 2]!,
+          pz = spots[n * 2 + 1]!,
+          fielding = n > NON_STRIKER && n !== UMPIRE,
+          simAction: Fielder["action"] = fielding ? (frame.actions[n - 2] ?? "ready") : "ready",
+          travel = fielding ? (frame.travel[n - 2] ?? 0) : 0;
 
         // ---- movement bookkeeping ---------------------------------------------
         const dTick = tick - actor.prevTick;
@@ -922,6 +901,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       gripError,
       footSlip,
       excite,
+      spacing,
     }),
     dispose() {
       if (disposed) return;
