@@ -228,27 +228,28 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
 
   // ---- realistic bodies -------------------------------------------------------
   // The procedural bodies show until the squad has loaded, and stay if it can't.
+  // Close players get the detailed athletes on High and Ultra; everyone else, and
+  // everyone on Low and Medium, gets the light ones.
   let kits: KitMaterials | null = null;
   const equipment = equipmentKit();
+  const closeDetail = quality === "high" || quality === "ultra";
   let realisticReady = false;
-  loadSquad()
-    .then((squad) => {
+  Promise.all([loadSquad("lo"), closeDetail ? loadSquad("hi") : Promise.resolve(null)])
+    .then(([lo, hi]) => {
       if (disposed) return;
-      let base: T.MeshStandardMaterial | null = null;
-      squad[0]!.scene.traverse((o) => {
-        const m = (o as T.Mesh).material as T.MeshStandardMaterial | undefined;
-        if (!base && m && m.name === "kit") base = m;
-      });
-      if (!base) throw new Error("athlete model has no kit material");
-      kits = new KitMaterials(base);
-      const wear = (a: Athlete, number: number, team: number, cast: boolean) => {
-        const body = new RealisticBody(squad[modelFor(a.role, number, team)]!, a, kits!, a.role === "umpire" ? -1 : team, () => {});
+      kits = new KitMaterials();
+      const wear = (a: Athlete, number: number, team: number, close: boolean, cast: boolean) => {
+        const squad = close && hi ? hi : lo,
+          body = new RealisticBody(squad[modelFor(a.role, number, team)]!, a, kits!, a.role === "umpire" ? -1 : team);
         equipment.dress(body, a.role, team, a.bones.bat, cast);
         body.setShadows(cast);
         return body;
       };
-      for (const actor of actors) actor.body = wear(actor.a, actor.number, actor.team, actor.a.mesh.castShadow);
-      for (const [team, c] of captains.entries()) c.body = wear(c.a, 1, team, c.a.mesh.castShadow);
+      for (const [n, actor] of actors.entries()) {
+        const close = n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
+        actor.body = wear(actor.a, actor.number, actor.team, close, actor.a.mesh.castShadow);
+      }
+      for (const [team, c] of captains.entries()) c.body = wear(c.a, 1, team, true, c.a.mesh.castShadow);
       realisticReady = true;
     })
     .catch((error) => console.warn("realistic athletes unavailable; using built-in bodies", error));

@@ -22,7 +22,8 @@ Unzip the asset packs into MPFB's user data folder. To find that folder, run Ble
 ## Building
 
 ```sh
-blender -b --python-exit-code 1 -P scripts/cricket-characters/build_athlete.py -- scripts/cricket-characters/athletes/athlete-01.json apps/web/public/sinverse-cricket/athletes/athlete-01.glb
+blender -b --python-exit-code 1 -P scripts/cricket-characters/build_athlete.py -- scripts/cricket-characters/athletes/athlete-01.json apps/web/public/sinverse-cricket/athletes/athlete-01.glb hi
+blender -b --python-exit-code 1 -P scripts/cricket-characters/build_athlete.py -- scripts/cricket-characters/athletes/athlete-01.json apps/web/public/sinverse-cricket/athletes/athlete-01-lo.glb lo
 blender -b -P scripts/cricket-characters/preview_athlete.py -- <athlete.glb> <output prefix>
 ```
 
@@ -44,6 +45,7 @@ To add a player, add a JSON file to `athletes/` and its name to `SQUAD` in `real
 | Kit base swapped to the suit's ambient-occlusion map | It keeps the fabric folds but drops the MakeHuman logo printed on the source shirt. The game tints it per team |
 | Textures capped at 1024 px for skin and 512 px for the rest, saved as JPEG where opaque | Each model is about 1.3 to 2.0 MB, down from 13.8 MB |
 | Mixamo-compatible rig, 52 bones including fingers | The game maps the procedural rig onto these bone names |
+| `lo` level: `male1591` body, cloth and hair decimated, no brows or lashes, textures halved, no normal maps | About 6,100 to 7,800 triangles and 0.3 to 0.5 MB, against about 31,600 and 1.3 to 2.0 MB for `hi` |
 
 ## Licences
 
@@ -58,6 +60,11 @@ To add a player, add a JSON file to `athletes/` and its name to `SQUAD` in `real
 - **Hands and feet.** A two-bone reach then pulls the real wrists and ankles onto the driver's, so the bat stays in the hands and planted feet don't slide.
 - **Bat.** The bat stays on the driver's bat bone, so contact is unchanged.
 - **Other equipment.** The helmet, pads and gloves attach to the realistic skeleton.
+- **Detail levels.** On Low and Medium everyone wears the light (`lo`) athlete. On High and Ultra, the batters, bowler, keeper, umpire and toss captains wear the detailed (`hi`) one.
+- **Draw calls.**
+  - Each athlete's meshes share one skeleton, which also means one bone texture on the GPU.
+  - The kit and shoes are one mesh. A `kitPart` vertex attribute selects the shirt, trouser or shoe colour in the shader.
+  - The helmet, pads and gloves are one rigidly skinned mesh, and the bat is one mesh.
 - **Fallback.** Models load in the background. Until they arrive, or if they can't be loaded, the procedural bodies are drawn as before.
 - **Textures.** Embedded textures are decoded through `<img>`, because the site's Content-Security-Policy blocks `fetch()` of `blob:` URLs.
 - **Tests.** `apps/web/e2e/cricket-realistic.spec.ts` checks the models, the kit and the reach accuracy.

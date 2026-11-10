@@ -4,7 +4,11 @@ as a GLB for the browser renderer.
 
 Run with a Blender that has MPFB 2 and the CC0 MakeHuman system asset packs:
 
-  blender -b --python-exit-code 1 -P build_athlete.py -- <athlete.json> <out.glb>
+  blender -b --python-exit-code 1 -P build_athlete.py -- <athlete.json> <out.glb> [hi|lo]
+
+"hi" (the default) is the close-up athlete. "lo" is the same person for distant
+players and lighter presets: a 1,591-vertex body, decimated cloth and hair, no
+brows or lashes, smaller textures and no normal maps.
 
 The athlete file picks a body shape, skin, hair and kit from the asset library
 (see athletes/). Everything it can reference is CC0; see LICENSES.md.
@@ -20,6 +24,10 @@ HumanService = importlib.import_module(MPFB + ".services.humanservice").HumanSer
 
 args = sys.argv[sys.argv.index("--") + 1 :]
 spec_path, out_path = args[0], args[1]
+LOD = args[2] if len(args) > 2 else "hi"
+if LOD not in ("hi", "lo"):
+    raise SystemExit("level of detail must be hi or lo")
+LO = LOD == "lo"
 with open(spec_path, encoding="utf-8") as f:
     spec = json.load(f)
 
@@ -39,11 +47,11 @@ human_info = {
         "firmness": 0.5,
         "race": spec["race"],
     },
-    "proxy": spec.get("proxy", "male_muscle_13290/male_muscle_13290.proxy"),
+    "proxy": "male1591/male1591.proxy" if LO else spec.get("proxy", "male_muscle_13290/male_muscle_13290.proxy"),
     "rig": "mixamo",
     "eyes": "low-poly/low-poly.mhclo",
-    "eyebrows": spec["eyebrows"],
-    "eyelashes": "eyelashes02/eyelashes02.mhclo",
+    "eyebrows": "" if LO else spec["eyebrows"],
+    "eyelashes": "" if LO else "eyelashes02/eyelashes02.mhclo",
     "hair": spec.get("hair", ""),
     "teeth": "",
     "tongue": "",
@@ -74,6 +82,31 @@ bpy.data.objects.remove(basemesh, do_unlink=True)
 for o in list(bpy.data.objects):
     if o.type == "MESH" and (o.name.endswith(".body") or "helper" in o.name.lower()):
         bpy.data.objects.remove(o, do_unlink=True)
+
+if LO:
+    # Distant players: thin out cloth, shoes and hair. The decimation goes first
+    # in the stack so it runs on the rest shape and keeps the skin weights.
+    RATIOS = {"suit": 0.38, "shoes": 0.3}
+    for o in bpy.data.objects:
+        if o.type != "MESH":
+            continue
+        name = o.name.lower()
+        ratio = next((r for k, r in RATIOS.items() if k in name), None)
+        if ratio is None and any(h in name for h in ("short0", "afro", "bob0", "braid", "long0", "ponytail")):
+            ratio = 0.45
+        if ratio is None:
+            continue
+        mod = o.modifiers.new("lod", "DECIMATE")
+        mod.ratio = ratio
+        with bpy.context.temp_override(object=o):
+            bpy.ops.object.modifier_move_to_index(modifier="lod", index=0)
+    # No normal maps at this distance.
+    for m in bpy.data.materials:
+        if not m.node_tree:
+            continue
+        for n in list(m.node_tree.nodes):
+            if n.type == "NORMAL_MAP" or (n.type == "TEX_IMAGE" and n.image and "normal" in n.image.name.lower()):
+                m.node_tree.nodes.remove(n)
 
 # Only hair, brows and lashes are cut-out cards. Everything else must be opaque:
 # MakeHuman routes every texture's alpha into the shader, and the glTF exporter
@@ -137,6 +170,8 @@ for img in bpy.data.images:
     if img.size[0] == 0:
         continue
     limit = 1024 if "skin" in img.name.lower() or "diffuse" in img.name.lower() and "male" in img.name.lower() else 512
+    if LO:
+        limit = 512 if limit == 1024 else 256
     if max(img.size) > limit:
         k = limit / max(img.size)
         img.scale(max(1, int(img.size[0] * k)), max(1, int(img.size[1] * k)))

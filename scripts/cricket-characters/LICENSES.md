@@ -22,7 +22,7 @@ The athletes are fictional. None is based on a real person or on a real crickete
 
 Every model also uses:
 
-- Body proxy `male_muscle_13290`
+- Body proxy `male_muscle_13290` for the detailed models, or `male1591` for the `-lo` models
 - Eyes `low-poly`
 - Eyelashes `eyelashes02`
 - MPFB's built-in `mixamo` rig, which is MPFB data
