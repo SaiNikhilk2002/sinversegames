@@ -6,7 +6,6 @@ import {
   type Dismissal,
   type Fielder,
   type Outcome,
-  type ShotInput,
   type ShotKind,
   type Variation,
 } from "@platform/engines/sinverse-cricket";
@@ -323,8 +322,8 @@ export function runUpProgress(tick: number, style: BowlingStyle) {
 }
 
 // ---------------------------------------------------------------------------
-// Batting. The bat is posed first and the hands are solved onto it, so they
-// can't drift off the handle during a swing.
+// Batting lives in batting.ts. The bat is posed first and the hands are solved
+// onto it, so they can't drift off the handle during a swing.
 // ---------------------------------------------------------------------------
 
 export type Vec3 = [number, number, number];
@@ -335,118 +334,8 @@ export interface BatPose {
   /** Direction the hitting face points. */
   face: Vec3;
 }
-const unit = (v: Vec3): Vec3 => {
-  const l = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0] / l, v[1] / l, v[2] / l];
-};
-const mix3 = (a: Vec3, b: Vec3, u: number): Vec3 => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
-
 /** Same mapping the batting physics uses for where the bat meets the ball. */
 export const BAT_HEIGHTS: Record<ShotKind, number> = SHOT_HEIGHTS;
-/** Ticks after the shot input at which the physics rates contact as best timed. */
-export const IMPACT_TICKS = 8;
-export function nominalImpact(shot: Pick<ShotInput, "kind" | "direction" | "face" | "foot">) {
-  const angle = (shot.direction * Math.PI) / 180;
-  return { x: Math.sin(angle) * 0.45 + shot.face * 0.55, y: BAT_HEIGHTS[shot.kind], z: 8.8 - shot.foot * 0.45 };
-}
-
-const STANCE_BAT: BatPose = { grip: [0.02, 0.94, 0.3], dir: unit([-0.06, -0.96, 0.1]), face: [1, 0, 0] };
-const BACKLIFT: BatPose = { grip: [0.02, 1.08, 0.38], dir: unit([-0.7, 0.6, -0.22]), face: [0.6, 0.7, 0] };
-const IMPACT_DIR: Record<ShotKind, Vec3> = {
-  defend: unit([0.28, -0.95, 0.06]),
-  straight: unit([0.32, -0.92, 0.08]),
-  cover: unit([0.22, -0.9, 0.36]),
-  "on-drive": unit([0.3, -0.92, -0.2]),
-  cut: unit([0.08, -0.28, 0.95]),
-  pull: unit([0.72, 0.05, 0.68]),
-  sweep: unit([0.72, -0.55, 0.42]),
-  loft: unit([0.5, -0.82, 0.1]),
-};
-const FOLLOW: Record<ShotKind, BatPose> = {
-  defend: { grip: [0.12, 0.95, 0.3], dir: unit([0.3, -0.95, 0.06]), face: [1, 0, 0] },
-  straight: { grip: [0.32, 1.46, 0.22], dir: unit([-0.2, 0.75, -0.62]), face: [0.1, 0.4, -0.9] },
-  cover: { grip: [0.2, 1.4, 0.42], dir: unit([-0.45, 0.6, -0.65]), face: [0, 0.6, -0.8] },
-  "on-drive": { grip: [0.32, 1.38, 0.04], dir: unit([-0.1, 0.72, -0.68]), face: [0.2, 0.3, -0.9] },
-  cut: { grip: [0.16, 1.1, 0.46], dir: unit([-0.65, 0.2, 0.72]), face: [0.6, 0.3, 0.7] },
-  pull: { grip: [0.12, 1.34, -0.1], dir: unit([-0.72, 0.42, -0.55]), face: [-0.5, 0.2, 0.8] },
-  sweep: { grip: [0.2, 0.86, -0.08], dir: unit([-0.5, 0.42, -0.75]), face: [-0.3, 0.5, 0.8] },
-  loft: { grip: [0.3, 1.56, 0.12], dir: unit([-0.32, 0.86, -0.4]), face: [0, 0.5, -0.85] },
-};
-
-/**
- * The bat at this moment. `impact` is the contact point in the batter's root
- * space: the rig passes the live ball there while it's close, so the blade
- * meets the ball the simulation actually hit.
- */
-export function batPose(args: {
-  tick: number;
-  shot: Pick<ShotInput, "kind" | "tick"> | null;
-  contactTick: number;
-  impact: Vec3 | null;
-}): BatPose {
-  const { tick, shot, contactTick, impact } = args;
-  const lift = ease(clamp01((tick - RELEASE_TICK + 8) / 34));
-  const ready: BatPose = {
-    grip: mix3(STANCE_BAT.grip, BACKLIFT.grip, lift),
-    dir: unit(mix3(STANCE_BAT.dir, BACKLIFT.dir, lift)),
-    face: unit(mix3(STANCE_BAT.face, BACKLIFT.face, lift)),
-  };
-  if (!shot) {
-    // No shot played: the bat comes back down out of the line as the ball goes through.
-    const leave = ease(clamp01((tick - RELEASE_TICK - 52) / 30));
-    return leave ? { grip: mix3(ready.grip, [0.04, 1.02, 0.18], leave), dir: unit(mix3(ready.dir, [-0.1, -0.9, 0.1], leave)), face: ready.face } : ready;
-  }
-  const phase = tick - shot.tick,
-    dir = IMPACT_DIR[shot.kind],
-    point = impact ?? [0.1, BAT_HEIGHTS[shot.kind], 0.42];
-  const atImpact: BatPose = {
-    grip: [point[0] - dir[0] * BAT.sweet, point[1] - dir[1] * BAT.sweet, point[2] - dir[2] * BAT.sweet],
-    dir,
-    face: [1, 0.1, 0],
-  };
-  const peak = contactTick >= 0 ? Math.max(1, contactTick - shot.tick) : IMPACT_TICKS;
-  if (phase < peak) {
-    const u = ease(clamp01(phase / peak));
-    return { grip: mix3(ready.grip, atImpact.grip, u), dir: unit(mix3(ready.dir, atImpact.dir, u)), face: unit(mix3(ready.face, atImpact.face, u)) };
-  }
-  const end = FOLLOW[shot.kind];
-  const u = ease(clamp01((phase - peak) / (shot.kind === "defend" ? 26 : 24)));
-  const settled = ease(clamp01((phase - peak - 90) / 50));
-  const follow = { grip: mix3(atImpact.grip, end.grip, u), dir: unit(mix3(atImpact.dir, end.dir, u)), face: unit(mix3(atImpact.face, end.face, u)) };
-  return settled ? { grip: mix3(follow.grip, [0.06, 1.0, 0.2], settled), dir: unit(mix3(follow.dir, [-0.15, -0.95, 0.1], settled)), face: follow.face } : follow;
-}
-
-/** Body shape of the batter through a shot: 0 at stance, 1 at impact and after. */
-export function applyShotBody(p: Pose, kind: ShotKind, foot: number, u: number) {
-  const front = Math.max(0, foot),
-    back = Math.max(0, -foot);
-  p[CH.hipX] = p[CH.hipX]! + (front * 0.3 - back * 0.35) * u;
-  p[CH.lFootX] = p[CH.lFootX]! + (front * 0.75 + (kind === "pull" || kind === "cut" ? -0.04 : 0.12)) * u;
-  p[CH.rFootX] = p[CH.rFootX]! - back * 0.5 * u;
-  if (kind === "sweep") {
-    p[CH.hipY] = p[CH.hipY]! - 0.34 * u;
-    p[CH.pitch] = p[CH.pitch]! + 0.26 * u;
-    p[CH.lFootX] = p[CH.lFootX]! + 0.28 * u;
-    p[CH.rFootY] = p[CH.rFootY]! + 0.08 * u;
-  } else if (kind === "pull" || kind === "cut") {
-    p[CH.hipY] = p[CH.hipY]! + 0.03 * u;
-    p[CH.pitch] = p[CH.pitch]! - 0.2 * u;
-    p[CH.yaw] = p[CH.yaw]! + (kind === "pull" ? 0.75 : -0.15) * u;
-    p[CH.chestY] = p[CH.chestY]! + (kind === "pull" ? 0.45 : -0.1) * u;
-  } else if (kind === "cover") {
-    p[CH.yaw] = p[CH.yaw]! - 0.25 * u;
-    p[CH.pitch] = p[CH.pitch]! + 0.12 * u;
-  } else if (kind === "on-drive") {
-    p[CH.yaw] = p[CH.yaw]! + 0.32 * u;
-    p[CH.pitch] = p[CH.pitch]! + 0.1 * u;
-  } else if (kind === "loft") {
-    p[CH.pitch] = p[CH.pitch]! - 0.06 * u;
-    p[CH.yaw] = p[CH.yaw]! + 0.3 * u;
-  } else {
-    p[CH.pitch] = p[CH.pitch]! + (kind === "defend" ? 0.14 : 0.08) * u;
-  }
-  return p;
-}
 
 // ---------------------------------------------------------------------------
 // Clip selection: what the match state says each actor is doing.

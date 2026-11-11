@@ -19,9 +19,7 @@ import {
   CLIPS,
   DELIVERY,
   FootPlanter,
-  IMPACT_TICKS,
   RELEASE_ROOT,
-  batPose,
   bowlingStyle,
   makePose,
   sampleClip,
@@ -52,43 +50,7 @@ test.describe("Cricket animation system", () => {
     expect(BAT_HEIGHTS).toEqual(SHOT_HEIGHTS);
   });
 
-  test("hands stay on the handle through every shot, start to finish", () => {
-    const a = buildAthlete("bat", 1, 0, 2);
-    const hand = new T.Vector3(),
-      handle = new T.Vector3();
-    let worst = 0;
-    for (const kind of SHOTS) {
-      for (const tick of [100, 120, 150, 160, 164, 168, 172, 180, 195, 220, 300]) {
-        const shot = { kind, tick: 160 };
-        const bat = batPose({ tick, shot: tick >= 160 ? shot : null, contactTick: -1, impact: [0.12, BAT_HEIGHTS[kind], 0.42] });
-        const pose = sampleClip(CLIPS.stance, 0, makePose());
-        holdBat(a, pose, bat);
-        a.root.updateMatrixWorld(true);
-        handCentre(a, true, hand);
-        batPoint(a, BAT.top, handle);
-        worst = Math.max(worst, hand.distanceTo(handle));
-        handCentre(a, false, hand);
-        batPoint(a, BAT.bottom, handle);
-        worst = Math.max(worst, hand.distanceTo(handle));
-      }
-    }
-    expect(worst, "worst hand-to-handle gap, metres").toBeLessThan(0.03);
-  });
-
-  test("the bat stays clear of the body at impact", () => {
-    const a = buildAthlete("bat", 1, 0, 2);
-    const spine = new T.Vector3(),
-      point = new T.Vector3();
-    for (const kind of SHOTS) {
-      const bat = batPose({ tick: 168, shot: { kind, tick: 160 }, contactTick: 168, impact: [0.12, BAT_HEIGHTS[kind], 0.45] });
-      const pose = sampleClip(CLIPS.stance, 0, makePose());
-      holdBat(a, pose, bat);
-      a.root.updateMatrixWorld(true);
-      a.bones.spine.getWorldPosition(spine);
-      batPoint(a, BAT.sweet, point);
-      expect(Math.hypot(point.x - spine.x, point.z - spine.z), `${kind} sweet spot from the spine`).toBeGreaterThan(0.2);
-    }
-  });
+  // Batting rules (hands on the handle, contact, footwork, head) are in cricket-batting.spec.ts.
 
   test("the bowling hand reaches the simulated release point at the release tick, for every action", () => {
     const a = buildAthlete("bowl", 10, 1, 2);
@@ -175,7 +137,6 @@ test.describe("Cricket animation system", () => {
     expect(at(0)[CH.rHandY]!, "arm comes over the top at release").toBeGreaterThan(at(-14)[CH.rHandY]!);
     expect(at(10)[CH.rHandY]!, "arm comes down in the follow-through").toBeLessThan(at(0)[CH.rHandY]!);
     expect(at(10)[CH.pitch]!, "body drives forward").toBeGreaterThan(at(0)[CH.pitch]!);
-    expect(IMPACT_TICKS).toBe(8);
   });
 });
 
@@ -202,6 +163,22 @@ test.describe("Cricket camera director", () => {
     const settled = { ...base, frame: { ...base.frame, tick: 85 } };
     expect(direct(settled).name).toBe("batter");
     expect(direct({ ...settled, humanBatting: false }).name).toBe("bowler");
+  });
+  test("the batting close-up frames the striker; the replay director cuts delivery, close-up, then the ball", () => {
+    const close = direct({ ...base, camera: "closeup" });
+    // Side-on from the off side, a few metres from the batter, looking at the batter's stance.
+    expect(close.px - base.batterX).toBeGreaterThan(3);
+    expect(close.px - base.batterX).toBeLessThan(6);
+    expect(Math.abs(close.lz - base.batterZ)).toBeLessThan(1);
+    const replay = { ...base, camera: "director" as const, replay: true, contactTick: 160 };
+    expect(direct({ ...replay, frame: { ...base.frame, tick: 110, ball: { x: 0.3, y: 1.4, z: -5 } } }).name).toBe("replay-delivery");
+    expect(direct({ ...replay, frame: { ...base.frame, tick: 150, ball: { x: 0.2, y: 0.6, z: 6 } } }).name).toBe("replay-closeup");
+    // Held through the shot, then off after the ball.
+    const struck = { tick: 190, ball: { x: 4, y: 2, z: 2 }, contact: true, mode: "struck" as const, bounce: false };
+    expect(direct({ ...replay, frame: struck }).name).toBe("replay-closeup");
+    expect(direct({ ...replay, frame: { ...struck, tick: 240 } }).name).toBe("track");
+    // A live match never uses the replay director's cuts.
+    expect(direct({ ...replay, replay: false, frame: struck }).name).not.toBe("replay-closeup");
   });
   test("tracks a struck ball, and hands over to the rope for one going all the way", () => {
     expect(direct({ ...base, frame: { ...inAir, ball: { x: 5, y: 8, z: -6 } } }).name).toBe("track");

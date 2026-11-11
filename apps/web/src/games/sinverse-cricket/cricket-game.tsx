@@ -58,6 +58,7 @@ const CAMERAS: CameraName[] = [
   "batter",
   "bowler",
   "side",
+  "closeup",
   "behind",
   "keeper",
   "slip",
@@ -398,6 +399,22 @@ function CricketViewport({
       </span>
     </>
   );
+}
+/**
+ * When the ball reached the bat's line and how far across from the bat it was,
+ * from the recorded frames (presentation only). Unknown until it has happened;
+ * a finished delivery's answer is kept.
+ */
+const arrivals = new WeakMap<Delivery, { arrivalTick?: number; passLateral?: number }>();
+function arrival(d: Delivery): { arrivalTick?: number; passLateral?: number } {
+  const known = arrivals.get(d);
+  if (known) return known;
+  const line = 8.8 - (d.shot?.foot ?? 0) * 0.45,
+    f = d.frames.find((f) => f.tick >= RELEASE_TICK && f.ball.z >= line),
+    batX = d.shot ? Math.sin((d.shot.direction * Math.PI) / 180) * 0.45 + d.shot.face * 0.55 : 0;
+  const result = f ? { arrivalTick: f.tick, passLateral: Math.abs(f.ball.x - batX) } : {};
+  if (d.outcome) arrivals.set(d, result);
+  return result;
 }
 function frameOf(d: Delivery): Frame {
   return {
@@ -1020,6 +1037,7 @@ export function CricketGame({
             contactTick: source.hit ? source.contactTick : -1,
             contactPoint: source.hit ? source.contactPoint : null,
             edge: source.edge,
+            ...arrival(source),
             variation: r.arming ? preferences.current.bowl.variation : source.bowling.variation,
             ceremony: r.ceremony.feed(m.tossFace, config.team, preferences.current.reduced),
             intent: preferences.current.intent,

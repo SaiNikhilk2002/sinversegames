@@ -8,12 +8,13 @@ import { RELEASE_TICK, VENUES, type CricketConfig, type Frame, type Outcome } fr
  * presentation time (simulation ticks stay fixed).
  */
 
-export type CameraName = "broadcast" | "batter" | "bowler" | "side" | "behind" | "keeper" | "slip" | "boundary" | "aerial" | "track" | "director";
+export type CameraName = "broadcast" | "batter" | "bowler" | "side" | "closeup" | "behind" | "keeper" | "slip" | "boundary" | "aerial" | "track" | "director";
 export const CAMERA_LABELS: Record<CameraName, string> = {
   broadcast: "Broadcast",
   batter: "Batter end",
   bowler: "Bowler end",
   side: "Side on",
+  closeup: "Batting close-up",
   behind: "Behind batter",
   keeper: "Keeper",
   slip: "Slip",
@@ -48,6 +49,8 @@ export interface DirectorInput {
   batterX: number;
   batterZ: number;
   replay: boolean;
+  /** Tick the bat met the ball (-1 if it hasn't), for holding the shot through contact. */
+  contactTick?: number;
   /** Actual reaction actor's presentation position, after a confirmed wicket. */
   reaction?: { x: number; y: number; z: number };
 }
@@ -59,6 +62,8 @@ const FIXED: Partial<Record<CameraName, (i: DirectorInput) => Shot>> = {
   batter: () => shot("batter", [0.8, 2.75, 15.6], [0, 1.0, -4], 42),
   bowler: () => shot("bowler", [-1.4, 4.1, -23], [0, 0.7, 7], 34),
   side: () => shot("side", [31, 6.5, 2], [0, 1.1, 1], 36),
+  // Side-on from point, close: the batter's feet, hips, shoulders and bat through the shot.
+  closeup: (i) => shot("closeup", [i.batterX + 4.4, 1.15, i.batterZ - 0.5], [i.batterX + 0.2, 0.92, i.batterZ - 0.45], 34),
   behind: () => shot("behind", [-2.1, 2.45, 15.6], [0.25, 0.95, 3], 34),
   keeper: () => shot("keeper", [1.35, 1.8, 15], [0, 0.95, 7.5], 32),
   slip: () => shot("slip", [4.6, 1.7, 13.4], [-0.3, 0.8, 7.5], 32),
@@ -136,6 +141,14 @@ export function direct(i: DirectorInput): Shot {
       return shot("wicket-caught", [i.batterX + 3, 1.7, i.batterZ - 3.8], [i.batterX, 1.25, i.batterZ], 32, 3);
     }
   }
+  // The replay director: the delivery from behind the bowler, then a cut to
+  // side-on close to the batter as the ball arrives, held through the shot.
+  if (camera === "director" && i.replay) {
+    const since = frame.contact && i.contactTick !== undefined && i.contactTick >= 0 ? frame.tick - i.contactTick : -1;
+    // Over the bowler's arm, clear of the non-striker and umpire on the other side.
+    if (!frame.contact && frame.ball.z < 1.5) return shot("replay-delivery", [1.7, 2.8, -15.5], [-0.25, 1.0, i.batterZ], 22, 60, 60);
+    if (!frame.contact || since < 54) return { ...FIXED.closeup!(i), name: "replay-closeup" };
+  }
   // Ball in play.
   if (frame.contact) {
     const ratio = ropeRatio(frame.ball, i.config.venue);
@@ -143,7 +156,7 @@ export function direct(i: DirectorInput): Shot {
     return tracking(i);
   }
   if (frame.mode === "throw") return shot("throw", [-3, 6, 21], [frame.ball.x * 0.3, 1, Math.max(4, frame.ball.z * 0.5)], 36, 3);
-  if (camera === "director") return shot("replay-side", [11, 2.2, 6], [0, 1, Math.max(0, Math.min(9, frame.ball.z))], 38, 3.5);
+  if (camera === "director") return { ...FIXED.closeup!(i), name: "replay-closeup" };
   // Before the ball is bowled: the player's working view, settled well before release.
   if (frame.tick < RELEASE_TICK + 8 || !frame.contact) return i.humanBatting ? FIXED.batter!(i) : FIXED.bowler!(i);
   return FIXED.broadcast!(i);

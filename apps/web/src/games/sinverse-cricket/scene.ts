@@ -4,6 +4,7 @@ import { KitMaterials, RealisticBody, equipmentKit, loadSquad, modelFor } from "
 import { MotionPlayer, loadMotion, type MotionLibrary, type OneShot } from "./motion";
 import {
   RELEASE_TICK,
+  SHOT_HEIGHTS,
   STEP,
   STUMPS_Z,
   type CricketConfig,
@@ -18,18 +19,14 @@ import {
   CH,
   CLIPS,
   DELIVERY,
-  IMPACT_TICKS,
   RIG,
   GATHER,
   FootPlanter,
   applyGait,
-  applyShotBody,
-  batPose,
   blendPose,
   bowlingStyle,
   clamp01,
   makePose,
-  nominalImpact,
   sampleClip,
   selectBowler,
   selectFielder,
@@ -43,6 +40,8 @@ import {
   type Selection,
   type Vec3,
 } from "./animation";
+import { FLIGHT_TICKS, batterStyle, batting, type BattingInput, type ContactKind } from "./batting";
+import type { BatPose, BowlingStyle } from "./animation";
 import { applyPose, batPoint, buildAthlete, handCentre, holdBat, paintKit, paintRoughness, placeBat, type Athlete, type Role } from "./character";
 import { crowdEnergy, direct, ropeRatio, type CameraName } from "./director";
 import { LIGHTS, QUALITY, buildStadium, lightingFor, type Lighting, type QualityName } from "./stadium";
@@ -67,6 +66,9 @@ export type SceneFeed = {
   /** Where the ball met the bat, so a slow frame rate cannot move the visual contact. */
   contactPoint?: { x: number; y: number; z: number } | null;
   edge?: boolean;
+  /** Tick the ball reached the bat's line, and how far across from the bat it was (replays). */
+  arrivalTick?: number;
+  passLateral?: number;
   variation?: Variation | null;
   replay?: boolean;
   result?: MatchMoment["result"];
@@ -415,6 +417,18 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
     prevBallVy = 0;
   const frozenImpact: Vec3 = [0, 0, 0];
   let impactFrozen = false;
+  // Batting presentation: the ball's measured approach speed, the expected arrival
+  // at the bat, the closest it passed the bat, and the bat being drawn (for blends).
+  let ballMemo = { tick: -1, z: 0 },
+    approach = 0,
+    arrivalEst = -1,
+    passGap = Infinity,
+    strikerBat: BatPose | null = null,
+    strikerInput: BattingInput | null = null,
+    batFrom: BatPose | null = null,
+    batFadeAt = -10,
+    lastBat: BatPose | null = null;
+  const contactPose = makePose();
   const planted = [v3(NaN), v3(NaN)];
   let plantResets = 0;
 
@@ -453,6 +467,59 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   };
 
   /** Writes a clip (with a short crossfade from whatever played before) into `out`. */
+  /** Everything the batting animation needs about this ball, in the striker's root space. */
+  const strikerFrame = (actor: Actor, px: number, pz: number, feed: SceneFeed, tick: number, hit: boolean, contactTick: number, style: BowlingStyle, preMatch: boolean): BattingInput => {
+    const s = actor.a.look.scale,
+      local = (wx: number, wy: number, wz: number): Vec3 => [-(wz - pz) / s, wy / s, (wx - px) / s],
+      shot = feed.shot,
+      // Before a human swings, their selected shot is the plan the body prepares for.
+      plan = shot ?? (feed.humanBatting && !feed.replay && !preMatch ? (feed.intent ?? null) : null),
+      ball = feed.frame.ball,
+      line = 8.8 - (plan?.foot ?? 0) * 0.45;
+    // When the ball reaches the bat: known in replays, otherwise from its measured speed.
+    if (feed.arrivalTick !== undefined) arrivalEst = feed.arrivalTick;
+    else if (tick > RELEASE_TICK + 2 && approach > 2 && ball.z < line) {
+      const est = tick + (line - ball.z) / approach / STEP;
+      arrivalEst = arrivalEst < 0 ? est : arrivalEst + (est - arrivalEst) * 0.35;
+    } else if (arrivalEst < 0 || tick <= RELEASE_TICK) arrivalEst = RELEASE_TICK + FLIGHT_TICKS[style];
+    const batX = plan ? Math.sin((plan.direction * Math.PI) / 180) * 0.45 + plan.face * 0.55 : 0;
+    if (tick > RELEASE_TICK && Math.abs(ball.z - line) < 0.3) passGap = Math.min(passGap, Math.abs(ball.x - batX));
+    const met = feed.contactPoint ?? null,
+      contacted = contactTick >= 0 && !!met;
+    let E = contacted ? contactTick : arrivalEst;
+    if (shot && !contacted) E = Math.max(E, shot.tick + 1);
+    // Where the bat meets the ball: the engine's contact point, or the line the batter chose.
+    let impact: Vec3;
+    if (contacted) impact = local(met!.x, met!.y, met!.z);
+    else {
+      const h = plan ? SHOT_HEIGHTS[plan.kind] : 0.6,
+        near = clamp01(1 - Math.abs(ball.z - line) / 1.1) * 0.6;
+      impact = local(batX + (ball.x - batX) * near, h + (ball.y - h) * near, line);
+    }
+    const gap = feed.passLateral ?? passGap,
+      edgeSide: ContactKind = met && met.x > batX ? "outside-edge" : "inside-edge";
+    const contact: ContactKind = contacted ? (feed.edge ? edgeSide : "clean") : shot && tick > E + 1 ? (gap < 0.45 ? "beaten" : "miss") : "pending";
+    // Eyes: the bowler's hand, then the ball; after contact, off the bat after it.
+    let look: Vec3;
+    if (tick < RELEASE_TICK - 4) look = local(0.55, 2.0, -8.5);
+    else if (contacted && tick > contactTick) {
+      const u = clamp01(((tick - contactTick) * STEP) / 0.3);
+      look = local(met!.x + (ball.x - met!.x) * u, met!.y + (ball.y - met!.y) * u, met!.z + (ball.z - met!.z) * u);
+    } else look = local(ball.x, ball.y, ball.z);
+    const number = feed.actorNumbers?.[STRIKER] ?? actor.number;
+    return {
+      tick,
+      plan,
+      shotTick: shot ? shot.tick : null,
+      contactTick: E,
+      contact,
+      impact,
+      look,
+      style: batterStyle(number * 31 + feed.battingTeam * 7),
+      lateLeave: !shot && feed.humanBatting && !feed.replay && tick > E + 2,
+    };
+  };
+
   const resolve = (actor: Actor, name: string, wall: number, reduced: boolean) => {
     if (actor.clip !== name) {
       actor.from.set(actor.out);
@@ -518,6 +585,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         history.length = 0;
         contactSeen = false;
         impactFrozen = false;
+        approach = 0;
+        arrivalEst = -1;
+        passGap = Infinity;
         wicketKick = 0;
         if (tick < lastTick) for (const actor of actors) actor.prev.set(NaN, NaN, NaN);
       }
@@ -529,6 +599,12 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       const hit = frame.contact && (contactTick < 0 || tick >= contactTick);
       const running = frame.runner % 1 > 0.0001;
       const style = bowlingStyle(feed.variation ?? undefined);
+      // The ball's approach speed, measured from successive ticks, for when it will reach the bat.
+      if (tick !== ballMemo.tick) {
+        const step = tick - ballMemo.tick;
+        if (step > 0 && step <= 8 && tick > RELEASE_TICK + 1 && frame.ball.z > ballMemo.z) approach = (frame.ball.z - ballMemo.z) / (step * STEP);
+        ballMemo = { tick, z: frame.ball.z };
+      }
       const moment: MatchMoment = { tick, outcome: dead ? outcome : null, deadAge, contact: hit, result: feed.result ?? null };
       const wicket = dead ? (outcome?.wicket ?? null) : null;
       const ceremony = feed.ceremony;
@@ -698,16 +774,14 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         if (sel === "gait") {
           gaitInto(actor);
           name = "gait";
-        } else if (sel === "bat") {
+        } else if (sel === "bat" || (n === STRIKER && typeof sel === "object" && sel.clip === "beaten")) {
+          sel = "bat";
           sampleClip(CLIPS.stance, 0, p);
-          const swing = shot ? clamp01((tick - shot.tick) / IMPACT_TICKS) : 0;
-          if (shot) applyShotBody(p, shot.kind, shot.foot, swing);
-          else if (feed.intent && !preMatch) applyShotBody(p, feed.intent.kind, feed.intent.foot, 0.65);
-          // A little trigger movement as the bowler lets go.
-          const trigger = clamp01((tick - RELEASE_TICK + 12) / 20);
-          p[CH.hipY] = p[CH.hipY]! + trigger * 0.012;
-          p[CH.headY] = 1.15;
-          name = shot ? `bat-${shot.kind}` : "bat";
+          const input = strikerFrame(actor, px, pz, feed, tick, hit, contactTick, style, !!preMatch);
+          const result = batting(input, p);
+          strikerInput = input;
+          strikerBat = result.bat;
+          name = `bat-${result.shot}`;
         } else if (sel === "delivery") {
           sampleClip(DELIVERY[style], (tick - RELEASE_TICK) * STEP, p);
           name = `delivery-${style}`;
@@ -767,38 +841,33 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           }
         }
 
+        if (n === STRIKER && actor.clip !== name && name.startsWith("bat-") && actor.clip.startsWith("bat-") && lastBat) {
+          batFrom = lastBat;
+          batFadeAt = wall;
+        }
         resolve(actor, name, wall, feed.reducedMotion);
         const out = actor.out;
 
         // ---- apply --------------------------------------------------------------
-        if (n === STRIKER && sel === "bat") {
-          // Contact point in this batter's root space (chest +z = world +x, left = bowler).
-          const s = a.look.scale;
-          const local = (wx: number, wy: number, wz: number): Vec3 => [-(wz - pz) / s, wy / s, (wx - px) / s];
-          let impact: Vec3 | null = null;
-          if (shot) {
-            const nominal = nominalImpact(shot);
-            const near = clamp01(1 - Math.abs(ball.z - nominal.z) / 1.1);
-            const aimed = hit ? null : local(nominal.x + (ball.x - nominal.x) * near, nominal.y + (ball.y - nominal.y) * near, nominal.z);
-            if (hit && !impactFrozen) {
-              const met = feed.contactPoint ?? ball;
-              const at = local(met.x, met.y, met.z);
-              frozenImpact[0] = at[0];
-              frozenImpact[1] = at[1];
-              frozenImpact[2] = at[2];
-              impactFrozen = true;
-            }
-            impact = hit ? frozenImpact : aimed;
-          }
-          if (hit && shot && !contactSeen) {
+        if (n === STRIKER && sel === "bat" && strikerBat && strikerInput) {
+          if (hit && shot && !contactSeen && feed.contactPoint) {
             // Measure the rig at the contact tick itself, even if no frame was drawn on that tick.
             contactSeen = true;
-            const met = feed.contactPoint ?? ball;
-            holdBat(a, out, batPose({ tick: contactTick, shot, contactTick, impact }));
+            const met = feed.contactPoint;
+            sampleClip(CLIPS.stance, 0, contactPose);
+            const atContact = batting({ ...strikerInput, tick: contactTick }, contactPose);
+            holdBat(a, contactPose, atContact.bat);
             a.root.updateMatrixWorld(true);
             contactError = batPoint(a, BAT.sweet, tmp).distanceTo(tmp2.set(met.x, met.y, met.z));
+            if (strikerInput.contact === "inside-edge" || strikerInput.contact === "outside-edge") contactError = Math.max(0, contactError - 0.055);
           }
-          const bat = batPose({ tick, shot, contactTick: hit ? contactTick : -1, impact });
+          // A change of shot (a live batter changing their mind) blends rather than jumps.
+          let bat = strikerBat;
+          if (batFrom && wall - batFadeAt < 0.16 && !feed.reducedMotion) {
+            const w = clamp01((wall - batFadeAt) / 0.16);
+            bat = { grip: [batFrom.grip[0] + (bat.grip[0] - batFrom.grip[0]) * w, batFrom.grip[1] + (bat.grip[1] - batFrom.grip[1]) * w, batFrom.grip[2] + (bat.grip[2] - batFrom.grip[2]) * w], dir: bat.dir.map((v, k) => batFrom!.dir[k]! + (v - batFrom!.dir[k]!) * w) as Vec3, face: bat.face.map((v, k) => batFrom!.face[k]! + (v - batFrom!.face[k]!) * w) as Vec3 };
+          }
+          lastBat = bat;
           holdBat(a, out, bat);
           a.root.updateMatrixWorld(true);
           if (shot) {
@@ -1021,10 +1090,12 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         batterX: actors[STRIKER]!.a.root.position.x,
         batterZ: actors[STRIKER]!.a.root.position.z,
         replay: !!feed.replay,
+        contactTick,
         reaction: dead && wicket ? reactionActor.a.root.position : undefined,
       });
+      // The replay director cuts between its shots rather than sweeping.
+      const snap = feed.reducedMotion || snapCamera || (pick.name !== shotName && pick.name.startsWith("replay-"));
       shotName = pick.name;
-      const snap = feed.reducedMotion || snapCamera;
       const kP = snap ? 1 : 1 - Math.exp(-pick.rate * dt),
         kL = snap ? 1 : 1 - Math.exp(-pick.lookRate * dt);
       snapCamera = false;
