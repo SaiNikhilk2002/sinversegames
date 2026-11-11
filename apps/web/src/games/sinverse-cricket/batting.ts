@@ -32,12 +32,16 @@ export type BattingShot =
   | "cover-drive"
   | "on-drive"
   | "lofted-drive"
+  | "lofted-cover"
+  | "lofted-on"
+  | "slog"
   | "pull"
   | "hook"
   | "square-cut"
   | "late-cut"
   | "sweep"
   | "reverse-sweep"
+  | "paddle-sweep"
   | "flick"
   | "glance";
 export type ContactKind = "pending" | "clean" | "inside-edge" | "outside-edge" | "miss" | "beaten";
@@ -60,13 +64,13 @@ export function battingShot(plan: Pick<ShotInput, "kind" | "direction" | "foot">
     case "on-drive":
       return dir < -75 ? "glance" : dir < -40 ? "flick" : "on-drive";
     case "loft":
-      return "lofted-drive";
+      return dir > 25 ? "lofted-cover" : dir < -45 ? "slog" : dir < -20 ? "lofted-on" : "lofted-drive";
     case "pull":
       return dir <= -85 ? "hook" : "pull";
     case "cut":
       return dir > 100 ? "late-cut" : "square-cut";
     case "sweep":
-      return dir > 20 ? "reverse-sweep" : "sweep";
+      return dir > 20 ? "reverse-sweep" : dir < -100 ? "paddle-sweep" : "sweep";
   }
 }
 
@@ -172,12 +176,20 @@ export const SHOTS: Record<Exclude<BattingShot, "leave">, Spec> = {
   "cover-drive": S({ step: "front", plane: "vertical", lead: 0.06, ahead: 0.14, yaw: -0.1, chest: -0.02, pitch: 0.46, followA: -122, followB: -52, yawF: 0.24, chestF: 0.26 }),
   "on-drive": S({ step: "front", plane: "vertical", lead: 0.1, ahead: 0.1, yaw: 0.36, chest: 0.1, yawF: 0.66, chestF: 0.36 }),
   "lofted-drive": S({ step: "front", plane: "vertical", lead: 0.12, ahead: -0.24, followA: -162, followB: -90, lift: 0.28, hipY: -0.12, pitch: 0.34, roll: -0.1, yaw: 0.26, yawF: 0.56, chestF: 0.4, pitchF: 0.08, hold: 0.7 }),
+  // Over the covers: the cover drive's shape, opened up and lifted through a high finish.
+  "lofted-cover": S({ step: "front", plane: "vertical", lead: 0.1, ahead: -0.16, yaw: -0.08, chest: -0.02, pitch: 0.36, followA: -166, followB: -88, lift: 0.3, hipY: -0.12, roll: -0.12, yawF: 0.3, chestF: 0.3, pitchF: 0.1, hold: 0.7 }),
+  // Over mid-on and midwicket: the on drive's turn of the hips, lifted, the bat finishing high over the front shoulder.
+  "lofted-on": S({ step: "front", plane: "vertical", lead: 0.12, ahead: -0.14, yaw: 0.4, chest: 0.12, pitch: 0.34, followA: -164, followB: -84, lift: 0.3, hipY: -0.12, roll: -0.1, yawF: 0.86, chestF: 0.42, pitchF: 0.1, hold: 0.7 }),
+  // An aggressive heave to leg off the front foot: hips and shoulders turn hard, bat across the line.
+  slog: S({ step: "front", plane: "horizontal", lead: 0.14, across: 0.04, ahead: -0.08, followA: -172, followB: -70, lift: 0.32, weight: 0.62, hipY: -0.16, pitch: 0.3, roll: -0.08, yaw: 0.52, chest: 0.14, yawF: 1.25, chestF: 0.48, pitchF: 0.14, hold: 0.7, roll2: 0.45 }),
   pull: S({ step: "back", plane: "horizontal", back: 0.16, across: 0.2, ahead: 0, followA: -138, followB: -40, lift: 0.1, weight: 0.32, hipY: 0.03, pitch: 0.12, roll: 0.06, yaw: 0.6, chest: 0.16, yawF: 1.15, chestF: 0.42, pitchF: 0.06, roll2: 0.5 }),
   hook: S({ step: "back", plane: "horizontal", back: 0.2, across: 0.16, ahead: -0.05, followA: -150, followB: -45, lift: 0.24, weight: 0.25, hipY: 0.04, pitch: 0.04, roll: 0.2, yaw: 0.76, chest: 0.2, yawF: 1.4, chestF: 0.5, pitchF: -0.02, roll2: 0.4 }),
   "square-cut": S({ step: "back", plane: "horizontal", back: 0.1, across: 0.3, ahead: 0.05, followA: -110, followB: -40, lift: 0.18, weight: 0.35, hipY: -0.02, pitch: 0.3, roll: 0.05, yaw: -0.16, chest: -0.05, yawF: 0.16, chestF: 0.12, pitchF: 0.24, roll2: -0.4 }),
   "late-cut": S({ step: "back", plane: "horizontal", back: 0.14, across: 0.3, ahead: 0.12, arc: 0.6, followA: -40, followB: -32, lift: 0.04, weight: 0.3, hipY: -0.04, pitch: 0.38, roll: 0.04, yaw: -0.26, chest: -0.08, yawF: -0.18, chestF: -0.04, pitchF: 0.36, hold: 0.5, roll2: -0.3 }),
   sweep: S({ step: "sweep", plane: "low", lead: 0.22, ahead: 0, followA: -130, followB: -50, lift: 0.18, weight: 0.55, hipY: -0.4, pitch: 0.56, roll: -0.05, yaw: 0.16, chest: 0.06, yawF: 0.62, chestF: 0.3, pitchF: 0.42 }),
   "reverse-sweep": S({ step: "sweep", plane: "low", lead: 0.2, ahead: 0, followA: -120, followB: -55, lift: 0.14, weight: 0.55, hipY: -0.38, pitch: 0.54, roll: -0.03, yaw: -0.04, chest: -0.16, yawF: -0.38, chestF: -0.25, pitchF: 0.4 }),
+  // Down on the knee, a short angled paddle fine behind square: little backlift, a checked finish.
+  "paddle-sweep": S({ step: "sweep", plane: "low", lead: 0.2, ahead: 0.08, arc: 0.5, followA: -55, followB: -40, lift: 0.04, weight: 0.55, hipY: -0.4, pitch: 0.58, roll: -0.04, yaw: 0.24, chest: 0.1, yawF: 0.42, chestF: 0.22, pitchF: 0.48, hold: 0.6 }),
   flick: S({ step: "front", plane: "vertical", lead: 0.1, ahead: 0.16, followA: -100, followB: -85, lift: 0.1, yaw: 0.1, chest: 0.06, yawF: 0.56, chestF: 0.3, roll2: 0.6 }),
   glance: S({ step: "front", plane: "vertical", lead: 0.02, ahead: 0.26, arc: 0.5, followA: -20, followB: -36, lift: 0, hipY: -0.08, pitch: 0.42, yaw: 0.1, chest: 0.08, yawF: 0.2, chestF: 0.12, pitchF: 0.42, hold: 0.55, roll2: 0.35 }),
 };

@@ -65,6 +65,8 @@ export interface DirectorInput {
   interlude?: "over" | "innings" | "result" | null;
   /** Wall-clock seconds, for slow establishing moves. */
   time?: number;
+  /** A big catch is being presented in slow motion. */
+  cinematic?: boolean;
 }
 
 const shot = (name: string, p: [number, number, number], l: [number, number, number], fov = 40, rate = 4, lookRate = 7): Shot => ({ name, px: p[0], py: p[1], pz: p[2], lx: l[0], ly: l[1], lz: l[2], fov, rate, lookRate });
@@ -121,6 +123,19 @@ function fieldingShot(i: DirectorInput): Shot {
   const px = f.x + rx * 7.5 - rz * 4,
     pz = f.z + rz * 7.5 + rx * 4;
   return shot("fielding", [px, 3.1, pz], [(f.x + b.x) / 2, 0.85, (f.z + b.z) / 2], 27, 3.5, 6);
+}
+
+/** Beside a fielder going for a big catch, low, so the launch and the hands are against the sky. */
+function catchingShot(i: DirectorInput): Shot {
+  const f = i.fielder!,
+    b = i.frame.ball,
+    dx = b.x - f.x,
+    dz = b.z - f.z,
+    d = Math.hypot(dx, dz) || 1;
+  // Square of the line from fielder to ball, five metres out, at hip height.
+  const px = f.x - (dz / d) * 5.2 + (f.x / (Math.hypot(f.x, f.z) || 1)) * 1.5,
+    pz = f.z + (dx / d) * 5.2 + (f.z / (Math.hypot(f.x, f.z) || 1)) * 1.5;
+  return shot("catching", [px, 1.25, pz], [(f.x * 2 + b.x) / 3, Math.min(2.2, Math.max(0.9, b.y * 0.5 + 0.6)), (f.z * 2 + b.z) / 3], 34, 7, 9);
 }
 
 /** The finish: a slow move round the players who decided it. */
@@ -180,6 +195,8 @@ export function direct(i: DirectorInput): Shot {
     return shot("bowler-run-up", [-3.6, 2.4 + u, -29 + u * 12], [0.65, 1.1, -23 + u * 14], 42, 4, 6);
   }
 
+  // A big catch: low and close beside the fielder, the ball dropping into frame.
+  if (i.cinematic && i.fielder && (camera === "broadcast" || camera === "director") && (!outcome || deadAge < 1)) return catchingShot(i);
   // End-of-ball reaction shots.
   if (outcome && deadAge >= 0) {
     // The result: the deciding moment first, then a slow move round those who won it.

@@ -84,6 +84,12 @@ export type SceneFeed = {
 export interface SceneDriver {
   draw(feed: SceneFeed): void;
   dispose(): void;
+  /**
+   * Presentation pace for a big catch: below 1 while a fielder launches into a
+   * dive or a leap (or takes one on the rope) and through the landing. The game
+   * stretches wall-clock time by it; the simulation runs the same ticks.
+   */
+  cinematic(): number;
   metrics(): {
     calls: number;
     triangles: number;
@@ -463,7 +469,11 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
     prevBallTick = -1,
     deadTick = -1,
     takeError: number | undefined,
-    takeMove = "";
+    takeMove = "",
+    cinema = 1,
+    cinemaCatch = false;
+  /** One-shot clip lengths for the fielding planner (made once, not per fielder per frame). */
+  const clipLength = (clip: OneShot) => motionLibrary?.info.get(clip)?.duration ?? 1;
   const starts: Spot[] = Array.from({ length: 11 }, () => ({ x: 0, z: 0 })),
     carries = new Float32Array(PEOPLE * 2),
     poseTmp = makePose(),
@@ -776,7 +786,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         // ---- fielding and keeping: anticipate the ball, take it, release it ------
         let plan: FieldPlan | null = null;
         const asFielder = fielding && !preMatch && (n !== BOWLER || tick > RELEASE_TICK + 40 || travel > 0.02);
-        if (asFielder) {
+        const involved = simAction !== "ready" || travel > 0.05;
+        // Only fielders on the ball (and the keeper) have anything to plan; the rest cost nothing.
+        if (asFielder && (n === KEEPER || involved || tick < RELEASE_TICK)) {
           const input = {
             tick,
             action: simAction,
@@ -789,9 +801,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
             me: { x: px - actor.carry.x, z: pz - actor.carry.z, speed: actor.ground ?? 0 },
             ball: kin,
             friction: VENUES[config.venue].friction,
-            involved: simAction !== "ready" || travel > 0.05,
+            involved,
             rope: ropeRatio({ x: px, z: pz }, config.venue),
-            length: (clip: OneShot) => motionLibrary?.info.get(clip)?.duration ?? 1,
+            length: clipLength,
             throwRelease: motionLibrary?.info.get("OverhandThrow")?.release ?? 0.6,
             contactTick: hit ? contactTick : -1,
           };
@@ -1137,6 +1149,22 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         blobs.setMatrixAt(n, dummy.matrix);
       }
 
+      // ---- a big catch: slow the presentation as the fielder launches, through the landing ----
+      let slow = false;
+      if (!feed.reducedMotion && !preMatch) {
+        for (let n = 2; n < 13; n++) {
+          const f = actors[n]!.field;
+          if (!f || !hit || frame.bounce || dead) continue;
+          const at = actors[n]!.a.root.position,
+            big = f.move === "dive" || f.move === "catch-leap" || (f.move.startsWith("catch-") && ropeRatio({ x: at.x, z: at.z }, config.venue) > 0.85);
+          if (big && (f.right?.w ?? 0) > 0.2) slow = true;
+        }
+        if (slow) cinemaCatch = true;
+        if (dead && cinemaCatch && wicket === "caught" && deadAge < 0.9) slow = true;
+        if (!hit || tick < lastTick - 0.001) cinemaCatch = false;
+      }
+      cinema += ((slow ? 0.35 : 1) - cinema) * (feed.reducedMotion ? 1 : 1 - Math.exp(-dt / 0.12));
+
       // ---- realistic bodies follow their drivers (before the ball, which they hold) ----
       if (realisticReady)
         for (const actor of actors) {
@@ -1196,8 +1224,11 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         ball.position.copy(ballShown);
       }
       ball.scale.setScalar(Math.max(1, Math.min(2.4, camera.position.distanceTo(ball.position) / 16)));
-      ball.rotation.x = tick * 0.14;
-      ball.rotation.y = tick * 0.05;
+      // Seam presentation: pace comes out with backspin, the seam upright; spin turns
+      // about the line of flight; off the bat it tumbles. Visual only.
+      if (hit) ball.rotation.set(tick * 0.3, tick * 0.11, 0);
+      else if (style === "spin") ball.rotation.set(0.35, 0, -tick * 0.42);
+      else ball.rotation.set(-tick * 0.36, 0.08, 0);
       const vy = (b.y - prevBallY) / Math.max(1e-3, (tick - lastTick) * STEP);
       // A bounce: a downward ball that's now rising at ground level. Purely a visual cue.
       if (tick > RELEASE_TICK && tick !== lastTick && !rewound && b.y < 0.25 && prevBallVy < -1 && vy > 0 && !feed.reducedMotion) puff(b.x, 0.04, b.z, Math.min(8, DUST / 7), 0.7);
@@ -1321,6 +1352,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         fielder: onBall >= 0 ? { x: actors[onBall]!.a.root.position.x, z: actors[onBall]!.a.root.position.z } : undefined,
         interlude: feed.interlude ?? null,
         time: wall,
+        cinematic: cinema < 0.8,
       });
       // A change of shot to somewhere else entirely is a cut, as on television, not a
       // sweep across the ground; nearby changes (and moving shots) ease. The replay
@@ -1355,6 +1387,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       if (realisticReady) for (const c of captains) if (c.a.root.visible) c.body?.sync();
       renderer.render(scene, camera);
     },
+    cinematic: () => cinema,
     metrics: () => ({
       calls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,

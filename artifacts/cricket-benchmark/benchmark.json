@@ -1,7 +1,7 @@
 {
   "loading": {
-    "groundMs": 1989,
-    "athletesMs": 2310
+    "groundMs": 2022,
+    "athletesMs": 2353
   },
   "machine": {
     "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3050 Laptop GPU (0x000025A2) Direct3D11 vs_5_0 ps_5_0, D3D11)",
@@ -9,44 +9,44 @@
     "viewport": "1280x800"
   },
   "low": {
-    "loadMs": 3118,
-    "draws": 300,
+    "loadMs": 3117,
+    "draws": 267,
     "drawnFps": 30,
     "intervalMedianMs": 33.3,
     "intervalP95Ms": 33.4,
-    "intervalP99Ms": 33.4,
+    "intervalP99Ms": 33.5,
     "intervalMaxMs": 33.5,
     "hitchesOver50ms": 0,
-    "drawCpuMedianMs": 4.1,
-    "drawCpuP95Ms": 4.8,
-    "drawCalls": 95,
+    "drawCpuMedianMs": 4,
+    "drawCpuP95Ms": 4.5,
+    "drawCalls": 94,
     "triangles": 130253,
     "textures": 39,
     "geometries": 51,
     "dpr": 0.75,
-    "heapMB": 68.9
+    "heapMB": 92.9
   },
   "medium": {
-    "loadMs": 3162,
-    "draws": 604,
+    "loadMs": 3106,
+    "draws": 537,
     "drawnFps": 60,
     "intervalMedianMs": 16.7,
     "intervalP95Ms": 16.8,
     "intervalP99Ms": 16.8,
     "intervalMaxMs": 16.8,
     "hitchesOver50ms": 0,
-    "drawCpuMedianMs": 4.3,
-    "drawCpuP95Ms": 5.2,
-    "drawCalls": 98,
-    "triangles": 157259,
+    "drawCpuMedianMs": 3.9,
+    "drawCpuP95Ms": 4.4,
+    "drawCalls": 94,
+    "triangles": 157253,
     "textures": 39,
     "geometries": 51,
     "dpr": 1,
-    "heapMB": 68.9
+    "heapMB": 92.9
   },
   "high": {
-    "loadMs": 3119,
-    "draws": 604,
+    "loadMs": 3107,
+    "draws": 537,
     "drawnFps": 60,
     "intervalMedianMs": 16.7,
     "intervalP95Ms": 16.7,
@@ -54,30 +54,30 @@
     "intervalMaxMs": 16.8,
     "hitchesOver50ms": 0,
     "drawCpuMedianMs": 4.6,
-    "drawCpuP95Ms": 5.3,
-    "drawCalls": 137,
+    "drawCpuP95Ms": 5.2,
+    "drawCalls": 136,
     "triangles": 461968,
     "textures": 51,
     "geometries": 66,
     "dpr": 1,
-    "heapMB": 68.9
+    "heapMB": 92.9
   },
   "ultra": {
-    "loadMs": 3157,
-    "draws": 597,
-    "drawnFps": 59.4,
+    "loadMs": 3161,
+    "draws": 537,
+    "drawnFps": 60,
     "intervalMedianMs": 16.7,
-    "intervalP95Ms": 16.8,
+    "intervalP95Ms": 16.7,
     "intervalP99Ms": 16.8,
-    "intervalMaxMs": 116.7,
-    "hitchesOver50ms": 1,
-    "drawCpuMedianMs": 4.8,
-    "drawCpuP95Ms": 5.7,
+    "intervalMaxMs": 16.8,
+    "hitchesOver50ms": 0,
+    "drawCpuMedianMs": 4.9,
+    "drawCpuP95Ms": 5.6,
     "drawCalls": 154,
     "triangles": 575486,
     "textures": 51,
     "geometries": 66,
     "dpr": 1,
-    "heapMB": 68.9
+    "heapMB": 92.9
   }
 }

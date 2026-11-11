@@ -281,9 +281,12 @@ function follow(memo: FieldMemo, p: Vec3, dt: number, w: number) {
   return (memo.goal = ease(memo.goal, p, dt, w));
 }
 
+/** The plan for a fielder with nothing to do (shared: plans are never mutated). */
+const IDLE: FieldPlan = Object.freeze({ move: "idle", pose: null, motion: null, left: null, right: null, face: null }) as FieldPlan;
+
 /** A fielder (not the keeper) for this frame; `dt` is the seconds since the last one. */
 export function fielderPlan(i: FielderInput, memo: FieldMemo, dt = 1 / 60): FieldPlan {
-  const none: FieldPlan = { move: "idle", pose: null, motion: null, left: null, right: null, face: null };
+  const none = IDLE;
   const stumps = i.stumps ?? { x: 0, z: STUMPS_Z };
   // Once the ball is dead the simulation stops ticking; the body carries on in real time.
   const age = i.actionAge + (i.dead ? Math.max(0, i.deadAge) : 0);

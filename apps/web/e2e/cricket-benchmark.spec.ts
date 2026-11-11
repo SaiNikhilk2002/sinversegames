@@ -57,6 +57,8 @@ test("benchmark every graphics preset on the same replayed delivery", async ({ b
   await page.getByRole("button", { name: "Return to the middle", exact: true }).click();
 
   // One real ball: a drive, swung as the ball arrives.
+  const more = page.getByRole("button", { name: "More control +", exact: true });
+  if (await more.isVisible()) await more.click();
   await page.getByLabel("Shot", { exact: true }).selectOption("straight");
   await page.getByTestId("cricket-primary").click();
   await expect(root).toHaveAttribute("data-live", "true");

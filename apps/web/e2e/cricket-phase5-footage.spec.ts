@@ -386,3 +386,33 @@ test("record the broadcast graphics as they appear in live play", async ({ brows
   expect(errors).toEqual([]);
   await context.close();
 });
+
+test("record the batting interface on desktop and phone", async ({ browser }) => {
+  test.skip(!process.env.CRICKET_PHASE6_UI, "Interface capture only on request");
+  test.setTimeout(600000);
+  const dir = process.env.CRICKET_UI_DIR ?? "../../artifacts/cricket-phase6/ui";
+  mkdirSync(dir, { recursive: true });
+  for (const [name, viewport] of [["desktop", { width: 1920, height: 1080 }], ["phone-landscape", { width: 844, height: 390 }], ["phone-portrait", { width: 390, height: 844 }]] as const) {
+    const context = await browser.newContext({ viewport, hasTouch: name !== "desktop" });
+    const page = await context.newPage(),
+      root = page.getByTestId("sinverse-cricket"),
+      clock = { t: 0 };
+    const model = await startMatch(page);
+    // As a player first sees it: the fine controls folded away.
+    const less = page.getByRole("button", { name: /^More control [−-]$/ });
+    if (await less.isVisible()) await less.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: `${dir}/${name}-between-balls.jpg`, type: "jpeg", quality: 88 });
+    // A live ball: the shot bar while the bowler runs in.
+    await page.getByTestId("cricket-primary").click();
+    await expect(root).toHaveAttribute("data-live", "true");
+    await expect.poll(async () => Number(await root.getAttribute("data-ball-tick")), { timeout: 20000, intervals: [50] }).toBeGreaterThan(RELEASE_TICK + 20);
+    await page.screenshot({ path: `${dir}/${name}-live-delivery.jpg`, type: "jpeg", quality: 88 });
+    await expect(root).toHaveAttribute("data-live", "false", { timeout: 60000 });
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${dir}/${name}-after-ball.jpg`, type: "jpeg", quality: 88 });
+    void model;
+    void clock;
+    await context.close();
+  }
+});

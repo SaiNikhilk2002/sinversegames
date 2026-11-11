@@ -66,6 +66,7 @@ export function createTacticalScene(canvas: HTMLCanvasElement): SceneDriver {
       c.arc(bx, by - frame.ball.y * scale * 0.65, 3.5, 0, 7);
       c.fill();
     },
+    cinematic: () => 1,
     metrics: () => ({
       calls: 1,
       triangles: 0,
