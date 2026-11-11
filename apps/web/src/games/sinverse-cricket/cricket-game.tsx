@@ -584,6 +584,8 @@ export function CricketGame({
   const [bindingTarget, setBindingTarget] = useState<BindingName | null>(null);
   const [bindingMessage, setBindingMessage] = useState("");
   const [continuous, setContinuous] = useState(true);
+  // The winning moment plays first (reactions, the result camera); the summary card follows.
+  const [finishShown, setFinishShown] = useState(false);
   const [assist, setAssist] = useState(false);
   const [sensitivity, setSensitivity] = useState(1);
   const gesture = useRef<GestureStart | null>(null);
@@ -634,6 +636,13 @@ export function CricketGame({
     i = m.current,
     live = !!r.delivery && !r.settled,
     batting = i ? m.humanBatting : true;
+  const finished = m.phase === "finished";
+  useEffect(() => {
+    if (!finished) return setFinishShown(false);
+    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => setFinishShown(true), reduced ? 0 : 3200);
+    return () => window.clearTimeout(timer);
+  }, [finished]);
   const setMenu = useCallback(
     (next: typeof panel) => {
       r.paused = !!next;
@@ -1487,7 +1496,7 @@ export function CricketGame({
           <small>{batting ? live ? r.delivery?.tick! < RELEASE_TICK ? "Watch the hand. Read the flight." : r.delivery?.shot ? "Shot committed" : `TIME YOUR SHOT · ${keyLabel(bindings.action)} / swipe` : continuous ? `Next delivery follows · ${keyLabel(bindings.action)} when ready` : `${keyLabel(bindings.action)} / tap to face` : r.arming ? `Release at centre · ${keyLabel(bindings.action)} / tap` : `Arrows to aim · ${keyLabel(bindings.action)} / swipe to run in`}</small>
           {batting && live && !r.delivery?.shot && r.delivery!.tick >= RELEASE_TICK && <div className="cr-flight-cue" aria-label="Delivery approaching the crease"><i style={{ width: `${Math.max(0, Math.min(100, (r.delivery!.pos.z + 8.5) / 17.3 * 100))}%` }} /></div>}
         </div>}
-        {m.phase === "finished" && !r.replay && (
+        {m.phase === "finished" && finishShown && !r.replay && (
           <div className="cr-match-finish">
             <p className="cr-eyebrow">MATCH COMPLETE</p>
             <h2>{m.result}</h2>

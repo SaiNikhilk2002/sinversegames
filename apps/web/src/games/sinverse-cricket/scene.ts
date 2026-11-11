@@ -460,6 +460,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   const kin: BallKin = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rolling: false };
   let kinMemo = { tick: -1, x: 0, y: 0, z: 0 },
     prevBall = { x: 0, y: 0, z: 0 },
+    prevBallTick = -1,
     deadTick = -1,
     takeError: number | undefined,
     takeMove = "";
@@ -656,6 +657,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       if (tick !== kinMemo.tick) {
         const span = (tick - kinMemo.tick) * STEP;
         prevBall = { x: kinMemo.x, y: kinMemo.y, z: kinMemo.z };
+        prevBallTick = kinMemo.tick;
         if (span > 0 && span < 0.12 && !rewound) {
           kin.vx = (frame.ball.x - kinMemo.x) / span;
           kin.vy = (frame.ball.y - kinMemo.y) / span;
@@ -755,7 +757,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           // Where the ball was when the engine's take happened. A pickup moves the
           // simulated ball onto the fielder, so it's taken from the tick before.
           if (fielding && (simAction === "pickup" || (simAction === "dive" && actor.action !== "dive" && !dead)))
-            actor.memo.took = [prevBall.x, Math.max(0.05, prevBall.y), prevBall.z];
+            // Only a frame or two back is where it was taken; after a jump (a replay scrub) use the hands' own read.
+            actor.memo.took =
+              tick - prevBallTick <= 4 ? [prevBall.x, Math.max(0.05, prevBall.y), prevBall.z] : actor.memo.goal ? [...actor.memo.goal] : [frame.ball.x, 0.06, frame.ball.z];
           else if (fielding && (simAction === "catch" || simAction === "drop" || simAction === "dive")) actor.memo.took = [frame.ball.x, frame.ball.y, frame.ball.z];
           // How close the hands' read was to where the ball was actually taken (the keeper's own read for a delivery).
           const read = n === KEEPER && simAction === "catch" && !hit ? actor.memo.glove : actor.memo.goal;

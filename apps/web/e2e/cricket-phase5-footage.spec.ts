@@ -18,7 +18,7 @@ import { enterName } from "./helpers";
  * its replay filmed at 1920x1080 from the match screen.
  */
 test.skip(!process.env.CRICKET_EVIDENCE, "Evidence capture only");
-test.use({ trace: "off", launchOptions: { args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist"] } });
+test.use({ trace: "off", actionTimeout: 30000, launchOptions: { args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist"] } });
 const sheets = process.env.CRICKET_PHASE5_DIR ?? "../../artifacts/cricket-phase5";
 const videos = process.env.CRICKET_PHASE5_VIDEO_DIR ?? "../../.data/cricket-phase5";
 
@@ -189,9 +189,16 @@ function find(model: CricketMatch, scene: Scene): Plan | null {
 const SURVIVE: Scene = { name: "survive", kinds: ["defend"], feet: [0.4, 0, -0.2, 0.25], dirs: [0, 15, -15, 30, -30], powers: [0.3], test: (d) => !d.outcome?.wicket, cameras: [], moment: () => 0 };
 
 async function startMatch(page: Page, overs: "1" | "2" = "2") {
-  await page.goto("/play/sinverse-cricket");
-  await enterName(page, "Batter");
-  await page.getByLabel("Custom format").selectOption(overs).catch(() => {});
+  // Leaving a match in progress asks for confirmation; a new match should go ahead.
+  if (!(page as Page & { __leaveOk?: boolean }).__leaveOk) {
+    page.on("dialog", (d) => void d.accept());
+    (page as Page & { __leaveOk?: boolean }).__leaveOk = true;
+  }
+  await page.goto("/play/sinverse-cricket", { timeout: 60000 });
+  // A returning player's name is remembered: only the first visit asks for it.
+  await page.getByTestId("start-run").or(page.getByLabel("Display name")).first().waitFor();
+  if (await page.getByLabel("Display name").isVisible()) await enterName(page, "Batter");
+  await page.getByLabel("Custom format").selectOption(overs, { timeout: 5000 }).catch(() => {});
   const response = page.waitForResponse((r) => r.url().endsWith("/api/solo/start") && r.request().method() === "POST");
   await page.getByTestId("start-run").click();
   const run = await (await response).json();
@@ -298,14 +305,19 @@ test("record a whole match through to the result", async ({ browser }) => {
   const root = page.getByTestId("sinverse-cricket"),
     clock = { t: 0 };
   const model = await startMatch(page, "1");
-  // Bat the over: a boundary where the engine offers one, otherwise survive.
-  const four = SCENES.find((s) => s.name === "boundary-four")!;
-  while ((await root.getAttribute("data-phase")) === "ready" && (await root.getAttribute("data-batting")) === "true") await playBall(page, model, find(model, four) ?? find(model, SURVIVE) ?? { shot: null, runAt: [] }, clock);
+  // Bat the over: a boundary where the engine offers one, otherwise runs, otherwise survive, so there's a real chase.
+  const four = SCENES.find((s) => s.name === "boundary-four")!,
+    runs: Scene = { ...four, name: "runs", kinds: ["cover", "on-drive", "straight", "cut", "pull", "loft"], dirs: [40, -40, 60, -60, 0, 80], powers: [0.85, 1, 0.7], test: (d) => !d.outcome?.wicket && (d.outcome?.bat ?? 0) > 0 };
+  while ((await root.getAttribute("data-phase")) === "ready" && (await root.getAttribute("data-batting")) === "true") await playBall(page, model, find(model, four) ?? find(model, runs) ?? find(model, SURVIVE) ?? { shot: null, runAt: [] }, clock);
   await page.getByRole("button", { name: "Begin the chase", exact: true }).click();
   await page.getByLabel("Camera", { exact: true }).selectOption("broadcast");
   // Bowl the chase: run in, the release fires itself on the marker.
   for (let n = 0; n < 12 && (await root.getAttribute("data-phase")) !== "finished"; n++) {
     const seq = Number(await root.getAttribute("data-seq"));
+    await page.getByTestId("cricket-primary").click();
+    // Release in the gold zone as a player would (the automatic release is late and oversteps).
+    const meter = page.getByRole("meter", { name: "Release timing" });
+    await expect.poll(async () => Number(await meter.getAttribute("aria-valuenow").catch(() => "-1")), { timeout: 10000, intervals: [30] }).toBeGreaterThanOrEqual(-0.05);
     await page.getByTestId("cricket-primary").click();
     await expect(root).toHaveAttribute("data-seq", String(seq + 1), { timeout: 120000 });
   }
@@ -313,7 +325,7 @@ test("record a whole match through to the result", async ({ browser }) => {
   // The result as it plays out live: reactions, the result camera, the finish card.
   const frames: { at: number; data: string }[] = [],
     started = Date.now();
-  while (Date.now() - started < 9000) {
+  while (Date.now() - started < 12000) {
     const shot = await page.screenshot({ type: "jpeg", quality: 82 });
     frames.push({ at: Date.now() - started, data: `data:image/jpeg;base64,${shot.toString("base64")}` });
   }
@@ -326,7 +338,7 @@ test("record a whole match through to the result", async ({ browser }) => {
   await sheet.setContent(`<body style="margin:0;background:#000;display:grid;grid-template-columns:repeat(4,1fr)">${picks.map((f) => `<figure style="margin:0;position:relative"><img style="width:100%" src="${f.data}"><figcaption style="position:absolute;top:4px;left:6px;color:#fff;font:600 19px system-ui;text-shadow:0 1px 2px #000">${(f.at / 1000).toFixed(2)} s</figcaption></figure>`).join("")}</body>`);
   await sheet.screenshot({ path: `${sheets}/match-result.jpg`, fullPage: true, type: "jpeg", quality: 80 });
   await sheet.close();
-  writeFileSync(`${sheets}/match-result.json`, JSON.stringify({ result: await page.locator(".cr-match-finish h2").textContent(), frames: frames.length, seconds: 9 }, null, 2));
+  writeFileSync(`${sheets}/match-result.json`, JSON.stringify({ result: await page.locator(".cr-match-finish h2").textContent(), frames: frames.length, seconds: 12 }, null, 2));
   expect(errors).toEqual([]);
   await context.close();
 });

@@ -1,0 +1,154 @@
+[
+  {
+    "scene": "diving-catch",
+    "outcome": "CAUGHT",
+    "moment": 522,
+    "takeError": "0.015",
+    "takeMove": "dive",
+    "spacing": "1.317",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 96,
+        "fps": 14.9,
+        "speed": 1
+      },
+      {
+        "camera": "fielding",
+        "frames": 58,
+        "fps": 15.4,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "scene": "stumping",
+    "outcome": "STUMPED",
+    "moment": 224,
+    "takeError": "0.045",
+    "takeMove": "keeper-catch",
+    "spacing": "2.458",
+    "films": [
+      {
+        "camera": "keeper",
+        "frames": 54,
+        "fps": 15,
+        "speed": 0.5
+      },
+      {
+        "camera": "director",
+        "frames": 88,
+        "fps": 15,
+        "speed": 1
+      }
+    ]
+  },
+  {
+    "scene": "run-out",
+    "outcome": "RUN-OUT",
+    "moment": 444,
+    "takeError": "0.021",
+    "takeMove": "dive",
+    "spacing": "1.398",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 97,
+        "fps": 15.1,
+        "speed": 1
+      },
+      {
+        "camera": "keeper",
+        "frames": 41,
+        "fps": 15.4,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "scene": "keeper-take",
+    "outcome": "DOT",
+    "moment": 224,
+    "takeError": "0.024",
+    "takeMove": "keeper-catch",
+    "spacing": "2.458",
+    "films": [
+      {
+        "camera": "keeper",
+        "frames": 26,
+        "fps": 15,
+        "speed": 0.5
+      },
+      {
+        "camera": "slip",
+        "frames": 22,
+        "fps": 15.3,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "scene": "high-catch",
+    "outcome": "CAUGHT",
+    "moment": 531,
+    "takeError": "0.118",
+    "takeMove": "catch",
+    "spacing": "1.366",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 97,
+        "fps": 15,
+        "speed": 1
+      },
+      {
+        "camera": "fielding",
+        "frames": 42,
+        "fps": 15.2,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "scene": "sprint-pickup-throw",
+    "outcome": "DOT",
+    "moment": 378,
+    "takeError": "0.335",
+    "takeMove": "pickup",
+    "spacing": "1.984",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 45,
+        "fps": 15.4,
+        "speed": 1
+      },
+      {
+        "camera": "fielding",
+        "frames": 54,
+        "fps": 15.9,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "scene": "boundary-four",
+    "outcome": "4",
+    "moment": 511,
+    "takeError": null,
+    "takeMove": "dive",
+    "spacing": "2.458",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 96,
+        "fps": 14.9,
+        "speed": 1
+      }
+    ]
+  },
+  {
+    "missing": [],
+    "matches": 1
+  }
+]

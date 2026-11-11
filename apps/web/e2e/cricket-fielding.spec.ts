@@ -213,6 +213,9 @@ test.describe("Cricket fielding presentation", () => {
     // A six: the bowler is not pleased, the non-striker is.
     expect(["hands", "frustrated"]).toContain((reaction("bowler", six, 0.5, 9, 4, null) as { clip: string }).clip);
     expect(reaction("non-striker", six, 0.8, 2, 4, null)).not.toBeNull();
+    // The striker holds the shot, then raises the bat.
+    expect(reaction("striker", six, 0.5, 1, 4, null)).toBeNull();
+    expect(reaction("striker", six, 1.5, 1, 4, null)).toMatchObject({ kind: "pose", clip: "celebrate" });
     // Match won: the winners celebrate, the losers don't.
     expect(["celebrate", "Yes"]).toContain((reaction("striker", six, 0.3, 1, 4, "batting-won") as { clip: string }).clip);
     expect(["downcast", "hands"]).toContain((reaction("bowler", six, 0.3, 9, 4, "batting-won") as { clip: string }).clip);

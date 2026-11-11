@@ -524,7 +524,8 @@ export function reaction(role: ReactionRole, o: Outcome, age: number, player: nu
   }
   if (o.boundary) {
     if (role === "non-striker") return o.boundary === 6 && pick(2) ? { kind: "pose", clip: "clap", time: age } : { kind: "clip", clip: "Yes", time: age - 0.4, upper: true };
-    if (role === "striker") return null;
+    // The batter holds the finish, then acknowledges it: the bat up for a six, a brief fist pump for a four.
+    if (role === "striker") return age < 0.9 ? null : o.boundary === 6 ? { kind: "pose", clip: "celebrate", time: age - 0.9 } : { kind: "clip", clip: "Yes", time: age - 0.9, upper: true };
     if (role === "bowler") return age < 1.6 ? { kind: "pose", clip: pick(2) ? "hands" : "frustrated", time: age } : { kind: "clip", clip: pick(2) ? "Idle_No_Loop" : "Idle_FoldArms_Loop", time: age - 1.6, loop: true, upper: true };
     if (role === "keeper") return { kind: "pose", clip: "hands", time: age };
     return age < 1.4 ? { kind: "pose", clip: "hands", time: age } : pick(3) === 0 ? { kind: "clip", clip: "Idle_FoldArms_Loop", time: age - 1.4, loop: true, upper: true } : null;

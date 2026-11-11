@@ -51,6 +51,8 @@ export interface BroadcastInput {
   fielding: string;
 }
 
+/** Scorebook labels of a dismissal (a dot ball is "DOT"). */
+const WICKETS = /^(BOWLED|CAUGHT|LBW|STUMPED|RUN-OUT)$/;
 const EVENT_MS = 3400,
   OVER_MS = 4200,
   INTRO_MS = 3800;
@@ -162,8 +164,8 @@ export function BroadcastGraphics({ cards }: { cards: Card[] }) {
               <small>End of over {c.over}</small>
               <div className="cr-gfx-balls">
                 {c.balls.map((b, n) => (
-                  <b key={n} className={b === "4" || b === "6" ? "is-boundary" : /[A-Z]{3,}/.test(b) ? "is-wicket" : ""}>
-                    {b === "0" ? "•" : b.replace("RUN-OUT", "W").replace(/^(BOWLED|CAUGHT|LBW|STUMPED)$/, "W")}
+                  <b key={n} className={b === "4" || b === "6" ? "is-boundary" : WICKETS.test(b) ? "is-wicket" : ""}>
+                    {b === "0" || b === "DOT" ? "•" : WICKETS.test(b) ? "W" : b}
                   </b>
                 ))}
               </div>
