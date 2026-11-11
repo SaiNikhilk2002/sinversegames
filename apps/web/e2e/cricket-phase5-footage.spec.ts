@@ -94,6 +94,20 @@ const SCENES: Scene[] = [
     moment: (d) => firstAction(d, "dive")!.tick,
   },
   {
+    name: "dropped-catch",
+    kinds: ["loft", "cover", "pull", "on-drive", "cut", "straight"],
+    feet: [0.35, 0.2, 0, -0.2],
+    dirs: [0, 25, -25, 45, -45, 70, -70],
+    powers: [0.7, 0.85, 1],
+    // The engine says the chance went down: the fielder gets there and the ball doesn't stick.
+    test: (d) => !d.outcome?.wicket && !!firstAction(d, "drop"),
+    cameras: [
+      ["director", 1, 150, 60, 2500],
+      ["fielding", 0.5, 70, 50, 1200],
+    ],
+    moment: (d) => firstAction(d, "drop")!.tick,
+  },
+  {
     name: "run-out",
     kinds: ["defend", "on-drive", "cover", "straight"],
     feet: [0.3, 0],

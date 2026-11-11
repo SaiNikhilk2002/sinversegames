@@ -646,6 +646,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           for (const h of actor.handGoals) h.w = 0;
         }
         takeError = undefined;
+        // Slow motion belongs to the live moment: a rewind or a scrub starts at normal pace.
+        cinema = 1;
+        cinemaCatch = false;
       }
       const dead = !!outcome && frame.mode === "dead";
       if (dead && !wasDead) deadAt = wall;
@@ -1203,7 +1206,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           holder = holding >= 0 ? holding : caught >= 0 ? caught : kept;
         if (holder >= 0) {
           const actor = actors[holder + 2]!,
-            twoHands = holder === 10 || (actor.field?.left?.w ?? 0) > 0.3;
+            twoHands = holder === 10 || (!actor.field?.oneHand && (actor.field?.left?.w ?? 0) > 0.3);
           if (actor.body) actor.body.palm(false, tmp);
           else handCentre(actor.a, false, tmp);
           // Taken in both hands (or gloves): the ball sits between the palms.

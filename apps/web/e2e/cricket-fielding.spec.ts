@@ -222,6 +222,20 @@ test.describe("Cricket fielding presentation", () => {
     expect(variety(3, 9, 5)).toBe(variety(3, 9, 5));
   });
 
+  test("a full-stretch take goes into one hand, the other out for balance; ordinary catches and drops use both", () => {
+    const base = { tick: 260, actionAge: 0.05, dead: true, deadAge: 0.05, outcome: null, contact: true, mode: "dead" as const, me: { x: 10, z: -20, speed: 5 }, ball: { x: 11.4, y: 0.6, z: -20, vx: 0, vy: 0, vz: 0, rolling: false }, friction, involved: true, rope: 0.5, length: () => 1, throwRelease: 0.6 };
+    const stretched = { ...newMemo(), took: [11.4, 0.6, -20] as [number, number, number], oneHand: true };
+    const dive = fielderPlan({ ...base, action: "dive" }, stretched);
+    expect(dive.oneHand).toBe(true);
+    expect(Math.hypot(dive.right!.x - 11.4, dive.right!.y - 0.6, dive.right!.z + 20)).toBeLessThan(1e-6);
+    expect(Math.hypot(dive.left!.x - 11.4, dive.left!.z + 20)).toBeGreaterThan(0.7);
+    const chest = fielderPlan({ ...base, action: "catch", ball: { ...base.ball, y: 1.2 } }, { ...newMemo(), took: [10.6, 1.2, -20] });
+    expect(chest.oneHand).toBeFalsy();
+    expect(Math.abs(chest.left!.x - chest.right!.x)).toBeCloseTo(0.09, 5);
+    const drop = fielderPlan({ ...base, action: "drop", dead: false, mode: "struck" }, { ...stretched });
+    expect(drop.oneHand).toBeFalsy();
+  });
+
   test("engine windows read by the planner match the engine's own numbers", () => {
     expect(CATCH).toMatchObject({ low: 0.25, high: 2.45, reach: 0.85, dive: 1.65, pickup: 1.1 });
   });

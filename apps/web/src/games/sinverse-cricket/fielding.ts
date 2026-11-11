@@ -208,6 +208,8 @@ export interface FieldPlan {
   right: HandGoal | null;
   /** Face this world point (turning at a human rate), or null to leave facing alone. */
   face: { x: number; z: number } | null;
+  /** The ball is taken in the right hand alone (the left is out for balance). */
+  oneHand?: boolean;
 }
 
 /** What a fielder has committed to, kept by the renderer across frames (presentation only). */
@@ -220,10 +222,12 @@ export interface FieldMemo {
   goal: Vec3 | null;
   /** Throw style for the current pickup. */
   throwStyle: "overarm" | "underarm" | "kneeling" | null;
+  /** A take at full stretch (a long dive, a very high ball) goes into one hand; the other arm balances. */
+  oneHand: boolean;
   /** The keeper's read of where the delivery will reach the gloves, smoothed. */
   glove: Vec3 | null;
 }
-export const newMemo = (): FieldMemo => ({ pickup: null, catchStyle: null, took: null, goal: null, throwStyle: null, glove: null });
+export const newMemo = (): FieldMemo => ({ pickup: null, catchStyle: null, took: null, goal: null, throwStyle: null, glove: null, oneHand: false });
 
 /**
  * Moves a smoothed point towards a new prediction over `dt` seconds
@@ -275,6 +279,17 @@ const smooth = (t: number) => {
   return u * u * (3 - 2 * u);
 };
 const goal = (p: Vec3, w: number, dx = 0): HandGoal => ({ x: p[0] + dx, y: p[1], z: p[2], w });
+/**
+ * Both hands for a take at `p`: together on the ball, or (one-handed) the right
+ * hand on it and the left arm out to the side of the line, for balance.
+ */
+function catchHands(p: Vec3, w: number, me: { x: number; z: number }, oneHand: boolean): { left: HandGoal; right: HandGoal; oneHand?: boolean } {
+  if (!oneHand) return { left: goal(p, w, 0.09), right: goal(p, w) };
+  const dx = p[0] - me.x,
+    dz = p[2] - me.z,
+    d = Math.hypot(dx, dz) || 1;
+  return { left: { x: me.x + (dx / d) * 0.25 + (dz / d) * 0.65, y: Math.max(0.5, p[1] * 0.6), z: me.z + (dz / d) * 0.25 - (dx / d) * 0.65, w: w * 0.8 }, right: goal(p, w), oneHand: true };
+}
 
 /** Moves the memo's smoothed goal towards a new prediction (critically damped, so no jumps). */
 function follow(memo: FieldMemo, p: Vec3, dt: number, w: number) {
@@ -294,6 +309,7 @@ export function fielderPlan(i: FielderInput, memo: FieldMemo, dt = 1 / 60): Fiel
   if (i.tick < RELEASE_TICK) {
     memo.pickup = memo.catchStyle = memo.throwStyle = null;
     memo.took = memo.goal = null;
+    memo.oneHand = false;
     return none;
   }
 
@@ -358,20 +374,21 @@ export function fielderPlan(i: FielderInput, memo: FieldMemo, dt = 1 / 60): Fiel
       style: CatchStyle = i.action === "dive" ? "dive" : memo.catchStyle === "leap" && took[1] > 1.6 ? "leap" : byHeight;
     // Hands stay on the ball as it's taken, then give and bring it in.
     const hold = 1 - smooth((age - 0.12) / 0.2);
-    if (i.action === "drop") return { move: "drop", pose: null, motion: { lower: 0, upper: 0, shot: null }, left: goal(took, hold, 0.09), right: goal(took, hold), face: null };
+    // A drop: the hands were there (both, so it's clear it was a chance) and the ball goes on its way.
+    if (i.action === "drop") return { move: "drop", pose: null, motion: { lower: 0, upper: 0, shot: null }, ...catchHands(took, hold, i.me, false), face: null };
     if (i.action === "dive" || style === "dive") {
       // Down and still; the get-up is the renderer's (a real clip), after the ball is dead.
       const diveStop = !i.dead;
       if (diveStop && i.mode !== "dead")
-        return { move: "dive-stop", pose: { clip: "dive", time: 0.22 + age, weight: 1 }, motion: { lower: 0, upper: 0, shot: null }, left: goal(took, hold, 0.09), right: goal(took, hold), face: null };
-      return { move: "dive", pose: { clip: "dive", time: 0.22 + age, weight: 1 }, motion: { lower: 0, upper: 0, shot: null }, left: goal(took, hold, 0.09), right: goal(took, hold), face: null };
+        return { move: "dive-stop", pose: { clip: "dive", time: 0.22 + age, weight: 1 }, motion: { lower: 0, upper: 0, shot: null }, ...catchHands(took, hold, i.me, memo.oneHand), face: null };
+      return { move: "dive", pose: { clip: "dive", time: 0.22 + age, weight: 1 }, motion: { lower: 0, upper: 0, shot: null }, ...catchHands(took, hold, i.me, memo.oneHand), face: null };
     }
     const clip: ClipName = style === "low" ? "catchLow" : style === "chest" ? "catchChest" : "catchHigh";
     if (style === "leap") {
       const land = i.length("Jump_Land");
-      return { move: "catch-leap", pose: null, motion: { lower: 1, upper: 0, shot: { clip: "Jump_Land", time: Math.min(land, age), weight: 1 - smooth((age - land + 0.3) / 0.3) } }, left: goal(took, hold, 0.09), right: goal(took, hold), face: null };
+      return { move: "catch-leap", pose: null, motion: { lower: 1, upper: 0, shot: { clip: "Jump_Land", time: Math.min(land, age), weight: 1 - smooth((age - land + 0.3) / 0.3) } }, ...catchHands(took, hold, i.me, memo.oneHand), face: null };
     }
-    return { move: style === "low" ? "catch-low" : style === "chest" ? "catch-chest" : "catch-high", pose: { clip, time: Math.min(0.3, age * 0.8), weight: 1 - smooth((age - 0.55) / 0.3) }, motion: { lower: 0, upper: 0, shot: null }, left: goal(took, hold, 0.09), right: goal(took, hold), face: null };
+    return { move: style === "low" ? "catch-low" : style === "chest" ? "catch-chest" : "catch-high", pose: { clip, time: Math.min(0.3, age * 0.8), weight: 1 - smooth((age - 0.55) / 0.3) }, motion: { lower: 0, upper: 0, shot: null }, ...catchHands(took, hold, i.me, memo.oneHand), face: null };
   }
 
   // ---- running at the ball: anticipate the pickup or the catch ----------------
@@ -397,20 +414,23 @@ export function fielderPlan(i: FielderInput, memo: FieldMemo, dt = 1 / 60): Fiel
     // Airborne: hands to the predicted catch; a dive launches just before.
     const height = at.point[1];
     // The read refines until a dive or leap would have to launch (0.24 s), then it's committed.
-    if (at.tau < 0.55 && (!memo.catchStyle || at.tau > 0.24)) memo.catchStyle = at.kind === "dive" ? "dive" : height > 2.0 ? "leap" : height > 1.45 ? "high" : height > 0.8 ? "chest" : "low";
+    if (at.tau < 0.55 && (!memo.catchStyle || at.tau > 0.24)) {
+      memo.catchStyle = at.kind === "dive" ? "dive" : height > 2.0 ? "leap" : height > 1.45 ? "high" : height > 0.8 ? "chest" : "low";
+      memo.oneHand = (at.kind === "dive" && at.gap > 1.25) || height > 2.25;
+    }
     const style = memo.catchStyle ?? (height > 1.45 ? "high" : height > 0.8 ? "chest" : "low"),
       w = smooth(1 - at.tau / 0.55);
     if (style === "dive") {
       const launch = smooth(1 - at.tau / 0.24);
-      return { move: "dive", pose: { clip: "dive", time: Math.max(0, 0.22 - at.tau), weight: launch }, motion: { lower: 1 - launch, upper: 1 - w, shot: null }, left: goal(p, w, 0.09), right: goal(p, w), face: committed > 0.35 ? { x: p[0], z: p[2] } : null };
+      return { move: "dive", pose: { clip: "dive", time: Math.max(0, 0.22 - at.tau), weight: launch }, motion: { lower: 1 - launch, upper: 1 - w, shot: null }, ...catchHands(p, w, i.me, memo.oneHand), face: committed > 0.35 ? { x: p[0], z: p[2] } : null };
     }
     if (style === "leap") {
       // Takeoff timed so the hands are at full stretch when the ball arrives.
       const apex = i.length("Jump_Start") * 0.68;
-      return { move: "catch-leap", pose: null, motion: { lower: 1, upper: 1 - w, shot: { clip: "Jump_Start", time: apex - at.tau, weight: smooth(1 - at.tau / 0.5) } }, left: goal(p, w, 0.09), right: goal(p, w), face: committed > 0.35 ? { x: p[0], z: p[2] } : null };
+      return { move: "catch-leap", pose: null, motion: { lower: 1, upper: 1 - w, shot: { clip: "Jump_Start", time: apex - at.tau, weight: smooth(1 - at.tau / 0.5) } }, ...catchHands(p, w, i.me, memo.oneHand), face: committed > 0.35 ? { x: p[0], z: p[2] } : null };
     }
     const clip: ClipName = style === "low" ? "catchLow" : style === "chest" ? "catchChest" : "catchHigh";
-    return { move: style === "low" ? "catch-low" : style === "chest" ? "catch-chest" : "catch-high", pose: { clip, time: 0, weight: w }, motion: { lower: 1 - w * 0.8, upper: 1 - w, shot: null }, left: goal(p, w, 0.09), right: goal(p, w), face: committed > 0.35 ? { x: p[0], z: p[2] } : null };
+    return { move: style === "low" ? "catch-low" : style === "chest" ? "catch-chest" : "catch-high", pose: { clip, time: 0, weight: w }, motion: { lower: 1 - w * 0.8, upper: 1 - w, shot: null }, ...catchHands(p, w, i.me, memo.oneHand), face: committed > 0.35 ? { x: p[0], z: p[2] } : null };
   }
   return none;
 }

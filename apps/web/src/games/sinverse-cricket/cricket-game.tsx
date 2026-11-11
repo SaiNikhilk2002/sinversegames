@@ -907,7 +907,8 @@ export function CricketGame({
     const frame = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       // The scene's own clock slows with a big catch, so the landing plays in slow motion as well.
-      r.presentTime += dt * (driver.current?.cinematic() ?? 1);
+      // Like the match clock, it stands still while the game is paused.
+      if (!r.paused) r.presentTime += dt * (driver.current?.cinematic() ?? 1);
       // Only sustained slow frames change quality, and never during a menu or a hidden tab.
       if (preferences.current.autoQuality && !r.paused && !document.hidden && preferences.current.quality !== "tactical") {
         const next = governor.sample(now - last, now, preferences.current.quality as Quality);

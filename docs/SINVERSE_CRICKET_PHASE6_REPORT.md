@@ -87,11 +87,20 @@ with their hands committed to the ball. It also stays on for 0.9 s after a caugh
   - idle fielders share one frozen plan
 - **The result:** the Ultra hitch is gone, and software-rendering speed is back to Phase 4 levels. See section 3.
 
+
+### Second round (after the first report)
+
+- **One-handed catches at full stretch.** A dive needing more than 1.25 m of reach, or a ball above 2.25 m, is taken in the right hand alone, with the left arm out to the side for balance. The ball is held in that palm, not between both. Ordinary catches use two hands. A drop always shows both hands at the ball, so it reads as a chance that went down. Tested in `cricket-fielding.spec.ts`.
+- **Dropped-catch footage.** `artifacts/cricket-phase6/dropped-catch-fielding.jpg` and `-director.jpg`, from a real engine drop. The fielder gets under it with both hands up, the ball doesn't stick, and he turns and chases it rather than celebrating. A failed catch is shown as a miss.
+- **Fixes to Phase 6 itself:**
+  - **The pause menu.** The scene's clock kept running while the game was paused, so players moved behind the menu. It now stands still with the match clock, as before Phase 6.
+  - **Slow motion after a jump.** It carried on after a replay scrub or rewind, if the previous ball had a big catch. It now resets: slow motion belongs to the live moment. This is the most likely cause of the bowling release-accuracy test failing under full-suite load. The scrubbed replay read a slowed, half-blended pose.
+
 ## 2. Evidence index
 
 | Item | Path |
 |---|---|
-| Diving and high catches, slow motion and catching camera | `artifacts/cricket-phase6/*.jpg`, `artifacts/cricket-phase6/stills/` |
+| Diving and high catches, slow motion and catching camera; a dropped catch | `artifacts/cricket-phase6/*.jpg`, `artifacts/cricket-phase6/stills/` |
 | Batting interface, desktop and phones | `artifacts/cricket-phase6/ui/` |
 | Earlier fielding, keeping, bowling and celebrations (unchanged code paths) | `artifacts/cricket-phase5/` |
 | Batting strokes (Phase 4; the new strokes are covered by rig tests) | `artifacts/cricket-batting/after/` |
@@ -148,6 +157,11 @@ All run on the final code (`bfed929`), on this machine, with retries off.
 
 Both load-related tests passed in the second, clean full run. No threshold was loosened.
 
+**After the second round of changes:**
+- Typecheck clean; 539 unit tests passed.
+- The first full run had **174 passed and 1 failed**. Release accuracy failed again under load (0.24 m), the second time in three runs, so it was treated as a real regression rather than flakiness. The cause was slow motion carrying over a replay scrub, together with the scene clock running while paused; both are fixed.
+- The final full run then had **175 passed, 0 failed, 10 skipped**, with release accuracy back to 0.000 m.
+
 ## 5. Deliberately not done, and why
 
 | Asked for | Status |
@@ -168,7 +182,7 @@ Both load-related tests passed in the second, clean full run. No threshold was l
 - **Shots by name.** The slog, lofted on side and lofted straight are separate presets of the engine's single "loft" kind with different aims. Their results differ by aim and power only, as the engine allows.
 - **Slow motion can start for a catch that is then dropped.** It's triggered by the prediction, before the engine decides. The drop is shown honestly, but the slow motion has already begun.
 - **The phone-portrait shot bar** takes about 120 px under the field, so the field is shorter on narrow phones.
-- **Dropped and boundary catches weren't filmed** in this phase.
+- **A boundary catch wasn't filmed** in this phase.
 - **Carried over from Phase 5:** relay throws, boundary saves and hurried long stretches (engine-bound).
 
 ## 7. Files changed

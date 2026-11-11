@@ -1,0 +1,50 @@
+[
+  {
+    "scene": "dropped-catch",
+    "outcome": "DOT",
+    "moment": 525,
+    "takeError": "0.348",
+    "takeMove": "pickup",
+    "spacing": "2.458",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 66,
+        "fps": 15.5,
+        "speed": 1
+      },
+      {
+        "camera": "fielding",
+        "frames": 50,
+        "fps": 15.6,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "scene": "diving-catch",
+    "outcome": "CAUGHT",
+    "moment": 477,
+    "takeError": "0.082",
+    "takeMove": "dive",
+    "spacing": "2.458",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 97,
+        "fps": 15,
+        "speed": 1
+      },
+      {
+        "camera": "fielding",
+        "frames": 57,
+        "fps": 15.1,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "missing": [],
+    "matches": 1
+  }
+]
