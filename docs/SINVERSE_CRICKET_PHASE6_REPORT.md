@@ -125,7 +125,28 @@ Same replayed delivery, 1280×800 (`e2e/cricket-benchmark.spec.ts`). Budgets are
 
 ## 4. Tests
 
-REGRESSION
+All run on the final code (`bfed929`), on this machine, with retries off.
+
+| Check | Result |
+|---|---|
+| Production build (`pnpm build`) | Passed |
+| Typecheck, all packages | Clean |
+| Unit tests | 539 passed, 0 failed, 0 skipped (engines 446, realtime 61, shared 32) |
+| Database tests (local disposable `*_test` databases) | 65 passed, 0 failed |
+| Full browser suite (clean run) | **174 passed, 0 failed, 10 skipped**. The skipped tests are the on-demand evidence recorders and the benchmark, run separately |
+| Cricket browser and pure tests in the suite | 94 passed |
+| New tests | `cricket-shots.spec.ts` (7) and `cricket-shotbar.spec.ts` (1, a real match); the new strokes in `cricket-batting.spec.ts` (12 tests across 19 strokes) |
+| Cloudflare/OpenNext build and dry-run packaging (local, no upload) | Passed (24.0 MB, 6.4 MB gzipped) |
+
+**The first full run** had 171 passed and 3 failed:
+
+| Test | What happened |
+|---|---|
+| `cricket-2` keyboard test | Real, caused by this phase: it expected the old digit-to-shot mapping's 35° cover-drive aim. Digit keys now choose shot families, and the book's cover drive aims at 45°. The keyboard flow, the intent and server verification are tested the same way; only the expected aim changed (45 → 55 after one arrow press). It passes |
+| Bowling release accuracy (`cricket-visual`) | Load-related. It passed on its own 3 out of 3 times. It measures the hand on the frame nearest the release tick, so a slow frame under full-suite load can land early |
+| Color Clash two-player match | Load-related; unrelated game. It passed on its own |
+
+Both load-related tests passed in the second, clean full run. No threshold was loosened.
 
 ## 5. Deliberately not done, and why
 
