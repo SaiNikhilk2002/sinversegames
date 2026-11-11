@@ -768,6 +768,8 @@ export function CricketGame({
       last = performance.now(),
       uiAt = last,
       drawAt = 0,
+      drawMs = 0,
+      drawCount = 0,
       fpsAt = last,
       frames = 0;
     let previousPad: boolean[] = [];
@@ -1003,6 +1005,7 @@ export function CricketGame({
         (r.paused ? 200 : preferences.current.quality === "low" ? 30 : 15)
       ) {
         if (driver.current) {
+          const drawStart = performance.now();
           driver.current.draw({
             frame: visual,
             shot: visualShot,
@@ -1031,13 +1034,18 @@ export function CricketGame({
                     : null
                 : null,
           });
+          // CPU cost of one draw (animation, scene sync and command submission), for benchmarks.
+          drawMs = performance.now() - drawStart;
           frames++;
+          drawCount++;
         }
         drawAt = now;
       }
       const element = root.current;
       if (element) {
         element.dataset.ballTick = String(r.delivery?.tick ?? 0);
+        element.dataset.draws = String(drawCount);
+        element.dataset.drawMs = drawMs.toFixed(2);
         element.dataset.ballX = String(r.delivery?.pos.x ?? 0);
         element.dataset.ballY = String(r.delivery?.pos.y ?? 0);
         element.dataset.ballZ = String(r.delivery?.pos.z ?? 0);
@@ -1448,7 +1456,7 @@ export function CricketGame({
           </div>
         )}
         {r.replay && (
-          <div className="cr-replay">
+          <div className="cr-replay" data-playing={r.replay.playing ? "true" : "false"}>
             <div className="cr-replay-head">
               <strong>Actual delivery replay</strong>
               <select

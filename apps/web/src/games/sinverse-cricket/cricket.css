@@ -619,6 +619,23 @@
   display: grid;
   gap: 2px;
 }
+/* While a replay plays, the strip fades back so close cameras show the whole
+   delivery stride and stumps. Hover or keyboard focus brings it straight back;
+   touch screens (no hover) and reduced motion keep it fully shown. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .cr-replay {
+    transition: opacity 0.18s ease;
+  }
+  /* Keyboard focus (focus-visible) restores it; a mouse click on Play doesn't hold it open. */
+  .cr-replay[data-playing="true"]:not(:hover):not(:has(:focus-visible)) {
+    animation: cr-replay-quiet 0.5s ease 1.6s forwards;
+  }
+}
+@keyframes cr-replay-quiet {
+  to {
+    opacity: 0.14;
+  }
+}
 .cr-replay-head,
 .cr-replay-foot {
   display: flex;

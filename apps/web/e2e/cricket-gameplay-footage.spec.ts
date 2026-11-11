@@ -120,6 +120,46 @@ async function encode(browser: Browser, frames: { at: number; data: string }[]) 
   return Buffer.from(base64, "base64");
 }
 
+/**
+ * Opens the last ball's replay and plays it at 1x from `from` (tick) to the end
+ * with `camera`, saving a WebM (in .data) and an eight-frame contact sheet.
+ */
+async function film(page: Page, browser: Browser, name: string, camera: string, from: number) {
+  const slider = page.getByRole("slider", { name: "Replay position", exact: true });
+  if (!(await slider.isVisible().catch(() => false))) await page.keyboard.press("KeyP");
+  await expect(slider).toBeVisible({ timeout: 8000 });
+  const pause = page.getByRole("button", { name: "Pause replay", exact: true });
+  if (await pause.isVisible()) await pause.click({ timeout: 2000 });
+  await page.getByLabel("Replay speed").selectOption("1");
+  await page.getByLabel("Camera", { exact: true }).selectOption(camera);
+  const end = Number(await slider.getAttribute("max"));
+  await range(page, "Replay position", from);
+  await page.waitForTimeout(1200);
+  await page.getByRole("button", { name: "Play replay", exact: true }).click();
+  // Off the controls, so the replay strip fades back as it does for a viewer.
+  await page.mouse.move(640, 120);
+  const frames: { at: number; data: string }[] = [],
+    started = Date.now(),
+    length = (end - from) * STEP * 1000 + 1500;
+  while (Date.now() - started < length) {
+    const shot = await page.screenshot({ type: "jpeg", quality: 72 });
+    frames.push({ at: Date.now() - started, data: `data:image/jpeg;base64,${shot.toString("base64")}` });
+  }
+  writeFileSync(`${videos}/${name}.webm`, await encode(browser, frames));
+  // Full-size stills for close review (not committed).
+  mkdirSync(`${videos}/${name}`, { recursive: true });
+  frames.forEach((f, i) => i % 6 === 0 && writeFileSync(`${videos}/${name}/${String(i).padStart(3, "0")}-${(f.at / 1000).toFixed(2)}s.jpg`, Buffer.from(f.data.split(",")[1]!, "base64")));
+  // A contact sheet of eight evenly spaced frames goes into the repository.
+  const picks = Array.from({ length: 8 }, (_, i) => frames[Math.min(frames.length - 1, Math.floor((i / 7) * (frames.length - 1)))]!);
+  const sheet = await browser.newPage({ viewport: { width: 1280, height: 400 } });
+  await sheet.setContent(`<body style="margin:0;background:#000;display:grid;grid-template-columns:repeat(4,1fr)">${picks.map((f) => `<figure style="margin:0;position:relative"><img style="width:100%" src="${f.data}"><figcaption style="position:absolute;top:4px;left:6px;color:#fff;font:600 13px system-ui;text-shadow:0 1px 2px #000">${(f.at / 1000).toFixed(1)} s</figcaption></figure>`).join("")}</body>`);
+  await sheet.screenshot({ path: `${out}/${name}.png`, fullPage: true });
+  await sheet.close();
+  await page.getByTestId("cricket-replay-close").click();
+  await page.waitForTimeout(800);
+  return { frames: frames.length, fps: +(frames.length / (length / 1000)).toFixed(1) };
+}
+
 test("record real gameplay footage of the match screen", async ({ browser }) => {
   test.setTimeout(1800000);
   mkdirSync(out, { recursive: true });
@@ -184,35 +224,84 @@ test("record real gameplay footage of the match screen", async ({ browser }) => 
     log.push({ want: want.name, found: true, recorded, outcome: delivery.outcome?.label, wicket: delivery.outcome?.wicket, runs: delivery.outcome?.completedRuns, matched: want.test(delivery) });
 
     // The replay, at 1x, from just before release to the end, recorded frame by frame.
-    const slider = page.getByRole("slider", { name: "Replay position", exact: true });
-    if (!(await slider.isVisible().catch(() => false))) await page.keyboard.press("KeyP");
-    await expect(slider).toBeVisible({ timeout: 8000 });
-    const pause = page.getByRole("button", { name: "Pause replay", exact: true });
-    if (await pause.isVisible()) await pause.click({ timeout: 2000 });
-    await page.getByLabel("Replay speed").selectOption("1");
-    await page.getByLabel("Camera", { exact: true }).selectOption(process.env.CRICKET_CAMERA ?? "broadcast");
-    await range(page, "Replay position", 60);
-    await page.waitForTimeout(1200);
-    await page.getByRole("button", { name: "Play replay", exact: true }).click();
-    const frames: { at: number; data: string }[] = [],
-      started = Date.now(),
-      length = (delivery.tick - 60) * STEP * 1000 + 1500;
-    while (Date.now() - started < length) {
-      const shot = await page.screenshot({ type: "jpeg", quality: 72 });
-      frames.push({ at: Date.now() - started, data: `data:image/jpeg;base64,${shot.toString("base64")}` });
-    }
-    writeFileSync(`${videos}/${want.name}.webm`, await encode(browser, frames));
-    // A contact sheet of eight evenly spaced frames goes into the repository.
-    const picks = Array.from({ length: 8 }, (_, i) => frames[Math.min(frames.length - 1, Math.floor((i / 7) * (frames.length - 1)))]!);
-    const sheet = await browser.newPage({ viewport: { width: 1280, height: 400 } });
-    await sheet.setContent(`<body style="margin:0;background:#000;display:grid;grid-template-columns:repeat(4,1fr)">${picks.map((f) => `<figure style="margin:0;position:relative"><img style="width:100%" src="${f.data}"><figcaption style="position:absolute;top:4px;left:6px;color:#fff;font:600 13px system-ui;text-shadow:0 1px 2px #000">${(f.at / 1000).toFixed(1)} s</figcaption></figure>`).join("")}</body>`);
-    await sheet.screenshot({ path: `${out}/${want.name}.png`, fullPage: true });
-    await sheet.close();
-    log.push({ want: want.name, frames: frames.length, fps: +(frames.length / (length / 1000)).toFixed(1) });
-    await page.getByTestId("cricket-replay-close").click();
-    await page.waitForTimeout(800);
+    log.push({ want: want.name, ...(await film(page, browser, want.name, process.env.CRICKET_CAMERA ?? "broadcast", 60)) });
   }
   writeFileSync(`${out}/footage-log.json`, JSON.stringify(log, null, 2));
+  expect(errors).toEqual([]);
+  await context.close();
+});
+
+type Bowl = { name: string; variation: string; line: number; length: number; cameras: string[] };
+const BOWLS: Bowl[] = [
+  { name: "fast-seam-good-length", variation: "seam", line: 0.1, length: 4.5, cameras: ["behind", "side"] },
+  { name: "fast-inswing-yorker", variation: "inswing", line: 0.2, length: 1, cameras: ["batter"] },
+  { name: "spin-offbreak", variation: "offbreak", line: 0.3, length: 4, cameras: ["behind", "keeper"] },
+  { name: "spin-legbreak", variation: "legbreak", line: -0.2, length: 4, cameras: ["behind"] },
+  { name: "spin-googly", variation: "googly", line: 0, length: 3.5, cameras: ["bowler"] },
+  { name: "slower-ball", variation: "slower", line: 0, length: 5, cameras: ["broadcast"] },
+];
+
+test("record real bowling footage and the match result", async ({ browser }) => {
+  test.setTimeout(1800000);
+  mkdirSync(out, { recursive: true });
+  mkdirSync(videos, { recursive: true });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage(),
+    errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/play/sinverse-cricket");
+  await enterName(page, "Footage");
+  const response = page.waitForResponse((r) => r.url().endsWith("/api/solo/start") && r.request().method() === "POST");
+  await page.getByTestId("start-run").click();
+  const run = await (await response).json();
+  const root = page.getByTestId("sinverse-cricket");
+  await page.getByLabel("Graphics", { exact: true }).selectOption(process.env.CRICKET_GRAPHICS ?? "high");
+  await expect(page.getByText("3D ground ready", { exact: true })).toBeVisible({ timeout: 30000 });
+  const model = new CricketMatch(run.seed, run.config);
+  await finishCricketToss(page, model.tossFace, "bowl");
+  await page.getByRole("button", { name: "Pause match", exact: true }).click();
+  await page.getByLabel("Automatic event replays").uncheck();
+  await page.getByRole("button", { name: "Return to the middle", exact: true }).click();
+  await page.waitForTimeout(2500);
+
+  const log: unknown[] = [];
+  for (const bowl of BOWLS) {
+    if ((await root.getAttribute("data-phase")) !== "ready" || (await root.getAttribute("data-batting")) !== "false") break;
+    const seq = Number(await root.getAttribute("data-seq"));
+    await page.getByLabel("Variation", { exact: true }).selectOption(bowl.variation);
+    await range(page, "Line", bowl.line);
+    await range(page, "Length", bowl.length);
+    // Arm, then release on the beat (the release meter centres 2.5 s after arming).
+    await page.getByTestId("cricket-primary").click();
+    await page.waitForTimeout(2500);
+    await page.getByTestId("cricket-primary").click();
+    await expect(root).toHaveAttribute("data-seq", String(seq + 1), { timeout: 120000 });
+    const entry: Record<string, unknown> = { bowl: bowl.name, release: Number(await root.getAttribute("data-release")), commentary: await page.getByTestId("cricket-commentary").textContent() };
+    for (const camera of bowl.cameras) entry[camera] = await film(page, browser, bowl.cameras.length > 1 ? `${bowl.name}-${camera}` : bowl.name, camera, 0);
+    log.push(entry);
+  }
+
+  writeFileSync(`${out}/bowling-log.json`, JSON.stringify(log, null, 2));
+  // The chase: bat out the innings with real swings, then the result screen.
+  const chase = page.getByRole("button", { name: "Begin the chase", exact: true }).first();
+  await expect(chase).toBeVisible({ timeout: 30000 });
+  await chase.click();
+  await expect(root).toHaveAttribute("data-batting", "true", { timeout: 15000 });
+  await expect(root).toHaveAttribute("data-phase", "ready");
+  for (let ball = 0; ball < 12 && (await root.getAttribute("data-phase")) === "ready"; ball++) {
+    const seq = Number(await root.getAttribute("data-seq"));
+    await page.getByLabel("Shot", { exact: true }).selectOption(ball % 2 ? "cover" : "straight");
+    await page.getByTestId("cricket-primary").click();
+    await expect(root).toHaveAttribute("data-live", "true");
+    await clickAt(root, "cricket-primary", 150).catch(() => null);
+    await expect(root).not.toHaveAttribute("data-seq", String(seq), { timeout: 120000 });
+    await page.waitForTimeout(1500);
+  }
+  await expect(root).toHaveAttribute("data-phase", "finished", { timeout: 60000 });
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `${out}/match-result.png` });
+  log.push({ result: await page.locator(".cr-match-finish h2").textContent() });
+  writeFileSync(`${out}/bowling-log.json`, JSON.stringify(log, null, 2));
   expect(errors).toEqual([]);
   await context.close();
 });

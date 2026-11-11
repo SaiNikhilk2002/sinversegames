@@ -191,6 +191,32 @@ test("Cricket: play both innings through real controls, replay, verify and save 
         .selectOption("0.5");
       await page.getByLabel("Camera", { exact: true }).selectOption("side");
       await page.screenshot({ path: `${evidence}/replay-side.png` });
+      // While it plays, the strip fades back off the action and returns on hover
+      // or keyboard focus. Under reduced motion (this context) it stays shown.
+      const strip = page.locator(".cr-replay"),
+        opacity = () => strip.evaluate((e) => Number(getComputedStyle(e).opacity)),
+        play = async () => {
+          if (await page.getByRole("button", { name: "Pause replay", exact: true }).isVisible()) await page.getByRole("button", { name: "Pause replay", exact: true }).click();
+          await range(page, "Replay position", 0);
+          await page.getByRole("button", { name: "Play replay", exact: true }).click();
+          await page.mouse.move(5, 5);
+          await expect(strip).toHaveAttribute("data-playing", "true");
+        };
+      await play();
+      await page.waitForTimeout(2400);
+      expect(await opacity()).toBe(1);
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await play();
+      await expect.poll(opacity, { timeout: 5000 }).toBeLessThan(0.3);
+      await strip.hover();
+      await expect.poll(opacity).toBe(1);
+      await page.mouse.move(5, 5);
+      await expect.poll(opacity, { timeout: 5000 }).toBeLessThan(0.3);
+      // Keyboard focus moving onto a strip control brings it back.
+      await strip.locator("button").first().focus();
+      await page.keyboard.press("Tab");
+      await expect.poll(opacity).toBe(1);
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await page.getByTestId("cricket-replay-close").click();
       expect(await page.getByTestId("cricket-score").innerText()).toBe(score);
       expect(await root.getAttribute("data-seq")).toBe(String(seq + 1));
