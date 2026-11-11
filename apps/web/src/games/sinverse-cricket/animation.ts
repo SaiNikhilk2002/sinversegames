@@ -248,6 +248,36 @@ export const CLIPS = {
     0.28,
   ),
   stance: clip([[0, STANCE]]),
+  // ---- fielding (posed onto the ball by fielding.ts; times are the clip's own) ----
+  /** Two-handed pickup: knees bent, head over the ball, both hands down in front, the left foot leading. */
+  gather: clip([[0, { hipY: 0.6, pitch: 0.95, chestX: 0.22, headX: -0.55, lHandX: 0.08, lHandY: 0.14, lHandZ: 0.6, rHandX: -0.08, rHandY: 0.14, rHandZ: 0.6, lFootX: 0.2, lFootZ: 0.34, rFootX: -0.22, rFootZ: -0.3 }]]),
+  /** One-handed pickup on the run: bent at the waist, throwing hand to the ball, the other back for balance. */
+  reach: clip([[0, { hipY: 0.8, pitch: 0.9, chestX: 0.18, headX: -0.5, yaw: -0.15, lHandX: 0.32, lHandY: 0.95, lHandZ: -0.1, rHandX: -0.24, rHandY: 0.16, rHandZ: 0.55 }]]),
+  /** Ball at the chest: soft hands in front of the sternum. */
+  catchChest: clip([[0, { hipY: 0.9, pitch: 0.12, headX: -0.25, lHandX: 0.06, lHandY: 1.18, lHandZ: 0.36, rHandX: -0.06, rHandY: 1.18, rHandZ: 0.36, lFootZ: 0.12, rFootZ: -0.14 }], [0.25, { hipY: 0.92, pitch: 0.06, headX: -0.1, lHandX: 0.06, lHandY: 1.1, lHandZ: 0.2, rHandX: -0.06, rHandY: 1.1, rHandZ: 0.2 }]]),
+  /** Down on the right knee after a slide or a dive, upright from the hips, ready to throw. */
+  kneel: clip([[0, { hipY: 0.5, pitch: 0.08, chestX: 0.04, lFootX: 0.16, lFootZ: 0.38, rFootX: -0.12, rFootY: 0.14, rFootZ: -0.5, lHandX: 0.26, lHandY: 0.75, lHandZ: 0.3, rHandX: -0.24, rHandY: 0.8, rHandZ: 0.1 }]]),
+  /**
+   * Underarm flick at the stumps from close in. Keys are seconds from the
+   * release, so the hand lets go on the engine's throw tick.
+   */
+  underarm: clip([
+    [-0.32, { hipY: 0.66, pitch: 0.8, chestX: 0.2, headX: -0.5, lHandX: 0.24, lHandY: 0.45, lHandZ: 0.42, rHandX: -0.14, rHandY: 0.24, rHandZ: 0.5, lFootX: 0.2, lFootZ: 0.3, rFootX: -0.22, rFootZ: -0.3 }],
+    [-0.14, { hipY: 0.7, pitch: 0.7, chestX: 0.18, headX: -0.45, yaw: -0.25, lHandX: 0.3, lHandY: 0.62, lHandZ: 0.35, rHandX: -0.26, rHandY: 0.32, rHandZ: -0.3, lFootX: 0.2, lFootZ: 0.34, rFootX: -0.22, rFootZ: -0.3 }],
+    [0, { hipY: 0.76, pitch: 0.5, chestX: 0.12, headX: -0.35, yaw: 0.15, lHandX: 0.34, lHandY: 0.7, lHandZ: 0.15, rHandX: -0.1, rHandY: 0.62, rHandZ: 0.62, lFootX: 0.2, lFootZ: 0.5, rFootX: -0.22, rFootZ: -0.28 }],
+    [0.22, { hipY: 0.84, pitch: 0.32, headX: -0.25, yaw: 0.25, lHandX: 0.3, lHandY: 0.8, lHandZ: 0.05, rHandX: -0.04, rHandY: 1.12, rHandZ: 0.5, lFootX: 0.2, lFootZ: 0.5, rFootX: -0.2, rFootY: 0.12, rFootZ: -0.1 }],
+    [0.8, { hipY: 0.94, pitch: 0.1, lFootZ: 0.2, rFootZ: -0.05 }],
+  ]),
+  /** The keeper's gloves taking a ball below the knee: still down, fingers to the turf. */
+  keeperLow: clip([[0, { hipY: 0.5, pitch: 0.78, chestX: 0.22, headX: -0.8, lHandX: 0.09, lHandY: 0.2, lHandZ: 0.5, rHandX: -0.09, rHandY: 0.2, rHandZ: 0.5, lFootX: 0.27, lFootZ: -0.02, rFootX: -0.27, rFootZ: -0.02 }]]),
+  /** Risen with the bounce to take it at the waist or above. */
+  keeperHigh: clip([[0, { hipY: 0.8, pitch: 0.3, chestX: 0.08, headX: -0.25, lHandX: 0.08, lHandY: 1.05, lHandZ: 0.42, rHandX: -0.08, rHandY: 1.05, rHandZ: 0.42, lFootX: 0.26, rFootX: -0.26 }]]),
+  /** Ball in the gloves swept onto the bails, the body following the hands forward. */
+  stumping: clip([
+    [0, { hipY: 0.62, pitch: 0.62, chestX: 0.2, headX: -0.7, lHandX: 0.07, lHandY: 0.5, lHandZ: 0.36, rHandX: -0.07, rHandY: 0.5, rHandZ: 0.36, lFootX: 0.27, rFootX: -0.27 }],
+    [0.16, { hipY: 0.58, hipZ: 0.18, pitch: 0.9, chestX: 0.25, headX: -0.75, lHandX: 0.05, lHandY: 0.66, lHandZ: 0.95, rHandX: -0.05, rHandY: 0.66, rHandZ: 0.95, lFootX: 0.27, lFootZ: 0.25, rFootX: -0.27 }],
+    [0.45, { hipY: 0.74, hipZ: 0.1, pitch: 0.5, chestX: 0.12, headX: -0.4, lHandX: 0.12, lHandY: 0.9, lHandZ: 0.7, rHandX: -0.12, rHandY: 0.9, rHandZ: 0.7, lFootX: 0.27, lFootZ: 0.25, rFootX: -0.27 }],
+  ]),
   umpire: clip([[0, { hipY: 0.94, pitch: 0.2, lHandX: 0.12, lHandY: 0.95, lHandZ: -0.16, rHandX: -0.12, rHandY: 0.95, rHandZ: -0.16 }]]),
   umpireOut: clip([
     [0, { lHandX: 0.25, lHandY: 0.9 }],
@@ -497,6 +527,56 @@ export class FootPlanter {
       } else f.y = 0;
       f.swinging = swinging;
     });
+  }
+}
+
+/**
+ * Planted feet for posed (not running) actors: the keeper shuffling across, a
+ * fielder stepping into a take. Each foot stays where it is on the turf until
+ * the pose wants it more than STEP_REACH away, then takes a quick lifted step;
+ * only one foot steps at a time. So a body that moves under a held pose steps
+ * rather than slides.
+ */
+export const STEP_REACH = 0.17;
+export class StepFeet {
+  feet = [0, 1].map(() => ({ x: NaN, z: NaN, fromX: 0, fromZ: 0, toX: 0, toZ: 0, t: 1, lift: 0 }));
+  reset() {
+    for (const f of this.feet) f.x = NaN;
+  }
+  /** Takes where the pose wants each foot (world x,z) and leaves where it actually is in `feet`. */
+  update(lx: number, lz: number, rx: number, rz: number, dt: number) {
+    const want = [
+      [lx, lz],
+      [rx, rz],
+    ] as const;
+    for (const [k, f] of this.feet.entries()) {
+      const [wx, wz] = want[k]!;
+      if (!Number.isFinite(f.x) || Math.hypot(wx - f.x, wz - f.z) > 1.2) {
+        f.x = f.toX = wx;
+        f.z = f.toZ = wz;
+        f.t = 1;
+        f.lift = 0;
+      }
+    }
+    for (const [k, f] of this.feet.entries()) {
+      const [wx, wz] = want[k]!,
+        other = this.feet[1 - k]!;
+      if (f.t >= 1 && other.t >= 1 && Math.hypot(wx - f.x, wz - f.z) > STEP_REACH) {
+        f.fromX = f.x;
+        f.fromZ = f.z;
+        f.t = 0;
+      }
+      if (f.t < 1) {
+        // A step takes about a tenth of a second and lands where the pose now wants it.
+        f.t = Math.min(1, f.t + dt / 0.11);
+        f.toX = wx;
+        f.toZ = wz;
+        const u = ease(f.t);
+        f.x = f.fromX + (f.toX - f.fromX) * u;
+        f.z = f.fromZ + (f.toZ - f.fromZ) * u;
+        f.lift = Math.sin(f.t * Math.PI) * 0.07;
+      } else f.lift = 0;
+    }
   }
 }
 

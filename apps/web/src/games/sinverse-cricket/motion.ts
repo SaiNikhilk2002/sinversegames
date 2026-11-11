@@ -19,7 +19,20 @@ import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
 
 const URL_BASE = "/sinverse-cricket/motion/";
 export type LocoClip = "Idle_Loop" | "Walk_Loop" | "Jog_Fwd_Loop" | "Sprint_Loop";
-export type OneShot = "OverhandThrow" | "LayToIdle" | "Yes";
+export type OneShot =
+  | "OverhandThrow"
+  | "LayToIdle"
+  | "Yes"
+  | "Roll"
+  | "Slide_Start"
+  | "Slide_Loop"
+  | "Slide_Exit"
+  | "Jump_Start"
+  | "Jump_Land"
+  | "NinjaJump_Land"
+  | "Idle_FoldArms_Loop"
+  | "Idle_No_Loop"
+  | "Idle_Talking_Loop";
 
 /** Athlete (Mixamo) joint -> source joint, per library. Fingers keep the athlete's own curl. */
 const JOINTS = ["Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm", "RightHand", "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot", "RightToeBase"] as const;

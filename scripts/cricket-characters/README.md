@@ -68,3 +68,16 @@ To add a player, add a JSON file to `athletes/` and its name to `SQUAD` in `real
 - **Fallback.** Models load in the background. Until they arrive, or if they can't be loaded, the procedural bodies are drawn as before.
 - **Textures.** Embedded textures are decoded through `<img>`, because the site's Content-Security-Policy blocks `fetch()` of `blob:` URLs.
 - **Tests.** `apps/web/e2e/cricket-realistic.spec.ts` checks the models, the kit and the reach accuracy.
+
+## Motion clips
+
+`apps/web/public/sinverse-cricket/motion/ual1.glb` and `ual2.glb` are skeleton-only extracts of Quaternius's Universal Animation Library 1 and 2 (CC0, see [LICENSES.md](LICENSES.md)), made with `extract_motion.py`:
+
+```
+blender -b --python-exit-code 1 -P scripts/cricket-characters/extract_motion.py -- "<UAL1>/Godot/AnimationLibrary_Godot_Standard.glb" apps/web/public/sinverse-cricket/motion/ual1.glb "Idle_Loop,Walk_Loop,Jog_Fwd_Loop,Sprint_Loop,Crouch_Idle_Loop,Roll,Dance_Loop,Jump_Start,Jump_Land,Idle_Talking_Loop"
+blender -b --python-exit-code 1 -P scripts/cricket-characters/extract_motion.py -- "<UAL2>/Unreal-Godot/UAL2_Standard.glb" apps/web/public/sinverse-cricket/motion/ual2.glb "OverhandThrow,LayToIdle,Slide_Start,Slide_Loop,Slide_Exit,Yes,Idle_FoldArms_Loop,Idle_No_Loop,NinjaJump_Land"
+```
+
+On Windows pass the library paths as `D:/...`, not Git Bash's `/d/...`; Blender can't read the latter.
+
+The libraries have no cricket-specific motion (no strokes, keeping or bowling), so those are procedural: `batting.ts`, `fielding.ts` and the keyed poses in `animation.ts`, solved onto the ball with IK.

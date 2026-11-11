@@ -49,3 +49,41 @@ Several things that look wrong on screen are decided by the engine, not the rend
 - **Effort.** About 2 to 3 focused days: the engine, versioning, server verification, tests and the renderer hook-up.
 - **Risk.** Moderate, mainly game balance. It's contained by the versioning, because v1 matches can't change.
 - **Approval needed for:** the `engineVersion` field; the v1 freeze; new frame fields; and changing new matches' outcomes and difficulty curve.
+
+## Phase 5 update: what presentation now covers, and what still needs v2
+
+**Still not implemented, still awaiting approval.** Phase 5 changed only presentation. It touched no engine, scoring, catch, ownership or replay-event code.
+
+What the renderer now does within today's engine (`apps/web/src/games/sinverse-cricket/fielding.ts`, `spacing.ts`, `scene.ts`):
+
+- **Anticipation.** The ball's flight is predicted forward with the engine's own laws, and the chaser's run is predicted the way `fieldBall` moves it. So hands, body and dives get there before the engine's event.
+- **Accuracy.** Measured against real takes:
+
+  | Take | Median error |
+  |---|---|
+  | Pickups | 2.4 cm |
+  | Catches | 3.7 cm |
+  | Keeper collections | 6.4 cm |
+  | Diving catches | 32 cm |
+
+- **Carry and stepping.** The body steps up to 0.6 m into a take, which is display only and fades back as players walk to their marks. Held poses plant their feet and step instead of sliding.
+- **Ball handling.** The ball is drawn into the hand from where it really was, not from the engine's snapped position.
+- **Throws, and how "dives" are shown.**
+  - Short throws (under 14 m) are drawn underarm.
+  - Where the engine labels a ground ball 0.7–1.1 m away a "dive", it's shown as a stretching or sliding pickup.
+
+What the renderer still can't do honestly. These need v2, and they're added to the list above:
+
+| Wanted | Why it's engine work |
+|---|---|
+| Relay throws (outfield to a relay fielder to the stumps) | The ball's path and its arrival time at the stumps decide run-outs |
+| A boundary save that keeps the ball in | Whether the ball crosses the rope is scoring |
+| Real deceleration into a pickup | The engine's chaser runs at constant speed to the pickup tick; the display carry hides it but can't change when the pickup happens |
+| Throws to the bowler's end, and a take by the bowler | Already item 3 and item 4 |
+
+Each would follow the same compatibility plan as above:
+- `engineVersion` gating
+- a frozen v1
+- golden v1 digests unchanged
+- seeded integer-tick behaviour
+- balance kept within ±5%

@@ -44,8 +44,8 @@ The source shirt has a MakeHuman logo printed on it. The build replaces the shir
 
 | Library | Clips used |
 |---|---|
-| Universal Animation Library | Idle_Loop, Walk_Loop, Jog_Fwd_Loop, Sprint_Loop, Crouch_Idle_Loop, Roll, Dance_Loop |
-| Universal Animation Library 2 | OverhandThrow, LayToIdle, Slide_Start, Slide_Loop, Slide_Exit, Yes |
+| Universal Animation Library | Idle_Loop, Walk_Loop, Jog_Fwd_Loop, Sprint_Loop, Crouch_Idle_Loop, Roll, Dance_Loop, Jump_Start, Jump_Land, Idle_Talking_Loop |
+| Universal Animation Library 2 | OverhandThrow, LayToIdle, Slide_Start, Slide_Loop, Slide_Exit, Yes, Idle_FoldArms_Loop, Idle_No_Loop, NinjaJump_Land |
 
 | Source | Licence |
 |---|---|

@@ -42,10 +42,15 @@ test("benchmark every graphics preset on the same replayed delivery", async ({ b
   await page.goto("/play/sinverse-cricket");
   await enterName(page, "Bench");
   const response = page.waitForResponse((r) => r.url().endsWith("/api/solo/start") && r.request().method() === "POST");
+  const startedAt = Date.now();
   await page.getByTestId("start-run").click();
   const run = await (await response).json();
   const root = page.getByTestId("sinverse-cricket");
   await expect(page.getByText("3D ground ready", { exact: true })).toBeVisible({ timeout: 30000 });
+  const groundMs = Date.now() - startedAt;
+  // The athletes and motion clips arrive after the ground; metrics republish about once a second.
+  await expect(root).toHaveAttribute("data-athletes", "true", { timeout: 60000 });
+  const athletesMs = Date.now() - startedAt;
   await finishCricketToss(page, new CricketMatch(run.seed, run.config).tossFace);
   await page.getByRole("button", { name: "Pause match", exact: true }).click();
   await page.getByLabel("Automatic event replays").uncheck();
@@ -69,6 +74,8 @@ test("benchmark every graphics preset on the same replayed delivery", async ({ b
   await expect(root).toHaveAttribute("data-live", "false", { timeout: 120000 });
 
   const results: Record<string, unknown> = {
+    /** From pressing start to the 3D ground, and to the realistic athletes with their motion (default preset; includes up to ~1 s of metric publishing). */
+    loading: { groundMs, athletesMs },
     machine: await page.evaluate(() => {
       const gl = document.createElement("canvas").getContext("webgl2"),
         info = gl?.getExtension("WEBGL_debug_renderer_info");
@@ -76,8 +83,13 @@ test("benchmark every graphics preset on the same replayed delivery", async ({ b
     }),
   };
   for (const preset of ["low", "medium", "high", "ultra"] as const) {
+    const switchedAt = Date.now();
     await page.getByLabel("Graphics", { exact: true }).selectOption(preset);
+    // The new scene reports its athletes as not ready, then ready (published about once a second).
+    await expect(root).toHaveAttribute("data-athletes", "false", { timeout: 3000 }).catch(() => {});
     await expect(page.getByText("3D ground ready", { exact: true })).toBeVisible({ timeout: 30000 });
+    await expect(root).toHaveAttribute("data-athletes", "true", { timeout: 60000 });
+    const loadMs = Date.now() - switchedAt;
     await page.waitForTimeout(2500);
     const slider = page.getByRole("slider", { name: "Replay position", exact: true });
     if (!(await slider.isVisible().catch(() => false))) await page.keyboard.press("KeyP");
@@ -129,6 +141,7 @@ test("benchmark every graphics preset on the same replayed delivery", async ({ b
       return +sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]!.toFixed(2);
     };
     results[preset] = {
+      loadMs,
       draws: gaps.length,
       drawnFps: +(1000 / (gaps.reduce((a, b) => a + b, 0) / gaps.length)).toFixed(1),
       intervalMedianMs: pct(gaps, 0.5),

@@ -106,6 +106,11 @@ test.describe("Cuisine multiplayer", () => {
     const guide = a.page.getByTestId("cq-guide");
     await a.page.getByTestId(`cq-ingredient-${await guide.getAttribute("data-next-ingredient")}`).click();
     const next = await guide.getAttribute("data-next-ingredient");
+    // The guide updates from the browser's prediction at once; the server has the
+    // action only once it acknowledges it. Reloading before that loses an action
+    // the server never saw (under load the race was lost: the restored kitchen
+    // rightly showed the step before). Reconnection is what's tested here.
+    await expect(a.page.getByTestId("chef-rivals")).toHaveAttribute("data-pending", "false", { timeout: 15_000 });
     await a.page.reload();
     await expect(a.page.getByTestId("chef-rivals")).toBeVisible({ timeout: 20_000 });
     await expect(a.page.getByTestId("cq-guide")).toHaveAttribute("data-next-ingredient", next ?? "", { timeout: 15_000 });

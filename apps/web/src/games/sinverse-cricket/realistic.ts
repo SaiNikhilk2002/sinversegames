@@ -738,6 +738,21 @@ export class RealisticBody {
     return hand.lerp(knuckle, 0.75);
   }
 
+  /**
+   * After `sync`: moves a hand so its palm goes `weight` of the way to a world
+   * point, bending at the clip's own elbow. Lets a clip-driven body (a running
+   * catch, a sliding stop) still put its hand on the ball.
+   */
+  reachHand(left: boolean, target: T.Vector3, weight: number) {
+    if (weight <= 0.001) return;
+    const limb = LIMBS[left ? 0 : 1],
+      wrist = this.bone(limb.end).getWorldPosition(new T.Vector3()),
+      palm = this.palm(left, new T.Vector3());
+    // The wrist goes where it must for the palm (its current offset kept) to land on the point.
+    const goal = new T.Vector3().copy(target).sub(palm).multiplyScalar(weight).add(wrist);
+    this.reachTo(limb, goal, this.bone(limb.lower).getWorldPosition(new T.Vector3()));
+  }
+
   private reach(limb: (typeof LIMBS)[number]) {
     this.reachTo(limb, this.driver.bones[limb.target].getWorldPosition(new T.Vector3()), this.driver.bones[limb.hint].getWorldPosition(new T.Vector3()));
   }

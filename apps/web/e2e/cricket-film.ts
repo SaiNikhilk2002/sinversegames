@@ -81,6 +81,8 @@ export type FilmOptions = {
   videos: string;
   /** Contact sheet image type; JPEG keeps full-resolution sheets small. */
   sheetType?: "png" | "jpeg";
+  /** Milliseconds to keep filming after the replay's last frame (reactions and celebrations play on). */
+  tail?: number;
 };
 
 /** Opens the last ball's replay and films it from the real match screen. */
@@ -101,7 +103,7 @@ export async function film(page: Page, browser: Browser, o: FilmOptions) {
   await page.mouse.move(Math.round((page.viewportSize()?.width ?? 1280) / 2), 120);
   const frames: { at: number; data: string }[] = [],
     started = Date.now(),
-    length = ((end - o.from) * STEP * 1000) / speed + 600;
+    length = ((end - o.from) * STEP * 1000) / speed + (o.tail ?? 600);
   while (Date.now() - started < length) {
     const shot = await page.screenshot({ type: "jpeg", quality: 82 });
     frames.push({ at: Date.now() - started, data: `data:image/jpeg;base64,${shot.toString("base64")}` });

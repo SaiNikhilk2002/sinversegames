@@ -145,6 +145,34 @@ export interface Staging {
   /** 0..1 through the walk-on, or negative when not walking on. */
   entry: number;
   keepClear: boolean;
+  /** Where the eleven started this ball (the first frame), for walking in and walking back. */
+  starts?: readonly Spot[];
+  /** Seconds since a ball without a wicket ended, or negative: fielders walk back to their marks. */
+  returnAge?: number;
+  /** Extra display offsets (x,z pairs per person), e.g. a fielder's momentum carrying past a pickup. */
+  offsets?: Float32Array;
+}
+
+/** How far ring and outfielders stand back before walking in with the bowler, metres. */
+export const WALK_IN = 1.2;
+/** Brisk walking pace back to a fielding position, m/s. */
+export const RETURN_SPEED = 1.5;
+/** Fielders this close to the striker (slips, gully, short leg) stay set instead of walking in. */
+export const CLOSE_IN = 15;
+
+/**
+ * A ring fielder's walk in as the bowler runs up: from WALK_IN behind the mark,
+ * arriving exactly on it at release, so nothing differs from the simulation once
+ * the ball is in play.
+ */
+export function walkInOffset(tick: number, spot: Spot): Spot {
+  const dx = spot.x - LANES.striker,
+    dz = spot.z - CREASE_Z,
+    d = Math.hypot(dx, dz);
+  if (d < CLOSE_IN || tick >= RELEASE_TICK) return { x: 0, z: 0 };
+  const u = clamp01((tick - 25) / (RELEASE_TICK - 25)),
+    back = WALK_IN * (1 - u * u * (3 - 2 * u));
+  return { x: (dx / d) * back, z: (dz / d) * back };
 }
 
 /**
@@ -154,7 +182,7 @@ export interface Staging {
  */
 export function place(s: Staging, spots: Float32Array, holds: Uint8Array) {
   const huddle = s.huddleAge > 0,
-    anchor = huddle ? (s.fielders.find((_, k) => s.actions[k] === "catch" || s.actions[k] === "throw") ?? s.fielders[9]!) : null;
+    anchor = huddle ? (s.fielders.find((_, k) => s.actions[k] === "catch" || s.actions[k] === "dive" || s.actions[k] === "throw") ?? s.fielders[9]!) : null;
   for (let n = 0; n < PEOPLE; n++) {
     let spot: Spot,
       hold = 2;
@@ -167,6 +195,20 @@ export function place(s: Staging, spots: Float32Array, holds: Uint8Array) {
         action = s.actions[n - 2] ?? "ready",
         travel = s.travel[n - 2] ?? 0;
       spot = n === BOWLER ? bowlerSpot(s.tick, s.style, s.bowlerFootZ, f, travel) : { x: f.x, z: f.z };
+      if (n !== BOWLER && n !== KEEPER) {
+        const start = s.starts?.[n - 2];
+        if (s.tick < RELEASE_TICK && s.tick >= 0) {
+          const w = walkInOffset(s.tick, spot);
+          spot = { x: spot.x + w.x, z: spot.z + w.z };
+        } else if (start && (s.returnAge ?? -1) > 0) {
+          // Back to the walk-in mark at a walk once the ball is dead.
+          const w = walkInOffset(1, start),
+            to = { x: start.x + w.x, z: start.z + w.z },
+            far = Math.hypot(to.x - spot.x, to.z - spot.z),
+            reach = Math.min(1, ((s.returnAge ?? 0) * RETURN_SPEED) / Math.max(1e-3, far));
+          spot = { x: spot.x + (to.x - spot.x) * reach, z: spot.z + (to.z - spot.z) * reach };
+        }
+      }
       // The bowler owns his lane through the action; anyone on the ball outranks a bystander.
       hold = n === BOWLER && s.tick <= RELEASE_TICK + 70 ? 2 : n === BOWLER || n === KEEPER || action !== "ready" || travel > 0.02 ? 1 : 0;
       if (anchor && f !== anchor && action !== "dive") {
@@ -181,6 +223,7 @@ export function place(s: Staging, spots: Float32Array, holds: Uint8Array) {
       spot = { x: spot.x + u * 4, z: spot.z + u * 2.8 };
     }
     if (s.entry >= 0) spot = { x: spot.x + (n % 2 ? -1.4 : 1.4) * (1 - s.entry), z: spot.z - 2.2 * (1 - s.entry) };
+    if (s.offsets) spot = { x: spot.x + s.offsets[n * 2]!, z: spot.z + s.offsets[n * 2 + 1]! };
     spots[n * 2] = spot.x;
     spots[n * 2 + 1] = spot.z;
     holds[n] = hold;
