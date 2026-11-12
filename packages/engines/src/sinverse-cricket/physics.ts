@@ -221,12 +221,14 @@ export class Delivery {
     readonly seed: number,
     readonly bowling: BowlingInput,
     readonly field: FieldName,
-    readonly config: CricketConfig,
+    readonly config: Pick<CricketConfig, "difficulty" | "venue">,
     readonly freeHit = false,
     shot: ShotInput | null = null,
     runAt: number[] = [],
     readonly capture = true,
     readonly fatigue = 1,
+    /** International matches: each fielding slot's catching and throwing skill (0-1). The duel's are fixed. */
+    readonly fielding?: readonly number[],
   ) {
     this.rng = seededRng(seed);
     this.shot = shot;
@@ -276,7 +278,7 @@ export class Delivery {
       pos,
       start: copy(pos),
       speed: id === 10 ? 4.8 : 6.6 + (id % 3) * 0.3,
-      skill: 0.78 + (id % 4) * 0.04,
+      skill: fielding?.[id] ?? 0.78 + (id % 4) * 0.04,
       action: "ready",
       travel: 0,
     }));

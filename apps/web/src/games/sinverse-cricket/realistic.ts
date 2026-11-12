@@ -1,7 +1,7 @@
 import * as T from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { TEAMS } from "@platform/engines/sinverse-cricket";
+import { side } from "./sides";
 import { BAT, RIG } from "./animation";
 import type { Athlete } from "./character";
 import { LOWER, type Joint as MotionJoint, type MotionFrame } from "./motion";
@@ -448,7 +448,7 @@ export type { KitColours };
 export const kitColours = (team: number): KitColours =>
   team < 0
     ? { shirt: "#e9eef2", trousers: "#2a2e36", shoes: "#1f232b", trim: "#3b4552" }
-    : { shirt: TEAMS[team]!.color, trousers: TEAMS[team]!.dark, shoes: "#f1f1ee", trim: TEAMS[team]!.accent };
+    : { shirt: side(team).color, trousers: side(team).dark, shoes: "#f1f1ee", trim: side(team).accent };
 
 /**
  * Per-scene kit materials, one per team and one for the umpire. Each colours
@@ -1537,7 +1537,7 @@ export function equipmentKit() {
     geometries,
     materials,
     dress(body: RealisticBody, role: Athlete["role"], team: number, batBone: T.Bone, cast: boolean) {
-      const colours = TEAMS[team < 0 ? 0 : team]!;
+      const colours = side(team);
       if (role === "bat") {
         let bat = bats.get(team);
         if (!bat) bats.set(team, (bat = batGeometry(colours.dark))), geometries.push(bat);

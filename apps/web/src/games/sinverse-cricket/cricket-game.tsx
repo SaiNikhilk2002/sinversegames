@@ -19,9 +19,20 @@ import {
   type CricketConfig,
   type Frame,
   type Innings,
+  type PlayableFormat,
   type ShotInput,
+  FIELD_NAMES_V2,
+  VARIATIONS_FOR,
+  fieldAllowed,
+  internationalTeam,
+  outsideCircle,
+  type FieldName,
+  type FormatBallLog,
 } from "@platform/engines/sinverse-cricket";
 import type { SoloGameProps, SoloSetupProps } from "../solo-types";
+import { InternationalSetup } from "./international-setup";
+import { TeamCrest } from "./crest";
+import { setSides } from "./sides";
 import {
   audioReady,
   createLoop,
@@ -169,11 +180,41 @@ function Range({
   );
 }
 
+/** Formats as the setup offers them: only what the engine plays end to end is selectable. */
+const FORMAT_CHOICES = [
+  { id: "duel", name: "Duel", detail: "1 or 2 overs · fictional sides" },
+  { id: "t20", name: "T20", detail: "20 overs · 20 international sides" },
+  { id: "odi", name: "ODI", detail: "50 overs · 20 international sides" },
+] as const;
+
 export function CricketSetup({ onStart, busy }: SoloSetupProps) {
   const [team, setTeam] = useState<0 | 1>(0),
     [venue, setVenue] = useState<CricketConfig["venue"]>("lantern"),
     [overs, setOvers] = useState<1 | 2>(1),
-    [difficulty, setDifficulty] = useState<CricketConfig["difficulty"]>("club");
+    [difficulty, setDifficulty] = useState<CricketConfig["difficulty"]>("club"),
+    [format, setFormat] = useState<"duel" | PlayableFormat>("duel");
+  const formats = (
+    <div className="cr-format-pick" role="radiogroup" aria-label="Match format">
+      {FORMAT_CHOICES.map((f) => (
+        <button key={f.id} type="button" role="radio" aria-checked={format === f.id} data-format={f.id} onClick={() => setFormat(f.id)}>
+          <strong>{f.name}</strong>
+          <small>{f.detail}</small>
+        </button>
+      ))}
+      <button type="button" role="radio" aria-checked={false} disabled aria-describedby="cr-test-note">
+        <strong>Test</strong>
+        <small id="cr-test-note">Coming later · needs saved multi-day matches</small>
+      </button>
+    </div>
+  );
+  if (format !== "duel")
+    return (
+      <div className="cricket cr-setup cr-setup-v2">
+        <div className="cr-matchday"><span>SINVERSE / CRICKET</span><b>THE LIGHTS. THE NOISE. YOUR MOMENT.</b><span>INTERNATIONAL / {format.toUpperCase()}</span></div>
+        {formats}
+        <InternationalSetup format={format} onFormat={setFormat} busy={busy} onStart={(config) => { unlockAudio(); onStart(configSchema.parse(config)); }} />
+      </div>
+    );
   return (
     <div className="cricket cr-setup cr-setup-v2">
       <div className="cr-matchday"><span>SINVERSE / CRICKET</span><b>THE LIGHTS. THE NOISE. YOUR MOMENT.</b><span>DUEL SERIES / 02</span></div>
@@ -202,6 +243,7 @@ export function CricketSetup({ onStart, busy }: SoloSetupProps) {
           height="200"
         />
       </div>
+      {formats}
       <div className="cr-fixture-preview" aria-label="Fixture preview">
         <div><TeamSymbol team={team} /><span><small>YOUR XI</small><strong>{humanName(team)}</strong><small>Captain · {TEAMS[team].players[0]}</small></span></div>
         <b className="cr-versus">VS</b>
@@ -529,7 +571,9 @@ type Runtime = {
   delivery: Delivery | null;
   initial: Delivery;
   plan: BowlingInput | null;
-  field: BallLog["field"];
+  field: FieldName;
+  /** International matches: the XI slot named as the bowler of a new over, if this delivery started one. */
+  bowlerSent?: number;
   settled: boolean;
   elapsed: number;
   acc: number;
@@ -563,21 +607,38 @@ type Runtime = {
   /** Presentation seconds: wall time, slowed through a big catch. */
   presentTime: number;
 };
+/** XI slot of the bowler of the current (or coming) over. */
+function bowlerSlot(m: CricketMatch): number {
+  const i = m.current;
+  if (m.isDuel) return 6 + Math.min(1, Math.floor(Math.min(i.balls, m.ballsLimit! - 1) / 6));
+  const card = i.overBowlers?.[Math.floor(i.balls / 6)] ?? (m.phase === "ready" ? undefined : i.overBowlers?.at(-1));
+  if (card !== undefined) return i.bowlers[card]!.slot!;
+  try {
+    return m.bowlerForAI();
+  } catch {
+    return 6;
+  }
+}
 function actorNumbers(m: CricketMatch) {
   const i = m.current;
   if (!i) return undefined;
-  const bowler =
-    6 + Math.min(1, Math.floor(Math.min(i.balls, m.config.overs * 6 - 1) / 6));
-  const field = Array.from({ length: 10 }, (_, n) => n).filter(
-    (n) => n !== bowler,
+  const bowler = bowlerSlot(m),
+    keeper = m.isDuel ? 10 : m.sides[1 - i.team]!.keeper;
+  const field = Array.from({ length: 11 }, (_, n) => n).filter(
+    (n) => n !== bowler && n !== keeper,
   );
   return [
     i.striker + 1,
     i.nonStriker + 1,
     ...field.map((n) => n + 1),
     bowler + 1,
-    11,
+    keeper + 1,
   ];
+}
+/** A side's badge: the catalogue crest for an international side, the duel's own symbol otherwise. */
+function SideBadge({ m, n }: { m: CricketMatch; n: number }) {
+  const team = m.sides[n]?.team;
+  return team ? <TeamCrest team={team} size={34} /> : <TeamSymbol team={n} />;
 }
 
 export function CricketGame({
@@ -587,8 +648,15 @@ export function CricketGame({
   onQuit,
 }: SoloGameProps<CricketConfig>) {
   const [config] = useState(() => configSchema.parse(raw));
+  const [match] = useState(() => new CricketMatch(seed, config));
+  // The renderer wears this match's kits. Declared before the scene's own effect,
+  // so the sides are in place whenever (and however often) the scene is built.
+  useEffect(() => {
+    setSides(match.isDuel ? null : match.sides);
+    return () => setSides(null);
+  }, [match]);
   const [r] = useState<Runtime>(() => ({
-    match: new CricketMatch(seed, config),
+    match,
     delivery: null,
     initial: new Delivery(seed, DEFAULT_BOWL, "balanced", config),
     plan: null,
@@ -629,7 +697,9 @@ export function CricketGame({
     >(null),
     [shot, setShot] = useState(DEFAULT_SHOT),
     [bowl, setBowl] = useState(DEFAULT_BOWL),
-    [field, setField] = useState<BallLog["field"]>("balanced"),
+    [field, setField] = useState<FieldName>("balanced"),
+    // International matches: the player's choice of bowler for the next over (XI slot).
+    [bowlerPick, setBowlerPick] = useState<number | null>(null),
     [crowdVolume, setCrowdVolume] = useState(0.42),
     [cinema, setCinema] = useState(true),
     [feedback, setFeedback] = useState("Read the ball. Find your gap."),
@@ -689,6 +759,9 @@ export function CricketGame({
     decide: (_value: "bat" | "bowl") => {},
   });
   const m = r.match,
+    sideOf = (n: number) => m.sides[n]!,
+    limit = m.ballsLimit ?? 0,
+    oversLimit = limit / 6,
     i = m.current,
     live = !!r.delivery && !r.settled,
     batting = i ? m.humanBatting : true;
@@ -717,7 +790,7 @@ export function CricketGame({
   const commitDecision = (value: "bat" | "bowl") => {
     if (r.paused || !r.ceremony.enter() || !r.ceremony.call) return;
     m.toss({ k: "toss", call: r.ceremony.call, decision: value, t: Math.floor(r.elapsed) });
-    setFeedback(`${m.tossFace.toUpperCase()}. ${humanName(m.tossWinner)} win the toss. ${humanName(m.firstBat)} bat first.`);
+    setFeedback(`${m.tossFace.toUpperCase()}. ${sideOf(m.tossWinner).name} win the toss. ${sideOf(m.firstBat).name} bat first.`);
     r.nextAt = r.elapsed + 5200;
     requestAnimationFrame(() => root.current?.focus());
     refresh();
@@ -751,7 +824,7 @@ export function CricketGame({
       r.arming = false;
       r.nextAt = r.elapsed + 2500;
       setFeedback(
-        `${humanName(m.current.team)} need ${m.target} to win. A new innings, a new plan.`,
+        `${sideOf(m.current.team).name} need ${m.target} to win. A new innings, a new plan.`,
       );
       refresh();
       return;
@@ -782,14 +855,32 @@ export function CricketGame({
       };
       r.arming = false;
     }
-    const nextField = m.humanBatting ? m.fieldForAI() : field;
+    let nextField: FieldName = m.humanBatting ? m.fieldForAI() : field;
+    let bowlerSent: number | undefined;
+    if (!m.isDuel && !m.humanBatting) {
+      const over = Math.floor(i.balls / 6);
+      if (!fieldAllowed(m.rules!, over, nextField)) nextField = m.fieldForAI();
+      if (m.current.overBowlers![over] === undefined) {
+        const options = m.bowlerOptions();
+        bowlerSent = bowlerPick !== null && options.includes(bowlerPick) ? bowlerPick : m.bowlerForAI();
+      }
+      const slot = bowlerSent ?? bowlerSlot(m),
+        allowed = VARIATIONS_FOR[m.sides[1 - i.team]!.players[slot]!.bowls ?? "medium"];
+      if (plan && !allowed.includes(plan.variation)) {
+        plan = { ...plan, variation: allowed[0]! };
+        setBowl((b) => ({ ...b, variation: allowed[0]! }));
+      }
+    }
     try {
       r.delivery = m.createDelivery({
         bowling: plan,
         shot: null,
         runAt: [],
         field: nextField,
+        ...(bowlerSent === undefined ? {} : { bowler: bowlerSent }),
       });
+      r.bowlerSent = bowlerSent;
+      if (bowlerSent !== undefined) setBowlerPick(null);
       if (plan) {
         const approachTick = Math.min(RELEASE_TICK - 1, Math.floor((r.elapsed - r.armedAt) * 0.0336));
         while (r.delivery.tick < approachTick) r.delivery.step();
@@ -814,6 +905,27 @@ export function CricketGame({
         "This delivery couldn't start. Return to the fixture to try again.";
       refresh();
     }
+  };
+  /** International matches: let both captains play `balls` legal deliveries (an over, or the rest of the innings). */
+  const simulate = (balls: number) => {
+    if (m.isDuel || m.phase !== "ready" || (r.delivery && !r.settled) || r.replay || r.paused || r.arming) return;
+    const before = { runs: m.current.runs, wickets: m.current.wickets, balls: m.current.balls, team: m.current.team };
+    const played = m.simulate({ k: "sim", seq: m.seq, balls, t: Math.max(m.lastTime, Math.floor(r.elapsed)) });
+    if (!played) {
+      r.error = "The simulation couldn't continue. Return to the fixture to try again.";
+      refresh();
+      return;
+    }
+    const innings = m.innings.find((x) => x.team === before.team && m.innings.indexOf(x) === m.innings.length - (m.current.team === before.team ? 1 : 2))!;
+    const runs = innings.runs - before.runs,
+      wickets = innings.wickets - before.wickets,
+      legalPlayed = innings.balls - before.balls,
+      overs = legalPlayed % 6 ? `${legalPlayed} ball${legalPlayed === 1 ? "" : "s"}` : `${legalPlayed / 6} over${legalPlayed === 6 ? "" : "s"}`;
+    r.delivery = null;
+    r.settled = false;
+    r.nextAt = r.elapsed + 1200;
+    setFeedback(`Simulated ${overs}: ${runs} run${runs === 1 ? "" : "s"}, ${wickets} wicket${wickets === 1 ? "" : "s"}. ${sideOf(before.team).short} ${innings.runs}/${innings.wickets} after ${oversText(innings.balls)}.${(m.phase as string) === "finished" ? ` ${m.result}.` : ""}`);
+    refresh();
   };
   const run = () => {
     if (!r.paused && !r.replay && r.delivery?.requestRun()) {
@@ -979,13 +1091,14 @@ export function CricketGame({
             const oldTeam = m.current.team,
               wasBatting = m.humanBatting,
               numbers = actorNumbers(m)!;
-            const log: BallLog = {
+            const log: BallLog | FormatBallLog = {
               k: "ball",
               seq: m.seq,
               bowling: r.plan,
               shot: wasBatting ? d.shot : null,
               runAt: wasBatting ? [...d.runAt] : [],
-              field: r.field,
+              field: r.field as BallLog["field"] & FormatBallLog["field"],
+              ...(r.bowlerSent === undefined ? {} : { bowler: r.bowlerSent }),
               digest: d.digest,
               t: Math.floor(r.elapsed),
             };
@@ -1085,7 +1198,7 @@ export function CricketGame({
       let visual = frameOf(r.delivery ?? r.initial),
         visualShot = r.delivery?.shot ?? null,
         visualOutcome = r.delivery?.outcome ?? null,
-        team = m.current?.team ?? config.team,
+        team = m.current?.team ?? m.human,
         human = m.current ? m.humanBatting : true,
         numbers = actorNumbers(m);
       let source: Delivery = r.delivery ?? r.initial;
@@ -1135,7 +1248,7 @@ export function CricketGame({
         }
       }
       const score = m.current
-        ? `${TEAMS[m.current.team]!.short} ${m.current.runs}/${m.current.wickets} | ${oversText(m.current.balls)} / ${config.overs} OVERS ${m.target ? ` | TARGET ${m.target}` : ""}`
+        ? `${sideOf(m.current.team).short} ${m.current.runs}/${m.current.wickets} | ${oversText(m.current.balls)} / ${oversLimit} OVERS ${m.target ? ` | TARGET ${m.target}` : ""}`
         : "THE FINAL OVER | SINVERSE CRICKET";
       if (
         now - drawAt >=
@@ -1159,7 +1272,7 @@ export function CricketGame({
             edge: source.edge,
             ...arrival(source),
             variation: r.arming ? preferences.current.bowl.variation : source.bowling.variation,
-            ceremony: r.ceremony.feed(m.tossFace, config.team, preferences.current.reduced),
+            ceremony: r.ceremony.feed(m.tossFace, m.human, preferences.current.reduced),
             intent: preferences.current.intent,
             aim: !m.current || m.humanBatting ? undefined : preferences.current.bowl,
             replay: !!r.replay,
@@ -1192,6 +1305,11 @@ export function CricketGame({
         element.dataset.batting = String(m.current ? m.humanBatting : true);
         element.dataset.seq = String(m.seq);
         element.dataset.phase = m.phase;
+        element.dataset.format = m.isDuel ? "duel" : m.rules!.id;
+        element.dataset.sides = `${m.sides[0].id}|${m.sides[1].id}`;
+        element.dataset.innings = m.innings.map((x) => `${m.sides[x.team]!.short}:${x.runs}/${x.wickets}:${x.balls}`).join(" ");
+        element.dataset.controlled = String(m.controlled);
+        element.dataset.simulated = String(m.simulated);
         element.dataset.release = String(r.plan?.release ?? 0);
         element.dataset.ceremony = r.ceremony.stage;
         element.dataset.call = r.ceremony.call ?? "";
@@ -1338,10 +1456,11 @@ export function CricketGame({
             : batting
               ? "Face delivery"
               : "Begin run-up";
-  const bowler =
-    i?.bowlers[
-      Math.min(1, Math.floor(Math.min(i.balls, config.overs * 6 - 1) / 6))
-    ];
+  const bowler = i
+    ? m.isDuel
+      ? i.bowlers[Math.min(1, Math.floor(Math.min(i.balls, limit - 1) / 6))]
+      : i.bowlers[i.overBowlers?.[Math.floor(i.balls / 6)] ?? i.overBowlers?.at(-1) ?? -1]
+    : undefined;
   const locked = live || !!r.replay || r.paused;
   if (typeof document === "undefined") return null;
   return createPortal(
@@ -1377,15 +1496,15 @@ export function CricketGame({
       </header>
       <section className="cr-score" aria-label="Live scoreboard">
         <div className="cr-score-team">
-          <TeamSymbol team={i?.team ?? config.team} />
+          <SideBadge m={m} n={i?.team ?? m.human} />
           <span>
-            <strong><span className="cr-team-long">{TEAMS[i?.team ?? config.team]!.name}</span><span className="cr-team-short">{TEAMS[i?.team ?? config.team]!.short}</span></strong>
+            <strong><span className="cr-team-long">{sideOf(i?.team ?? m.human).name}</span><span className="cr-team-short">{sideOf(i?.team ?? m.human).short}</span></strong>
             <small>
               {m.phase === "toss"
                 ? "Awaiting the toss"
                 : `${m.innings.length === 1 ? "First innings" : "The chase"} · ${batting ? "YOU BAT" : "YOU BOWL"}`}
             </small>
-            {m.target && <small className="cr-mobile-target" data-testid="cricket-mobile-target">{Math.max(0, m.target - i.runs)} from {Math.max(0, config.overs * 6 - i.balls)} balls</small>}
+            {m.target && <small className="cr-mobile-target" data-testid="cricket-mobile-target">{Math.max(0, m.target - i.runs)} from {Math.max(0, limit - i.balls)} balls</small>}
           </span>
         </div>
         <div className="cr-totals">
@@ -1394,7 +1513,7 @@ export function CricketGame({
             <i>/{i?.wickets ?? 0}</i>
           </strong>
           <span>
-            {oversText(i?.balls ?? 0)} <small>/ {config.overs} ov</small>
+            {oversText(i?.balls ?? 0)} <small>/ {oversLimit} ov</small>
           </span>
         </div>
         <div className="cr-target">
@@ -1403,14 +1522,14 @@ export function CricketGame({
               <small>TARGET {m.target}</small>
               <b>
                 {Math.max(0, m.target - i.runs)} from{" "}
-                {Math.max(0, config.overs * 6 - i.balls)}
+                {Math.max(0, limit - i.balls)}
               </b>
               <span>
                 RRR{" "}
-                {i.balls < config.overs * 6
+                {i.balls < limit
                   ? (
                       ((m.target - i.runs) * 6) /
-                      (config.overs * 6 - i.balls)
+                      (limit - i.balls)
                     ).toFixed(1)
                   : "—"}
               </span>
@@ -1420,7 +1539,7 @@ export function CricketGame({
               <small>BUILD THE TOTAL</small>
               <b>RR {i?.balls ? ((i.runs * 6) / i.balls).toFixed(1) : "0.0"}</b>
               <span>
-                {config.overs === 1 ? "Six legal balls" : "Twelve legal balls"}
+                {m.isDuel ? (limit === 6 ? "Six legal balls" : "Twelve legal balls") : m.powerplay ? `${m.powerplay.label} · ${limit - (i?.balls ?? 0)} balls left` : `${limit - (i?.balls ?? 0)} balls left`}
               </span>
             </>
           )}
@@ -1524,9 +1643,9 @@ export function CricketGame({
         {r.ceremony.stage !== "done" && (
           <div className={`cr-toss cr-ceremony cr-ceremony-${r.ceremony.stage}`} aria-live="polite">
             <p className="cr-eyebrow">{r.ceremony.stage === "stadium" ? "SINVERSE CRICKET / MATCHDAY" : r.ceremony.stage === "entry" ? "THE STAGE IS SET" : "THE FIRST DECISION"}</p>
-            <h2>{({ stadium: VENUES[config.venue].name, lineups: "Your eleven. Your moment.", captains: "Two captains. One contest.", hand: "Everything starts here.", flight: r.ceremony.call ? "The call is locked." : "Call it in the air.", landing: "Let the coin decide.", reveal: `${m.tossFace.toUpperCase()}.`, decision: `${humanName(r.ceremony.call === m.tossFace ? config.team : 1 - config.team)} win the toss.`, entry: "Take your positions.", done: "" })[r.ceremony.stage]}</h2>
-            {r.ceremony.stage === "lineups" && <div className="cr-lineups">{TEAMS.map(t => <p key={t.id}><b>{t.name}</b><br />{t.players.join(" · ")}</p>)}</div>}
-            {r.ceremony.stage === "captains" && <p>{TEAMS[0]!.players[0]} · {TEAMS[0]!.name}<br />{TEAMS[1]!.players[0]} · {TEAMS[1]!.name}</p>}
+            <h2>{({ stadium: VENUES[config.venue].name, lineups: "Your eleven. Your moment.", captains: "Two captains. One contest.", hand: "Everything starts here.", flight: r.ceremony.call ? "The call is locked." : "Call it in the air.", landing: "Let the coin decide.", reveal: `${m.tossFace.toUpperCase()}.`, decision: `${sideOf(r.ceremony.call === m.tossFace ? m.human : 1 - m.human).name} win the toss.`, entry: "Take your positions.", done: "" })[r.ceremony.stage]}</h2>
+            {r.ceremony.stage === "lineups" && <div className="cr-lineups">{m.sides.map(t => <p key={t.id}><b>{t.name}</b><br />{t.players.map(p => p.name).join(" · ")}</p>)}</div>}
+            {r.ceremony.stage === "captains" && <p>{m.sides[0].players[m.sides[0].captain]!.name} · {m.sides[0].name}<br />{m.sides[1].players[m.sides[1].captain]!.name} · {m.sides[1].name}</p>}
             {r.ceremony.stage === "flight" && !r.ceremony.call && <div className="cr-toss-choices">
               {(["heads", "tails"] as CoinFace[]).map(face => <button className="cr-button" key={face} aria-label={face === "heads" ? "Heads" : "Tails"} onClick={() => chooseToss(face)}>{face === "heads" ? "Heads" : "Tails"}<kbd aria-hidden>{face === "heads" ? "H" : "T"}</kbd></button>)}
               <small>Choose before landing. The coin waits for your call.</small>
@@ -1538,7 +1657,7 @@ export function CricketGame({
             {r.ceremony.stage !== "decision" && <button className="cr-small cr-skip" disabled={r.ceremony.stage === "flight" && !r.ceremony.call} onClick={() => { r.ceremony.skip(); unlockAudio(); refresh(); }}>Skip cinematic <kbd>{keyLabel(bindings.action)}</kbd></button>}
           </div>
         )}
-        {m.phase === "interval" && !r.replay && <div className="cr-transition"><p className="cr-eyebrow">INNINGS BREAK</p><h2>The chase begins.</h2><p>{humanName(1 - m.firstBat)} need {(m.innings[0]?.runs ?? 0) + 1} from {config.overs * 6} balls.</p>{m.innings[0] && <Standouts innings={m.innings[0]} />}<button className="cr-button" onClick={() => primary()}>Begin the chase</button></div>}
+        {m.phase === "interval" && !r.replay && <div className="cr-transition"><p className="cr-eyebrow">INNINGS BREAK</p><h2>The chase begins.</h2><p>{sideOf(1 - m.firstBat).name} need {(m.innings[0]?.runs ?? 0) + 1} from {limit} balls{m.isDuel ? "" : ` · required rate ${((((m.innings[0]?.runs ?? 0) + 1) * 6) / limit).toFixed(2)}`}.</p>{m.innings[0] && <Standouts innings={m.innings[0]} />}<button className="cr-button" onClick={() => primary()}>Begin the chase</button></div>}
         <BroadcastGraphics
           cards={
             m.current
@@ -1555,8 +1674,8 @@ export function CricketGame({
                     history: m.history,
                     outcome: r.delivery?.outcome ?? null,
                     carry: carryOf(r.delivery, config.venue),
-                    batting: TEAMS[m.current.team]!.name,
-                    fielding: TEAMS[1 - m.current.team]!.name,
+                    batting: sideOf(m.current.team).name,
+                    fielding: sideOf(1 - m.current.team).name,
                   },
                   r.intro,
                 )
@@ -1575,14 +1694,14 @@ export function CricketGame({
             <h2>{m.result}</h2>
             <div className="cr-finish-standouts">
               {m.innings.map((inn) => (
-                <Standouts key={inn.team} innings={inn} team={TEAMS[inn.team]!.short} />
+                <Standouts key={inn.team} innings={inn} team={sideOf(inn.team).short} />
               ))}
             </div>
             <p>
               {m.innings
                 .map(
                   (i) =>
-                    `${TEAMS[i.team]!.short} ${i.runs}/${i.wickets} (${oversText(i.balls)})`,
+                    `${sideOf(i.team).short} ${i.runs}/${i.wickets} (${oversText(i.balls)})`,
                 )
                 .join(" · ")}
             </p>
@@ -1801,6 +1920,34 @@ export function CricketGame({
               </>
             ) : (
               <>
+                {!m.isDuel && i && (
+                  m.current.overBowlers![Math.floor(i.balls / 6)] === undefined ? (
+                    <label>
+                      Bowler for this over
+                      <select
+                        aria-label="Bowler for this over"
+                        data-testid="cricket-bowler-pick"
+                        value={bowlerPick ?? bowlerSlot(m)}
+                        disabled={locked || r.arming}
+                        onChange={(e) => setBowlerPick(Number(e.target.value))}
+                      >
+                        {m.bowlerOptions().map((slot) => {
+                          const p = sideOf(1 - i.team).players[slot]!,
+                            card = i.bowlers.find((b) => b.slot === slot);
+                          return (
+                            <option value={slot} key={slot}>
+                              {p.name} · {card ? `${oversText(card.balls)}-${card.maidens ?? 0}-${card.runs}-${card.wickets}` : "fresh"}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                  ) : (
+                    <p className="cr-bowler-now" data-testid="cricket-bowler-now">
+                      Bowling: <b>{bowler?.name}</b> {bowler ? `${oversText(bowler.balls)}-${bowler.maidens ?? 0}-${bowler.runs}-${bowler.wickets}` : ""}
+                    </p>
+                  )
+                )}
                 <label>
                   Variation
                   <select
@@ -1814,7 +1961,7 @@ export function CricketGame({
                       }))
                     }
                   >
-                    {VARIATIONS.map((v) => (
+                    {(m.isDuel || !i ? VARIATIONS : VARIATIONS_FOR[sideOf(1 - i.team).players[bowlerPick ?? bowlerSlot(m)]?.bowls ?? "medium"]).map((v) => (
                       <option value={v} key={v}>
                         {LABELS[v]}
                       </option>
@@ -1907,9 +2054,19 @@ export function CricketGame({
                           setField(e.target.value as typeof field)
                         }
                       >
-                        <option value="balanced">Balanced ring</option>
-                        <option value="attack">Attacking catchers</option>
-                        <option value="boundary">Boundary protection</option>
+                        {m.isDuel || !i ? (
+                          <>
+                            <option value="balanced">Balanced ring</option>
+                            <option value="attack">Attacking catchers</option>
+                            <option value="boundary">Boundary protection</option>
+                          </>
+                        ) : (
+                          FIELD_NAMES_V2.map((f) => (
+                            <option key={f} value={f} disabled={!fieldAllowed(m.rules!, Math.floor(i.balls / 6), f)}>
+                              {f === "attack" ? "Attacking catchers" : f === "balanced" ? "Balanced ring" : "Death field"} · {outsideCircle(f)} out
+                            </option>
+                          ))
+                        )}
                       </select>
                     </label>
                   </>
@@ -1946,6 +2103,16 @@ export function CricketGame({
                 ↺ Replay
               </button>
             </div>
+            {!m.isDuel && m.phase === "ready" && r.ceremony.stage === "done" && (
+              <div className="cr-sim-actions" role="group" aria-label="Simulate play">
+                <button className="cr-button" data-testid="cricket-sim-over" disabled={live || !!r.replay || r.paused || r.arming} onClick={() => simulate(6 - (i.balls % 6))}>
+                  Simulate over
+                </button>
+                <button className="cr-button" data-testid="cricket-sim-innings" disabled={live || !!r.replay || r.paused || r.arming} onClick={() => simulate(600)}>
+                  Simulate innings
+                </button>
+              </div>
+            )}
             {m.phase !== "finished" && (
               <div className="cr-main-actions">
                 <button
@@ -2139,7 +2306,7 @@ export function CricketGame({
             ) : (
               <>
                 <h2>The scorebook.</h2>
-                <Scorecards innings={m.innings} />
+                <Scorecards innings={m.innings} names={(t) => sideOf(t).name} />
                 <p>
                   Partnership: {i?.partnership ?? 0}. Batter ball counts show
                   legal deliveries faced in this custom duel.
@@ -2154,13 +2321,13 @@ export function CricketGame({
   );
 }
 
-function Scorecards({ innings }: { innings: Innings[] }) {
+function Scorecards({ innings, names = (t) => TEAMS[t]!.name }: { innings: Innings[]; names?: (team: number) => string }) {
   return (
     <div className="cr-scorecards">
       {innings.map((i, n) => (
         <section key={n}>
           <h3>
-            {TEAMS[i.team]!.name}{" "}
+            {names(i.team)}{" "}
             <b>
               {i.runs}/{i.wickets}
             </b>{" "}
@@ -2211,8 +2378,10 @@ function Scorecards({ innings }: { innings: Innings[] }) {
                 <tr>
                   <th>Bowler</th>
                   <th>O</th>
+                  {i.overBowlers && <th>M</th>}
                   <th>R</th>
                   <th>W</th>
+                  {i.overBowlers && <th>Econ</th>}
                 </tr>
               </thead>
               <tbody>
@@ -2222,8 +2391,10 @@ function Scorecards({ innings }: { innings: Innings[] }) {
                     <tr key={b.name}>
                       <th>{b.name}</th>
                       <td>{oversText(b.balls)}</td>
+                      {i.overBowlers && <td>{b.maidens ?? 0}</td>}
                       <td>{b.runs}</td>
                       <td>{b.wickets}</td>
+                      {i.overBowlers && <td>{b.balls ? ((b.runs * 6) / b.balls).toFixed(2) : "—"}</td>}
                     </tr>
                   ))}
               </tbody>
@@ -2238,6 +2409,15 @@ function Scorecards({ innings }: { innings: Innings[] }) {
                     .join(" · ")
                 : "No wickets"}
             </p>
+            {i.partnerships && (
+              <p>
+                Partnerships:{" "}
+                {i.partnerships
+                  .filter((pair) => pair.runs || pair.balls)
+                  .map((pair) => `${i.batsmen[pair.a]?.name.split(" ").at(-1)}–${i.batsmen[pair.b]?.name.split(" ").at(-1)} ${pair.runs} (${pair.balls})`)
+                  .join(" · ") || "None yet"}
+              </p>
+            )}
           </div>
         </section>
       ))}
@@ -2255,18 +2435,23 @@ export function CricketResultDetails({
   try {
     if (
       typeof details.scorecard === "string" &&
-      details.scorecard.length < 20000
+      details.scorecard.length < 60000
     )
       innings = JSON.parse(details.scorecard) as Innings[];
   } catch {}
+  const international = details.engine === 2,
+    sides = international ? [internationalTeam(String(details.team)), internationalTeam(String(details.opponent))] : null,
+    names = (t: number) => (sides ? sides[t]?.name ?? "—" : TEAMS[t]?.name ?? "—");
   return (
     <div className="cricket cr-result">
       <h3>{saved ? "Verified scorebook saved" : "Verified scorebook"}</h3>
+      {international && <p className="cr-eyebrow">{String(details.format).toUpperCase()} · {String(details.resultText ?? "")}</p>}
       <p>
-        {details.runs} batting runs · {details.wicketsTaken} wickets taken ·{" "}
-        {details.sixes} sixes · Result: {details.result}
+        {international
+          ? `${details.runs} team runs · ${details.teamWickets} wickets taken · ${details.teamSixes} sixes · Result: ${details.result} · you played ${details.controlledBalls} balls (${details.controlledRuns} runs, ${details.wicketsTaken} wickets, ${details.sixes} sixes), ${details.simulatedBalls} simulated`
+          : `${details.runs} batting runs · ${details.wicketsTaken} wickets taken · ${details.sixes} sixes · Result: ${details.result}`}
       </p>
-      <Scorecards innings={Array.isArray(innings) ? innings : []} />
+      <Scorecards innings={Array.isArray(innings) ? innings : []} names={names} />
       <p className="cr-note">
         Points compare batting and wickets per scheduled over, plus a win bonus.
         Replays stay in this open match; career and full-format cricket are

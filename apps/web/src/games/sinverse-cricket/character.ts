@@ -1,5 +1,5 @@
 import * as T from "three";
-import { TEAMS } from "@platform/engines/sinverse-cricket";
+import { side } from "./sides";
 import { BAT, CH, RIG, type BatPose, type Pose } from "./animation";
 
 /**
@@ -75,7 +75,7 @@ const NEUTRAL = { color: "#1b2230", dark: "#252c3a", accent: "#e8e4d6", short: "
 
 /** Paints an athlete's kit. `team` of -1 is the umpire's black-and-white. */
 export function paintKit(c: CanvasRenderingContext2D, team: number, number: number, lettering: boolean) {
-  const t = team < 0 ? NEUTRAL : TEAMS[team]!;
+  const t = team < 0 ? NEUTRAL : side(team);
   const px = c.canvas.width / SIZE;
   c.save();
   c.setTransform(px, 0, 0, px, 0, 0);

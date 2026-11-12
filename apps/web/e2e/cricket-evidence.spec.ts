@@ -160,7 +160,7 @@ test("capture real gameplay frames", async ({ browser }) => {
         .then(() => page.screenshot({ path: `${out}/live-ball-climbing.png` }))
         .catch(() => {});
     await expect(root).toHaveAttribute("data-seq", String(seq + 1), { timeout: 120000 });
-    const move = { bowling: null, shot: actual, runAt: [], field: model.fieldForAI() };
+    const move = { bowling: null, shot: actual, runAt: [], field: model.fieldForAI() as BallLog["field"] };
     const delivery = model.createDelivery(move);
     const result = delivery.complete();
     time += Math.ceil(delivery.tick * STEP * 1000) + 2000;

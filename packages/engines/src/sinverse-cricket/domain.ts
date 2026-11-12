@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { internationalTeam, validateSelection } from "./teams";
 
 export const STEP = 1 / 120;
 export const RELEASE_TICK = 100;
@@ -56,9 +57,17 @@ export const bowlingSchema = z
   })
   .strict();
 export type BowlingInput = z.infer<typeof bowlingSchema>;
+/** The duel's named fields (version 1). */
 export const FIELD_NAMES = ["balanced", "attack", "boundary"] as const;
-export type FieldName = (typeof FIELD_NAMES)[number];
-export const configSchema = z
+/**
+ * Fields for the international formats (version 2). Each respects the limit on
+ * fielders outside the 30-yard circle: attack 2, balanced 4, deep 5. (The duel's
+ * "boundary" field puts 7 out, which no real fielding restriction allows.)
+ */
+export const FIELD_NAMES_V2 = ["attack", "balanced", "deep"] as const;
+export type FieldName = (typeof FIELD_NAMES)[number] | (typeof FIELD_NAMES_V2)[number];
+/** The 1- and 2-over duel. Frozen: stored records and replays depend on it exactly. */
+export const duelConfigSchema = z
   .object({
     version: z.literal(1).default(1),
     format: z.literal("duel").default("duel"),
@@ -68,7 +77,42 @@ export const configSchema = z
     difficulty: z.enum(["club", "county", "elite"]).default("club"),
   })
   .strict();
-export type CricketConfig = z.infer<typeof configSchema>;
+export type DuelConfig = z.infer<typeof duelConfigSchema>;
+/** Limited-overs formats playable end to end. Test cricket is engine-only (see `formats.ts`). */
+export const PLAYABLE_FORMATS = ["t20", "odi"] as const;
+export type PlayableFormat = (typeof PLAYABLE_FORMATS)[number];
+const playerId = z.string().regex(/^[a-z-]{2,24}-\d{1,2}$/);
+/**
+ * An international match (version 2): the player's side and the opposition from
+ * the team catalogue, the player's own XI in batting order with a captain and a
+ * keeper. The opposition plays its catalogue XI.
+ */
+export const formatConfigSchema = z
+  .object({
+    version: z.literal(2),
+    format: z.enum(PLAYABLE_FORMATS),
+    team: z.string().min(2).max(24),
+    opponent: z.string().min(2).max(24),
+    xi: z.array(playerId).length(11),
+    captain: playerId,
+    keeper: playerId,
+    venue: z.enum(["lantern", "tideglass"]).default("lantern"),
+    difficulty: z.enum(["club", "county", "elite"]).default("club"),
+  })
+  .strict()
+  .superRefine((c, ctx) => {
+    // Both sides must exist, differ, and the player's XI must be a legal pick from their own squad.
+    const team = internationalTeam(c.team);
+    if (!team) return ctx.addIssue({ code: "custom", message: "Unknown team", path: ["team"] });
+    if (!internationalTeam(c.opponent)) ctx.addIssue({ code: "custom", message: "Unknown opposition", path: ["opponent"] });
+    if (c.opponent === c.team) ctx.addIssue({ code: "custom", message: "Choose two different teams", path: ["opponent"] });
+    for (const problem of validateSelection(team, c)) ctx.addIssue({ code: "custom", message: problem, path: ["xi"] });
+  });
+export type FormatConfig = z.infer<typeof formatConfigSchema>;
+/** Version 1 first, so a bare `{}` still means the default duel. */
+export const configSchema = z.union([duelConfigSchema, formatConfigSchema]);
+export type CricketConfig = DuelConfig | FormatConfig;
+export const isFormatConfig = (c: CricketConfig): c is FormatConfig => c.version === 2;
 export const tossSchema = z
   .object({
     k: z.literal("toss"),
@@ -89,12 +133,57 @@ export const ballLogSchema = z
     t: z.number().int().min(0).max(1800000),
   })
   .strict();
-export const logSchema = z
+export const duelLogSchema = z
   .array(z.discriminatedUnion("k", [tossSchema, ballLogSchema]))
   .min(1)
   .max(129);
+/** Six hours: the run token's lifetime, and enough for an ODI with simulated passages. */
+export const FORMAT_MAX_MS = 6 * 60 * 60 * 1000;
+export const MAX_FORMAT_SEQ = 5999;
+/** A delivery in an international match: as the duel's, plus the bowler chosen at an over's start. */
+export const formatBallSchema = z
+  .object({
+    k: z.literal("ball"),
+    seq: z.number().int().min(0).max(MAX_FORMAT_SEQ),
+    bowling: bowlingSchema.nullable(),
+    shot: shotSchema.nullable(),
+    runAt: z.array(z.number().int().min(RELEASE_TICK).max(1679)).max(3),
+    field: z.enum(FIELD_NAMES_V2),
+    /** Index in the fielding XI of the bowler for a new over; only the player's own side chooses. */
+    bowler: z.number().int().min(0).max(10).optional(),
+    digest: z.string().regex(/^[a-f0-9]{8}$/),
+    t: z.number().int().min(0).max(FORMAT_MAX_MS),
+  })
+  .strict();
+/**
+ * A simulated passage: both sides' captains (the AI) play `balls` legal
+ * deliveries (extras are bowled again), stopping early at the end of the innings. Deterministic from the seed, so
+ * the server replays it exactly. Simulated balls never count as the player's own.
+ */
+export const simSchema = z
+  .object({
+    k: z.literal("sim"),
+    seq: z.number().int().min(0).max(MAX_FORMAT_SEQ),
+    balls: z.number().int().min(1).max(600),
+    t: z.number().int().min(0).max(FORMAT_MAX_MS),
+  })
+  .strict();
+/** Test cricket only: the batting side closes its innings. */
+export const declareSchema = z.object({ k: z.literal("declare"), t: z.number().int().min(0).max(FORMAT_MAX_MS) }).strict();
+/** Test cricket only: the side with a big enough first-innings lead decides whether to enforce the follow-on. */
+export const followOnSchema = z.object({ k: z.literal("follow-on"), enforce: z.boolean(), t: z.number().int().min(0).max(FORMAT_MAX_MS) }).strict();
+export const formatLogSchema = z
+  .array(z.discriminatedUnion("k", [tossSchema, formatBallSchema, simSchema, declareSchema, followOnSchema]))
+  .min(1)
+  .max(4000);
+/** Either log shape; `verify` checks that it matches the config's version. */
+export const logSchema = z.union([duelLogSchema, formatLogSchema]);
 export type BallLog = z.infer<typeof ballLogSchema>;
-export type CricketLog = z.infer<typeof logSchema>;
+export type FormatBallLog = z.infer<typeof formatBallSchema>;
+export type SimLog = z.infer<typeof simSchema>;
+/** One entry of either log shape. */
+export type CricketLogEntry = z.infer<typeof duelLogSchema>[number] | z.infer<typeof formatLogSchema>[number];
+export type CricketLog = CricketLogEntry[];
 export type Dismissal = "bowled" | "caught" | "lbw" | "run-out" | "stumped";
 export type Outcome = {
   bat: number;
@@ -135,6 +224,8 @@ export type Frame = {
 };
 export type BatterCard = {
   name: string;
+  /** Catalogue player id (international matches only). */
+  id?: string;
   runs: number;
   balls: number;
   fours: number;
@@ -143,6 +234,10 @@ export type BatterCard = {
 };
 export type BowlerCard = {
   name: string;
+  /** Catalogue player id and index in the fielding XI (international matches only). */
+  id?: string;
+  slot?: number;
+  maidens?: number;
   balls: number;
   runs: number;
   wickets: number;
@@ -164,6 +259,15 @@ export type Innings = {
   over: string[];
   partnership: number;
   freeHit: boolean;
+  /** International matches only (absent from duel records): */
+  /** The bowler card bowling each over, by over index. */
+  overBowlers?: number[];
+  /** Every partnership: the two batters (batting-order indices), runs and balls. */
+  partnerships?: { a: number; b: number; runs: number; balls: number }[];
+  /** Runs conceded in the over so far, for maidens. */
+  overRuns?: number;
+  /** Why the innings closed: all out, overs, target, declared. */
+  closed?: "all-out" | "overs" | "target" | "declared" | "time";
 };
 export const oversText = (balls: number) =>
   `${Math.floor(balls / 6)}.${balls % 6}`;

@@ -1,12 +1,13 @@
 import {
   configSchema,
+  type DuelConfig,
   CricketMatch,
   STEP,
   type BallLog,
   type BowlingInput,
   type ShotInput,
 } from "../src/sinverse-cricket";
-const config = configSchema.parse({});
+const config = configSchema.parse({}) as DuelConfig;
 const bowling: BowlingInput = {
   variation: "seam",
   line: 0,
@@ -49,7 +50,7 @@ export function playMatch(seed: number, attacking = true, rules = config) {
       bowling: batting ? null : bowling,
       shot: batting && attacking ? calibratedShot(match) : null,
       runAt: [],
-      field: batting ? match.fieldForAI() : ("balanced" as const),
+      field: (batting ? match.fieldForAI() : "balanced") as BallLog["field"],
     };
     const delivery = match.createDelivery(move);
     delivery.complete();

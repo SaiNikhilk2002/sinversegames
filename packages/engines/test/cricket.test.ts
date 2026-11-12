@@ -7,6 +7,7 @@ import {
   batContact,
   boundaryCrossed,
   configSchema,
+  type DuelConfig,
   CricketMatch,
   Delivery,
   integrateBall,
@@ -30,7 +31,7 @@ import {
   type ShotInput,
 } from "../src/sinverse-cricket";
 
-const config = configSchema.parse({});
+const config = configSchema.parse({}) as DuelConfig;
 const bowling: BowlingInput = {
   variation: "seam",
   line: 0,

@@ -1,4 +1,5 @@
-import { CREASE_Z, STUMPS_Z, TEAMS } from "@platform/engines/sinverse-cricket";
+import { CREASE_Z, STUMPS_Z } from "@platform/engines/sinverse-cricket";
+import { side as sideLook } from "./sides";
 import type { SceneDriver } from "./scene";
 
 /** Playable projection of the same snapshots, not a replacement static game image. */
@@ -39,7 +40,7 @@ export function createTacticalScene(canvas: HTMLCanvasElement): SceneDriver {
       }
       frame.fielders.forEach((p, n) => {
         const [x, y] = project(p.x, p.z);
-        c.fillStyle = TEAMS[1 - battingTeam]!.color;
+        c.fillStyle = sideLook(1 - battingTeam).color;
         c.beginPath();
         c.arc(x, y, n === 10 ? 5 : 4, 0, 7);
         c.fill();
@@ -51,7 +52,7 @@ export function createTacticalScene(canvas: HTMLCanvasElement): SceneDriver {
           side * 0.5,
           side * CREASE_Z * (1 - 2 * progress),
         );
-        c.fillStyle = TEAMS[battingTeam]!.color;
+        c.fillStyle = sideLook(battingTeam).color;
         c.beginPath();
         c.arc(x, y, 5, 0, 7);
         c.fill();
