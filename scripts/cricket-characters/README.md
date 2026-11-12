@@ -97,6 +97,7 @@ Body rules every athlete follows (see the anatomy section of `docs/SINVERSE_CRIC
 - **Equipment.**
   - The bat stays on the driver's bat bone, so contact is unchanged.
   - The helmet (shell, peak, steel grille) and pads (bolsters, knee rolls, straps) are generated to fit each model's measured head and shins. They are rigidly skinned to the head and shins.
+  - Around the armpits the shirt's upper-arm weight moves to the collarbone for cloth on the torso (`shoulderWeights`), and the collarbone follows the arm's swing by a share, so reaching forward or overhead doesn't swell the side of the chest. It's a helper bone rather than a morph target, because three.js keeps morph targets in a texture per geometry.
   - Gloves are each athlete's own hand skin, thickened and skinned to the same finger bones, so they bend with the fingers.
 - **Detail levels.**
   - On Low and Medium everyone wears the light (`lo`) athlete.

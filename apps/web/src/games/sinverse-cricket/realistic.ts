@@ -269,6 +269,7 @@ function prepareKit(model: GLTF, body: T.SkinnedMesh): PreparedKit {
     io += idx.count;
     mesh.parent!.remove(mesh);
   }
+  shoulderWeights(position, skinIndex, skinWeight, cloth.reduce((n, m) => n + m.geometry.getAttribute("position").count, 0), kit.bindMatrix, body.skeleton, bones);
   const geometry = new T.BufferGeometry();
   geometry.setAttribute("position", new T.BufferAttribute(position, 3));
   geometry.setAttribute("normal", new T.BufferAttribute(normal, 3));
@@ -279,6 +280,62 @@ function prepareKit(model: GLTF, body: T.SkinnedMesh): PreparedKit {
   geometry.setIndex(new T.BufferAttribute(index, 1));
   const shoeMap = shoeMesh ? ((shoeMesh.material as T.MeshStandardMaterial).map ?? null) : null;
   return { geometry, shoeMap, bindMatrix: kit.bindMatrix.clone(), parent: kit.parent?.name ?? "" };
+}
+
+/**
+ * Corrective weights for the shirt around the armpits. The tights the kit is cut
+ * from weight the side of the chest just below the armpit heavily to the upper
+ * arm, so as an arm reaches forward (a diving catch, a throw) that cloth swings
+ * with it and swells into a rounded bulge at the side of the chest. Cloth on the
+ * torso, more than a sleeve's radius from the upper arm's bone, hands its
+ * upper-arm weight to the collarbone instead, which follows the arm by a share
+ * (see `RealisticBody.share`). The sleeves themselves are untouched.
+ *
+ * A pose-driven morph target would do the same job, but three.js keeps morph
+ * targets in a texture per geometry, which the light preset's texture budget
+ * can't absorb; a helper bone costs nothing extra to draw.
+ */
+function shoulderWeights(position: Float32Array, skinIndex: Uint16Array, skinWeight: Float32Array, count: number, bindMatrix: T.Matrix4, skeleton: T.Skeleton, names: string[]) {
+  const joint = (name: string) => names.findIndex((n) => short(n) === name),
+    at = (k: number) => new T.Vector3().applyMatrix4(skeleton.boneInverses[k]!.clone().invert()),
+    p = new T.Vector3(),
+    seg = new T.Line3(),
+    near = new T.Vector3();
+  for (const side of ["Left", "Right"]) {
+    const arm = joint(side + "Arm"),
+      fore = joint(side + "ForeArm"),
+      collar = joint(side + "Shoulder");
+    if (arm < 0 || fore < 0 || collar < 0) continue;
+    seg.set(at(arm), at(fore));
+    for (let i = 0; i < count; i++) {
+      let slot = -1,
+        collarSlot = -1,
+        free = -1;
+      for (let c = 0; c < 4; c++) {
+        const w = skinWeight[i * 4 + c]!,
+          b = skinIndex[i * 4 + c]!;
+        if (w <= 0) free = c;
+        else if (b === arm) slot = c;
+        else if (b === collar) collarSlot = c;
+      }
+      if (slot < 0) continue;
+      p.fromArray(position, i * 3).applyMatrix4(bindMatrix);
+      const d = seg.closestPointToPoint(p, true, near).distanceTo(p),
+        // Eased over several centimetres, keeping a little of the arm, so the armpit stretches rather than creases.
+        f = 0.85 * T.MathUtils.smoothstep(d, 0.05, 0.13);
+      if (f <= 0) continue;
+      const moved = skinWeight[i * 4 + slot]! * f;
+      const target = collarSlot >= 0 ? collarSlot : free;
+      if (target >= 0) {
+        if (target === free) skinIndex[i * 4 + target] = collar;
+        skinWeight[i * 4 + target]! += moved;
+        skinWeight[i * 4 + slot]! -= moved;
+      } else if (f > 0.5) {
+        // No room for a fifth bone: the cloth goes to the collarbone outright.
+        skinIndex[i * 4 + slot] = collar;
+      }
+    }
+  }
 }
 
 const HAIR = /short0|afro|bob0|braid|long0|ponytail/;
@@ -1037,9 +1094,11 @@ export class RealisticBody {
       if (!arm?.driver) return;
       const now = sv.set(0, 1, 0).applyQuaternion(arm.driver.getWorldQuaternion(sq).premultiply(rootInverse).multiply(arm.offset)),
         rest = sv2.set(0, 1, 0).applyQuaternion(sq.copy(j.world).multiply(arm.rest));
-      // Lift above the hanging arm: none until the arm is out sideways, up to a quarter overhead.
-      const lift = Math.acos(Math.max(-1, Math.min(1, -now.y))),
-        k = 0.25 * T.MathUtils.smoothstep(lift, Math.PI * 0.35, Math.PI * 0.85);
+      // How far the arm has swung from hanging at the chest's side, forward, out or
+      // up: the collarbone protracts as an arm reaches forward and rises as it goes
+      // overhead, by up to about a fifth of the swing (some 35 degrees overhead).
+      const lift = rest.angleTo(now),
+        k = 0.22 * T.MathUtils.smoothstep(lift, Math.PI * 0.15, Math.PI * 0.8);
       if (k > 0) j.world.premultiply(sq2.setFromUnitVectors(rest, now).slerp(IDENTITY_Q, 1 - k));
     }
   }
@@ -1503,7 +1562,7 @@ export function equipmentKit() {
         ).castShadow = cast;
         body.curlFingers(0.9);
         body.wearGloves(`gloves:${role}:${team}`, role === "keeper" ? 0.011 : 0.0065, role === "keeper" ? { back: "#f2f0ea", palm: "#3a3f46", cuff: colours.dark } : { back: "#f4f2ec", palm: "#e4ded2", cuff: colours.dark }, soft).castShadow = false;
-      } else body.curlFingers(role === "umpire" ? 0.18 : 0.28);
+      } else body.curlFingers(role === "umpire" ? 0.18 : 0.42); // a relaxed hand: fingers gently curled, not splayed
     },
   };
 }

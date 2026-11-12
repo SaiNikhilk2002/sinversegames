@@ -52,6 +52,9 @@ import { LIGHTS, QUALITY, buildStadium, lightingFor, type Lighting, type Quality
 import { coinPose, type CeremonyFeed } from "./ceremony";
 import { buildCoin, ceremonyCamera } from "./ceremony-scene";
 
+/** Seconds after a diving catch until the diver is back on his feet: the dive, then the `recover` clip. */
+const DIVE_GET_UP = 1 + CLIPS.recover.keys[CLIPS.recover.keys.length - 1]![0] + 0.1;
+
 export type Quality = QualityName;
 export type { CameraName, Lighting };
 export type SceneFeed = {
@@ -869,7 +872,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           const took = wicket === "caught" && (simAction === "catch" || simAction === "dive");
           const role: ReactionRole = took ? "taker" : n === STRIKER ? "striker" : n === NON_STRIKER ? "non-striker" : n === BOWLER ? "bowler" : n === KEEPER ? "keeper" : wicket === "run-out" && simAction === "throw" ? "thrower" : "fielder";
           // Still busy with the ball: finishing a catch, a stumping, getting up off the turf.
-          const busy = (!!plan && plan.move !== "idle" && plan.move !== "keeper-rise") || (simAction === "dive" && deadAge < 1.2 + (motionLibrary?.info.get("LayToIdle")?.duration ?? 1.5));
+          const busy = (!!plan && plan.move !== "idle" && plan.move !== "keeper-rise") || (simAction === "dive" && deadAge < DIVE_GET_UP);
           if (busy) actor.freeAt = deadAge;
           else {
             // A catcher who dived starts celebrating once up, not from when the ball died.
@@ -928,14 +931,11 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
               walking = (ceremony?.stage === "entry" || (dead && !!wicket && deadAge > 1.1)) && g > 0.3 && simAction !== "dive",
               runUp = n === BOWLER && tick > 0 && tick < RELEASE_TICK - GATHER[style] / STEP - 6,
               batterRun = (n === STRIKER || n === NON_STRIKER) && running && g > 0.45;
-            const recovering = fielder && simAction === "dive" && dead && deadAge > 1.2,
-              getUp = motionLibrary.info.get("LayToIdle")!,
-              boundaryCheer = n === NON_STRIKER && dead && !!outcome?.boundary && deadAge > 0.4 && deadAge < 0.4 + motionLibrary.info.get("Yes")!.duration;
-            if (recovering && deadAge - 1.2 < getUp.duration + 0.3) {
-              // Up off the turf after a dive, rather than lying there or snapping upright.
-              shot = { clip: "LayToIdle", time: deadAge - 1.2, weight: clamp01((deadAge - 1.2) / 0.25) * clamp01((getUp.duration + 0.3 - (deadAge - 1.2)) / 0.3) };
-              lower = upper = 1;
-            } else if (boundaryCheer) {
+            // A diver gets up with the procedural `recover` clip, which starts from where
+            // the dive leaves him, face down. (The library's LayToIdle starts lying on his
+            // back: blending into it rolled a face-down diver over in a quarter second.)
+            const boundaryCheer = n === NON_STRIKER && dead && !!outcome?.boundary && deadAge > 0.4 && deadAge < 0.4 + motionLibrary.info.get("Yes")!.duration;
+            if (boundaryCheer) {
               // The non-striker acknowledges a boundary: a thumbs-up, from a standstill.
               shot = { clip: "Yes", time: deadAge - 0.4, weight: clamp01((deadAge - 0.4) / 0.2) };
               upper = 1;

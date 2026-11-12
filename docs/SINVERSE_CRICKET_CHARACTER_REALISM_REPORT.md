@@ -266,7 +266,7 @@ GPU frame time on the RTX 3050 can't be separated from the 60 fps cap: the inter
 | Hair cards: hard cut-out edges and a limited set of styles (four card styles, an afro, two shader crops) | Needs a different approach: new hair card assets, or a strand-to-card pipeline |
 | Idle clip holds the hands in front of the thighs | Fixed in section 13: arms hang at the sides, palms to the thighs |
 | Elbow thinning at full flexion (linear skinning) | Cosmetic; corrective shapes or dual quaternions would be needed |
-| Shirt slightly full over the chest from some angles | Largely fixed in section 13. A gentle rounded underside to the chest remains in the diving catch (arms forward), from linear skinning; corrective shapes would be needed |
+| Shirt slightly full over the chest from some angles | Fixed in sections 13 and 14 (anatomy, then a corrective helper bone for forward reach) |
 | Small dark spot at athlete 04's neck | Cosmetic; collar or skin-removal margin |
 | A touch of trouser at the pad top in a deep crouch | Cosmetic |
 | No mouth interior, teeth or facial expressions | Needs a different approach: expression targets and teeth |
@@ -324,6 +324,7 @@ No test was removed or weakened. The light-model triangle budget went back to it
 | The 22 sampled players | `artifacts/cricket-character/visual-qa/players22*` |
 | Gameplay cameras, High and Low | `artifacts/cricket-character/visual-qa/gameplay/` |
 | Benchmarks | `artifacts/cricket-benchmark/` |
+| Final polish (section 14): dive chest three-way comparison and close-ups, standing hands, every motion sequence, final before/after for all ten bodies, lineups | `artifacts/cricket-character/final-polish/` |
 | Anatomy, posture and stance refinement (section 13): bare bodies, neutral and action poses for all ten, chest in motion, lineups, chest target study, the sleeve defect found | `artifacts/cricket-character/anatomy-posture/` |
 | Asset licences | `scripts/cricket-characters/LICENSES.md` (all CC0 MakeHuman assets; the kit, gear and shaders are original code) |
 
@@ -451,3 +452,80 @@ The suite rewrites the tracked Phase 6 images in `artifacts/cricket-2`; they wer
 - A gentle rounded underside to the chest remains in the diving catch, with both arms reaching forward. It comes from linear skinning; corrective shapes would be needed.
 - From the side, the standing hands sit slightly forward with open fingers. They no longer cup in front of the thighs.
 - Batting, bowling and keeping poses are keyed and procedural, not motion captured. Their joint angles are now inside professional ranges, but subtle per-player style is limited to the existing batter styles.
+
+## 14. Final polish and release readiness
+
+Last pass before PR #5: the remaining diving-chest shape, the standing hands, and a review of every cricket motion sequence. No new features, and no change to budgets, scoring, identities, replays or verification.
+
+### Diving chest: a corrective helper bone
+
+- **The shape:** with both arms reaching forward, the side of the chest just below the armpit swelled into a rounded bulge.
+- **The cause:** the tights the shirt is cut from weight that cloth about 60% to the upper-arm bone, so it swung forward with the arm.
+- **The fix** (`shoulderWeights` and `RealisticBody.share` in `realistic.ts`):
+  - Shirt cloth on the torso, more than a sleeve's radius from the upper-arm bone, hands its upper-arm weight to the collarbone, eased over 5 to 13 cm and keeping 15% on the arm so the armpit stretches rather than creases.
+  - The collarbone now follows the arm's swing relative to the chest in every direction, by up to 22%. It protracts as the arm reaches forward, about 11° in the diving catch, and rises overhead, about 35° at full stretch as before.
+  - The sleeves themselves are untouched.
+- **Why not a morph target:** three.js stores morph targets in a texture per geometry. With about ten models on the light preset, that would break its 45-texture budget. A helper bone adds no triangles, textures, draw calls or shader work.
+- **Result** (`dive-chest-three-way.jpg`, `dive-chest-closeups.jpg`): from the side the torso runs smooth from armpit to hip, and from the front the chest is square. The overhead catch, the bowling release and the standing pose are unchanged.
+
+### Standing hands
+
+- The relaxed hands sat 14.5 cm ahead of the hip joint, with fingers splayed.
+- The shoulders sit a little ahead of the hips, so the upper arm now hangs about 6° back with a 10° elbow. The hands come to rest beside the front of the thighs, 5.5 cm ahead of the hip joint.
+- Ungloved players curl their fingers 0.42 rad instead of 0.28, which reads as a relaxed hand. Catching hands still read as open.
+- Hands still clear the trousers: the existing clearance test passes.
+- Evidence: `standing-hands-three-way.jpg` and `standing-hands-closeups.jpg`.
+
+### Animation review
+
+Every sequence was rendered at 8 to 12 points: drive and pull from guard to follow-through, fast and spin deliveries from gather to follow-through, the keeper's crouch, rise, low and high takes, a full sprint cycle, the dive and the get-up (`animation-sequences.jpg`). Two defects were found, both in the get-up after a diving catch, and both were fixed:
+
+1. **A snap when the diver started to get up.** The `recover` clip did not begin where `dive` ends: hands jumped 40 cm and feet 35 cm across the 0.16 s clip cross-fade. It now starts on the dive's last key. A new test checks that every clip the game hands over directly meets its predecessor; it fails on the old clip (a 0.95 gap) and passes now.
+2. **A diver rolled from face-down to face-up in a quarter of a second.** Pre-existing. At 1.2 s after a diving catch the scene blended in the motion library's `LayToIdle`, which starts lying on the back, while every dive ends face down. The diver now gets up with the `recover` clip (face down, push up, kneel, stand) and stays busy until it ends, 2.3 s after the dive. `LayToIdle` is no longer used.
+
+Batting, bowling, keeping and sprinting showed no visible defect at these sample points.
+
+### Complete regression run on the final code
+
+| Check | Result |
+|---|---|
+| Typecheck, all packages | Passed |
+| Unit and integration tests | 539 passed (shared 32, engines 446, realtime 61) |
+| Real PostgreSQL tests (local `*_test` database) | 65 passed in 6 files |
+| Production build | Passed |
+| Full browser suite (every spec, every game) | **188 passed, 0 failed, 10 skipped** (the on-demand evidence and footage recorders), in 40.3 min |
+| Linux OpenNext/Cloudflare build (WSL, clean copy with no `.env`, nothing uploaded) | Passed; Worker emitted, 31 MB of static assets including all 20 athlete models |
+| Character benchmarks, GPU and software, final build and `52ee6fb`, each run twice | All completed |
+
+The suite rewrites the tracked Phase 6 images in `artifacts/cricket-2`; they were restored with `git restore`.
+
+**Identity, progression, scoring and replay compatibility.**
+- The accumulated changes touch no file in `packages/` or `apps/realtime/`. The engines, scoring, replay format, verification, database schema, identity and economy are byte for byte as on the remote branch.
+- They are also verified by behaviour:
+  - the 446 engine tests, including replay verification
+  - the 65 database tests: ledger, campaign, identity, sessions and rollbacks
+  - the browser suite's identity, economy, Cuisine Quest campaign, cricket server-verified match and scorebook, and replay specs
+  - the looks spec: a player looks the same across presets, replays, reloads and matches
+
+**Benchmarks, `52ee6fb` → final, run twice, old and new alternating:**
+
+| Preset | RTX 3050 fps | p95 interval (ms) | Draw CPU median (ms), runs 1 / 2 | Triangles | Software fps, runs 1 / 2 |
+|---|---|---|---|---|---|
+| Low | 30 → 30 | 33.4 → 33.4 | 4.2→4.1 / 4.3→4.3 | 137,724 → 137,046 | 23.5→21.9 / 22.2→22.7 |
+| Medium | 60 → 60 | 16.7 → 16.7 | 4.5→4.2 / 4.3→4.2 | 164,724 → 163,874 | 8.7→8.6 / 7.7→8.5 |
+| High | 60 → 60 | 16.7 → 16.7 | 5.1→4.7 / 5.0→4.8 | 506,700 → 503,109 | 3.8→4.0 / 3.8→3.8 |
+| Ultra | 60 → 60 | 16.8 → 16.7 | 4.8→5.1 / 5.3→5.1 | 619,925 → 616,032 | 3.1→3.1 / 3.1→3.1 |
+
+- Textures are unchanged: 42 on Low and Medium, 54 on High and Ultra.
+- No hitches over 50 ms on the GPU, in either build.
+- **Investigated:** the first run showed athletes loading in 3,010 ms against 2,702, and software Low and Medium a little slower. The repeat reversed or erased both (2,709 against 2,709 ms; Low 22.2→22.7 and Medium 7.7→8.5 fps). The only new load-time work, the corrective weights, is one pass over the cloth vertices. There is no measurable regression.
+
+### Outstanding limitations
+
+- **Hair and beards** (section 9): beards and buzz cuts are painted in the shader; hair cards have hard edges and few styles. These need different assets.
+- **Faces:** no expressions, teeth or mouth interior.
+- **Elbows:** thin at full flexion. This is linear skinning; corrective shapes or dual quaternions would fix it.
+- **Diving catch:** a slight softness remains where the shirt meets the underarm at full forward reach. It is no longer a bulge.
+- **Cricket motion:** batting, bowling and keeping are keyed and procedural, not motion captured. Joint angles are within professional ranges, but per-player style comes only from the batter styles.
+- **The diver's get-up** is procedural, not captured.
+- **Performance:** all figures are from one laptop (RTX 3050) and SwiftShader. No physical phone, Safari or console was tested.

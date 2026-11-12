@@ -394,12 +394,14 @@ export function carriage(pose: Map<Joint, T.Quaternion>, loco: { clip: string; w
   for (const side of ["Left", "Right"] as const) {
     const out = side === "Left" ? 1 : -1;
     // The athletes' left is +X (they face +Z).
-    // Arms hang free of the sides, elbows in a relaxed 12 degree bend with the
+    // Arms hang free of the sides, elbows in a relaxed 10 degree bend with the
     // forearm swinging forward, wrists straight and palms towards the thighs:
     // no twist from the aligned rest, where the palms face in. (The clip's own
     // forearm twist, made for its bent elbows, would turn the palms forward.)
-    const upper = tv2.set(0.2 * out, -1, 0.07).normalize(),
-      fore = new T.Vector3().copy(upper).applyAxisAngle(X_AXIS, -12 * deg),
+    // The shoulders sit a little ahead of the hips, so the upper arm hangs a few
+    // degrees back and the hands come to rest beside the thighs, not in front.
+    const upper = tv2.set(0.18 * out, -1, -0.1).normalize(),
+      fore = new T.Vector3().copy(upper).applyAxisAngle(X_AXIS, -10 * deg),
       armQ = new T.Quaternion().setFromUnitVectors(DOWN, upper),
       foreQ = new T.Quaternion().setFromUnitVectors(DOWN, fore);
     pose.get(`${side}Arm`)?.slerp(armQ, s);

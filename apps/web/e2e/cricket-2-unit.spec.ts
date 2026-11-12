@@ -105,6 +105,17 @@ test("dismissal/role reactions are finite, grounded and recover from dives", () 
   expect(CLIPS.celebrate.loop).toBeUndefined();
   for (let t = 0; t < 4; t += 0.1) { const p = sampleClip(CLIPS.celebrate, t, makePose()); expect(p[CH.lFootY]).toBeCloseTo(0.09); expect(p[CH.rFootY]).toBeCloseTo(0.09); }
 });
+test("clips the game hands over directly meet without a jump", () => {
+  // A clip change crossfades in 0.16 s, so a pose gap there reads as a snap:
+  // a diver getting up must start from where the dive left him.
+  for (const [from, at, to, start] of [["dive", 1.0, "recover", 0], ["keeper", 0, "keeperRise", 0]] as const) {
+    const a = sampleClip(CLIPS[from], at, makePose()),
+      b = sampleClip(CLIPS[to], start, makePose());
+    let worst = 0;
+    for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i]! - b[i]!));
+    expect(worst, `${from} -> ${to}`).toBeLessThan(0.02);
+  }
+});
 test("run-up accelerates off its mark and all styles reach the unchanged release", () => {
   for (const style of ["fast", "medium", "spin"] as const) {
     expect(runUpProgress(0, style)).toBe(0); expect(runUpProgress(100, style)).toBe(1);

@@ -216,7 +216,8 @@ export const CLIPS = {
   salute: clip([[0, { rHandY: 1.0 }], [0.45, { yaw: -0.25, chestY: -0.2, rHandX: -0.25, rHandY: 2.08, rHandZ: 0.12 }], [1.5, { yaw: -0.4, rHandY: 1.5, rHandZ: 0.25 }], [3, { yaw: -0.5 }]]),
   showCatch: clip([[0, { hipY: 0.86, lHandX: 0.08, rHandX: -0.08, lHandY: 1.05, rHandY: 1.05, lHandZ: 0.28, rHandZ: 0.28 }], [0.6, { rHandX: -0.15, rHandY: 1.85, rHandZ: 0.3, lHandY: 1.0, yaw: 0.25 }], [2, { rHandX: -0.2, rHandY: 1.55, rHandZ: 0.25, yaw: 0.4 }]]),
   directHit: clip([[0, { pitch: 0.2, rHandY: 1.1 }], [0.4, { yaw: 0.35, rHandX: -0.25, rHandY: 1.3, rHandZ: 0.65, lHandY: 1.1 }], [1.3, { yaw: 0.5, rHandX: -0.2, rHandY: 1.5, rHandZ: 0.35 }], [2.6, { yaw: 0.5 }]]),
-  recover: clip([[0, { hipY: 0.24, pitch: 1.35, lHandY: 0.2, rHandY: 0.2, lHandZ: 0.7, rHandZ: 0.7, lFootZ: -0.5, rFootZ: -0.5 }], [0.5, { hipY: 0.55, pitch: 0.65, lHandY: 0.35, rHandY: 0.35, lHandZ: 0.4, rHandZ: 0.4, lFootZ: 0.25, rFootZ: -0.4 }], [1.2, { hipY: 0.93, pitch: 0.12 }]]),
+  // Starts exactly where the dive ends (its last key), so getting up never snaps.
+  recover: clip([[0, { hipY: 0.2, pitch: 1.5, chestX: -0.22, headX: -0.95, lHandX: 0.14, lHandY: 0.2, lHandZ: 1.1, rHandX: -0.14, rHandY: 0.2, rHandZ: 1.1, lFootY: 0.14, lFootZ: -0.85, rFootY: 0.14, rFootZ: -0.92 }], [0.5, { hipY: 0.55, pitch: 0.65, lHandY: 0.35, rHandY: 0.35, lHandZ: 0.4, rHandZ: 0.4, lFootZ: 0.25, rFootZ: -0.4 }], [1.2, { hipY: 0.93, pitch: 0.12 }]]),
   appeal: clip([
     [0, { hipY: 0.92, pitch: 0.2, rHandX: -0.3, rHandY: 1.2, rHandZ: 0.3 }],
     [0.22, { hipY: 0.98, pitch: -0.12, headX: -0.32, yaw: -0.25, lHandX: 0.42, lHandY: 1.5, lHandZ: 0.3, rHandX: -0.2, rHandY: 2.12, rHandZ: 0.22, lFootZ: 0.2, rFootZ: -0.2 }],
