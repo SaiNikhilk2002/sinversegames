@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic";
 import type { SoloGameId } from "@platform/shared";
-import { Spinner } from "@/components/ui/primitives";
+import { BrandLoader } from "@/components/ui/brand-loader";
 import type { SoloClient } from "./solo-types";
 
 const loading = () => (
   <div className="flex justify-center py-24">
-    <Spinner label="Loading game" />
+    <BrandLoader label="Loading game" />
   </div>
 );
 

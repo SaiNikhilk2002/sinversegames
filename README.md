@@ -12,6 +12,10 @@ Multiplayer (realtime rooms, private invites, matchmaking):
 - **Doodle Duel**: a real-time draw-and-guess party game for 2–8 players.
 - **Token Trail**: a race-home dice board game for 2–4 players.
 - **Bumper Blitz**: a real-time bumper-pod arena brawler for 2–6 players.
+- **Chef Rivals**: a 1v1 cooking duel from the Cuisine Quest kitchens. Both chefs cook the same mystery basket at the same time, then face the judges.
+- **Kitchen Rush Co-op**: 2–4 chefs share one kitchen across seven restaurants, with one team score.
+
+These two are implemented and tested locally on `feature/cuisine-quest-showdown`. They haven't been verified on a hosted Preview and aren't deployed. They need web and realtime released together. See [the roadmap](docs/CUISINE_QUEST_EVOLUTION_ROADMAP.md) and [release readiness](docs/RELEASE_READINESS_CUISINE_QUEST.md).
 
 Single player (server-verified scores, daily leaderboards):
 

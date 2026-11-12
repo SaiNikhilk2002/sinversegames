@@ -202,18 +202,18 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <Card className="overflow-hidden border-[3px]" style={{ borderColor: GAME_THEME[gameId].accent }} data-testid="solo-results">
+          <Card className="overflow-hidden border" style={{ borderColor: GAME_THEME[gameId].accent }} data-testid="solo-results">
             <div className="relative overflow-hidden p-8 text-center" style={{ background: GAME_THEME[gameId].deep, color: GAME_THEME[gameId].ink }}>
               <div className="pointer-events-none absolute inset-0 opacity-30" aria-hidden>
                 <GameArt gameId={gameId} className="size-full scale-125 blur-xl" />
               </div>
-              <p className="relative text-xs font-black tracking-[0.3em] uppercase opacity-70">{game.name}</p>
-              <p className="relative mt-1 font-display text-xl font-black">{client.recoverable && result ? (result.completed ? `Cuisine ${questLevel} complete` : "A little more practice") : summary.headline}</p>
+              <p className="relative text-xs font-semibold tracking-[0.3em] uppercase opacity-70">{game.name}</p>
+              <p className="relative mt-1 font-display text-xl font-semibold">{client.recoverable && result ? (result.completed ? `Cuisine ${questLevel} complete` : "A little more practice") : summary.headline}</p>
               <motion.p
                 initial={{ scale: 1.6, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 260, damping: 16, delay: 0.1 }}
-                className="relative mt-2 font-display text-7xl font-black tabular-nums"
+                className="relative mt-2 font-display text-7xl font-semibold tabular-nums"
                 style={{ color: GAME_THEME[gameId].accent, textShadow: "0 5px 0 rgb(0 0 0 / 0.45)" }}
                 data-testid="final-score"
               >
@@ -281,7 +281,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
         <GameArt gameId={gameId} className="h-28 w-44 shrink-0 rounded-2xl border border-line object-cover shadow-card" />
         <div className="flex-1">
-          <h1 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{game.name}</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{game.name}</h1>
           <p className="mt-1 text-ink-muted">{game.tagline}</p>
         </div>
         <Link href={`/leaderboard?game=${gameId}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-500 hover:underline">

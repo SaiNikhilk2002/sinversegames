@@ -205,6 +205,8 @@ export const GAME_ACTION_EVENTS = [
   "trail:roll",
   "trail:move",
   "arena:input",
+  "kitchen:act",
+  "kitchen:tap",
 ] as const;
 export type GameActionEvent = (typeof GAME_ACTION_EVENTS)[number];
 

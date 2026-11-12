@@ -14,11 +14,13 @@ export const GAME_IDS = [
   "bumper-blitz",
   "cuisine-quest",
   "sinverse-cricket",
+  "chef-rivals",
+  "kitchen-rush-coop",
 ] as const;
 export type GameId = (typeof GAME_IDS)[number];
 
 /** Games played in realtime rooms (engines in packages/engines, rooms on the realtime server). */
-export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail", "bumper-blitz"] as const;
+export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail", "bumper-blitz", "chef-rivals", "kitchen-rush-coop"] as const;
 export type MultiplayerGameId = (typeof MULTIPLAYER_GAME_IDS)[number];
 
 /** Single-player games: played in the browser, scores verified by replaying the move log on the server. */
@@ -318,6 +320,42 @@ export const GAMES: readonly GameMeta[] = [
       { title: "Build a bowling plan", body: "Set line, length and variation. Release near the centre of the moving meter; late oversteps cost a no-ball and free hit." },
       { title: "Watch the field", body: "Request a run only when the gap is there. Throws and runner positions decide run-outs. Review any completed delivery before continuing." },
     ], keywords: ["cricket simulation", "3d cricket", "original cricket game", "batting bowling game", "short cricket match"],
+  },
+  {
+    id: "chef-rivals", slug: "chef-rivals", kind: "multiplayer", name: "Chef Rivals",
+    tagline: "Same basket. Same clock. Two chefs. One winner.",
+    description: "A head-to-head cooking duel from the Cuisine Quest kitchens. Two chefs cook the same mystery basket at the same time, then the judges decide.",
+    longDescription: [
+      "Chef Rivals puts two chefs on one stage. You both get the same theme, mystery ingredient, guests and clock, and you can watch your rival work while you cook.",
+      "Choose your own order of attack across the tickets. The judges score correctness, cooking craft, timing, technique and presentation, plus a secret challenge revealed only at the end. Good cooking beats fast clicking.",
+    ],
+    categories: ["cooking", "strategy", "arcade"], minPlayers: 2, maxPlayers: 2, avgDurationMinutes: [3, 5], modes: ["private-room", "public-match", "two-player"], featured: false, popular: false, addedAt: "2026-11-07",
+    theme: { from: "#ff6b4a", to: "#7c5cff", ink: "#fff6ea" },
+    howToPlay: [
+      { title: "Meet the challenge", body: "A theme and mystery ingredient are revealed, and both chefs get the same tickets." },
+      { title: "Cook at the same time", body: "Follow each ticket's recipe: ingredients, preparation, heat, timing and plating. Two batches can run at once, so plan your order." },
+      { title: "Serve it right", body: "Give each guest the finish they asked for before their patience runs out." },
+      { title: "Face the judges", body: "Scores are revealed category by category, including a secret challenge. Quality counts far more than speed." },
+    ],
+    keywords: ["cooking duel", "multiplayer cooking game", "chef vs chef", "two player cooking game", "online cooking competition"],
+  },
+  {
+    id: "kitchen-rush-coop", slug: "kitchen-rush-co-op", kind: "multiplayer", name: "Kitchen Rush Co-op",
+    tagline: "One kitchen. Up to four chefs. Don't burn the place down.",
+    description: "A chaotic team cooking game for 2 to 4 players. Share one kitchen, pass food along the line and serve every guest together.",
+    longDescription: [
+      "Kitchen Rush Co-op puts your whole team in one restaurant. Everyone sees the same guests and shares the same stations, plates and score, and you can see each other's chefs running the line.",
+      "Seven kitchens each add something new to handle: a shared board, combo chains, tough critics, limited stock and flare-ups. Passing food to a teammate earns points too, so the best teams really do work together.",
+    ],
+    categories: ["cooking", "arcade", "casual"], minPlayers: 2, maxPlayers: 4, avgDurationMinutes: [2, 6], modes: ["private-room", "public-match", "group"], featured: false, popular: false, addedAt: "2026-11-07",
+    theme: { from: "#ff9a3d", to: "#2fd6a8", ink: "#2b1408" },
+    howToPlay: [
+      { title: "Split the work", body: "Each chef can do anything, one thing at a time. Agree who grills, who chops and who plates, and swap whenever you need to." },
+      { title: "Build the plate", body: "Take ingredients from the shelves, prepare them at a station and add finished food to a plate." },
+      { title: "Serve the guest", body: "Pick up a finished plate and tap the guest who ordered it, before their patience runs out." },
+      { title: "Win as a team", body: "Everyone shares one score. Quick serves in a row and food passed between chefs earn bonuses. Burnt food and waste cost you." },
+    ],
+    keywords: ["co-op cooking game", "multiplayer kitchen game", "team cooking game online", "cooking game with friends"],
   },
 ];
 

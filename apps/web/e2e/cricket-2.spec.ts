@@ -73,8 +73,9 @@ test("Cricket 2: both innings by keyboard, real intents, continuous flow and ser
   await page.keyboard.press(model.tossFace === "heads" ? "KeyH" : "KeyT");
   await expect(root).toHaveAttribute("data-ceremony", "decision"); await page.keyboard.press("KeyB");
   await expect(root).toHaveAttribute("data-ceremony", "done");
+  // Digit3 picks the off-side family, whose first shot is the cover drive (aimed 45°); the arrow adds 10°.
   await page.keyboard.press("Digit3"); await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowUp");
-  await expect(root).toHaveAttribute("data-intent", "cover"); await expect(root).toHaveAttribute("data-direction", "45"); await expect(root).toHaveAttribute("data-foot", "0.65");
+  await expect(root).toHaveAttribute("data-intent", "cover"); await expect(root).toHaveAttribute("data-direction", "55"); await expect(root).toHaveAttribute("data-foot", "0.65");
   // Continuous flow faces the next ball without a button click.
   await expect(root).toHaveAttribute("data-live", "true", { timeout: 12000 });
   await keyAt(root, "Space", 155);
@@ -101,7 +102,7 @@ test("Cricket 2: both innings by keyboard, real intents, continuous flow and ser
   const submit = page.waitForRequest(r => r.url().endsWith("/api/solo/submit") && r.method() === "POST");
   await page.getByTestId("cricket-save").click(); const payload = (await submit).postDataJSON();
   const verified = sinverseCricket.verify(run.seed, run.config, payload.log);
-  expect(verified.ok).toBe(true); expect(payload.log[1].shot).toMatchObject({ kind: "cover", direction: 45, foot: 0.65 });
+  expect(verified.ok).toBe(true); expect(payload.log[1].shot).toMatchObject({ kind: "cover", direction: 55, foot: 0.65 });
   await expect(page.getByTestId("score-verified")).toBeVisible(); expect(errors).toEqual([]);
   writeFileSync(`${evidence}/keyboard-verification.json`, JSON.stringify({ balls: payload.log.length - 1, verified: verified.ok, result: verified.ok ? verified.result : null, errors }, null, 2));
 });

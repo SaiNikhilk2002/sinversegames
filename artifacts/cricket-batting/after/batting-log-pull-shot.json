@@ -1,0 +1,124 @@
+[
+  {
+    "match": 1,
+    "want": "leave",
+    "shot": {
+      "kind": "defend",
+      "direction": 0,
+      "power": 0.3,
+      "foot": 0.4,
+      "face": -0.38,
+      "tick": 156
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 163,
+    "filmed": null
+  },
+  {
+    "match": 1,
+    "want": "leave",
+    "shot": {
+      "kind": "defend",
+      "direction": 30,
+      "power": 0.3,
+      "foot": 0.4,
+      "face": -0.1,
+      "tick": 156
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 163,
+    "filmed": null
+  },
+  {
+    "match": 1,
+    "want": "leave",
+    "shot": {
+      "kind": "defend",
+      "direction": 0,
+      "power": 0.3,
+      "foot": 0.4,
+      "face": 0.1,
+      "tick": 156
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 163,
+    "filmed": null
+  },
+  {
+    "match": 1,
+    "want": "leave",
+    "shot": {
+      "kind": "defend",
+      "direction": 30,
+      "power": 0.3,
+      "foot": 0.4,
+      "face": -0.1,
+      "tick": 156
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 162,
+    "filmed": null
+  },
+  {
+    "match": 1,
+    "want": "leave",
+    "shot": {
+      "kind": "defend",
+      "direction": 0,
+      "power": 0.3,
+      "foot": 0.4,
+      "face": 0.44,
+      "tick": 156
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 163,
+    "filmed": null
+  },
+  {
+    "match": 1,
+    "want": "pull-shot",
+    "shot": {
+      "kind": "pull",
+      "direction": -70,
+      "power": 0.85,
+      "foot": -0.2,
+      "face": 0.04,
+      "tick": 204
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 212,
+    "filmed": "pull-shot"
+  },
+  {
+    "filmed": "pull-shot",
+    "contact": 212,
+    "contactError": 0,
+    "gripError": 0,
+    "closeup": {
+      "frames": 72,
+      "fps": 15,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 57,
+      "fps": 15.1,
+      "speed": 1
+    }
+  },
+  {
+    "missing": [],
+    "matches": 1
+  }
+]

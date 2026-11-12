@@ -75,13 +75,13 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
   return (
     <div>
-      <section className="relative overflow-hidden border-b-[3px]" style={{ background: theme.deep, borderColor: theme.accent, color: theme.ink }}>
+      <section className="relative overflow-hidden border-b border-white/10" style={{ background: theme.deep, color: theme.ink }}>
         <div className="pointer-events-none absolute inset-0 opacity-25" aria-hidden>
           <GameArt gameId={gameId} className="size-full scale-125 blur-2xl" />
         </div>
         <div className="relative mx-auto max-w-4xl px-4 py-8 sm:px-6">
-          <p className="text-xs font-black tracking-[0.3em] uppercase opacity-70">Leaderboard</p>
-          <h1 className="font-display text-4xl font-black tracking-tight sm:text-5xl">{game.name}</h1>
+          <p className="text-xs font-semibold tracking-[0.3em] uppercase opacity-70">Leaderboard</p>
+          <h1 className="font-display text-4xl font-semibold tracking-tight sm:text-5xl">{game.name}</h1>
           <p className="mt-1 opacity-80">{by === "today" ? "Today's best scores (UTC)" : "All-time rankings"}</p>
           <nav aria-label="Game" className="scrollbar-none -mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1">
             {GAMES.map((g) => (
@@ -90,7 +90,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                 href={`/leaderboard?game=${g.id}`}
                 aria-current={g.id === gameId ? "page" : undefined}
                 aria-label={g.name}
-                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border-2 transition", g.id === gameId ? "scale-105" : "border-transparent opacity-55 hover:opacity-100")}
+                className={cn("w-24 shrink-0 overflow-hidden rounded-xl border transition", g.id === gameId ? "scale-105" : "border-transparent opacity-55 hover:opacity-100")}
                 style={{ borderColor: g.id === gameId ? GAME_THEME[g.id].accent : undefined }}
               >
                 <GameArt gameId={g.id} className="block aspect-[16/10] w-full" />
@@ -108,14 +108,14 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
         <ol className="mb-6 grid grid-cols-3 items-end gap-3" aria-label="Top three">
           {[rows[1], rows[0], rows[2]].map((r, slot) =>
             r ? (
-              <li key={r.playerId} className="flex flex-col items-center rounded-2xl border-2 bg-surface p-3 text-center" style={{ borderColor: medal[r.rank - 1], paddingTop: r.rank === 1 ? 20 : 12 }}>
-                <span className="grid size-8 place-items-center rounded-full border-2 border-[#17142b] font-display text-sm font-black text-[#17142b]" style={{ background: medal[r.rank - 1] }}>
+              <li key={r.playerId} className="flex flex-col items-center rounded-2xl border bg-surface p-3 text-center" style={{ borderColor: medal[r.rank - 1], paddingTop: r.rank === 1 ? 20 : 12 }}>
+                <span className="grid size-8 place-items-center rounded-full font-display text-sm font-semibold text-[#17142b]" style={{ background: medal[r.rank - 1] }}>
                   {r.rank}
                 </span>
                 <Avatar name={r.name} color={r.color} avatarKey={r.avatarKey} size={r.rank === 1 ? 56 : 44} className="mt-2" />
                 <p className="mt-1 max-w-full truncate text-sm font-bold">{r.name}</p>
                 {r.username&&<p className="max-w-full truncate text-xs text-ink-muted">@{r.username}</p>}
-                <p className="font-mono text-lg font-black tabular-nums">{r.cells[r.cells.length - 1]}</p>
+                <p className="font-display text-lg font-semibold tabular-nums">{r.cells[r.cells.length - 1]}</p>
               </li>
             ) : (
               <li key={slot} />
@@ -123,7 +123,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
           )}
         </ol>
       )}
-      <Card className="overflow-hidden border-2">
+      <Card className="overflow-hidden border">
         {!rows ? (
           <p className="p-8 text-center text-ink-muted">The leaderboard is unavailable right now.</p>
         ) : rows.length === 0 ? (
@@ -153,9 +153,9 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
             <tbody className="divide-y divide-line">
               {rows.map((r) => (
                 <tr key={r.playerId}>
-                  <td className="px-4 py-3 font-display font-black">
+                  <td className="px-4 py-3 font-display font-semibold">
                     {r.rank <= 3 ? (
-                      <span className="grid size-7 place-items-center rounded-full border-2 border-[#17142b] text-xs text-[#17142b]" style={{ background: medal[r.rank - 1] }} aria-label={r.rank === 1 ? "1st" : `${r.rank}`}>
+                      <span className="grid size-7 place-items-center rounded-full text-xs text-[#17142b]" style={{ background: medal[r.rank - 1] }} aria-label={r.rank === 1 ? "1st" : `${r.rank}`}>
                         {r.rank === 1 ? <Crown className="size-3.5" /> : r.rank}
                       </span>
                     ) : (

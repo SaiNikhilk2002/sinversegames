@@ -1,0 +1,410 @@
+{
+ "face-front-0": {
+  "looks": [],
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 11,
+  "geometries": 7,
+  "models": 6
+ },
+ "face-side-0": {
+  "looks": [],
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 14,
+  "geometries": 7,
+  "models": 6
+ },
+ "face-3q-0": {
+  "looks": [],
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 17,
+  "geometries": 7,
+  "models": 6
+ },
+ "body-front-0": {
+  "looks": [],
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 20,
+  "geometries": 7,
+  "models": 6
+ },
+ "face-front-1": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 26,
+  "geometries": 13,
+  "models": 6
+ },
+ "face-side-1": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 29,
+  "geometries": 13,
+  "models": 6
+ },
+ "face-3q-1": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 32,
+  "geometries": 13,
+  "models": 6
+ },
+ "body-front-1": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 35,
+  "geometries": 13,
+  "models": 6
+ },
+ "face-front-2": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 41,
+  "geometries": 19,
+  "models": 6
+ },
+ "face-side-2": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 44,
+  "geometries": 19,
+  "models": 6
+ },
+ "face-3q-2": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 47,
+  "geometries": 19,
+  "models": 6
+ },
+ "body-front-2": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 50,
+  "geometries": 19,
+  "models": 6
+ },
+ "face-front-3": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 56,
+  "geometries": 25,
+  "models": 6
+ },
+ "face-side-3": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 59,
+  "geometries": 25,
+  "models": 6
+ },
+ "face-3q-3": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 62,
+  "geometries": 25,
+  "models": 6
+ },
+ "body-front-3": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 65,
+  "geometries": 25,
+  "models": 6
+ },
+ "face-front-4": {
+  "looks": [],
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 71,
+  "geometries": 31,
+  "models": 6
+ },
+ "face-side-4": {
+  "looks": [],
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 74,
+  "geometries": 31,
+  "models": 6
+ },
+ "face-3q-4": {
+  "looks": [],
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 77,
+  "geometries": 31,
+  "models": 6
+ },
+ "body-front-4": {
+  "looks": [],
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 80,
+  "geometries": 31,
+  "models": 6
+ },
+ "face-front-5": {
+  "looks": [],
+  "triangles": 56316,
+  "calls": 10,
+  "textures": 85,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-side-5": {
+  "looks": [],
+  "triangles": 56316,
+  "calls": 10,
+  "textures": 88,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-5": {
+  "looks": [],
+  "triangles": 56316,
+  "calls": 10,
+  "textures": 91,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-front-5": {
+  "looks": [],
+  "triangles": 56316,
+  "calls": 10,
+  "textures": 94,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-side-0": {
+  "looks": [],
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 97,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-rear-0": {
+  "looks": [],
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 100,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-side-3": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 103,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-rear-3": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 106,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-day-1": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 109,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-night-3": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 112,
+  "geometries": 36,
+  "models": 6
+ },
+ "pose-batting-stance": {
+  "looks": [],
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 115,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-drive": {
+  "looks": [],
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 118,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-pull": {
+  "looks": [],
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 121,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-loft": {
+  "looks": [],
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 124,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-sweep": {
+  "looks": [],
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 127,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-cut": {
+  "looks": [],
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 130,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-batting-hands": {
+  "looks": [],
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 133,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-bowling-gather": {
+  "looks": [],
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 136,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-bowling-release": {
+  "looks": [],
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 139,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-standing": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 142,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-sprint": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 145,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-jog": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 148,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-direction-change": {
+  "looks": [],
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 151,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-catch-one-hand": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 154,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-catch-two-hands": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 157,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-dive": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 160,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-landing": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 163,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-roll": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 166,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-celebration": {
+  "looks": [],
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 169,
+  "geometries": 38,
+  "models": 6
+ },
+ "pose-keeper": {
+  "looks": [],
+  "triangles": 57612,
+  "calls": 12,
+  "textures": 172,
+  "geometries": 39,
+  "models": 6
+ },
+ "hands-relaxed": {
+  "looks": [],
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 175,
+  "geometries": 39,
+  "models": 6
+ }
+}

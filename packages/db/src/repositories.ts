@@ -100,8 +100,8 @@ export async function recordMatch(db: PrismaClient, input: RecordMatchInput): Pr
     const unlocked: Record<string, string[]> = {};
     const earnedCoins: Record<string, number> = {};
     for (const e of results.entries) {
-      // A tied cricket duel is played, but is neither a win nor a loss.
-      const neutral = results.gameId === "sinverse-cricket" && e.details?.result === "tie";
+      // A tied duel is played, but is neither a win nor a loss.
+      const neutral = (results.gameId === "sinverse-cricket" || results.gameId === "chef-rivals") && e.details?.result === "tie";
       const cuisine = (results.gameId as string) === "cuisine-quest" ? await recordCuisineProgress(tx, e.playerId, e.score, e.isWinner, e.details ?? {}) : null;
       const details = cuisine?.summary ?? e.details ?? {};
       const prev = await tx.playerGameStats.findUnique({ where: { playerId_gameId: { playerId: e.playerId, gameId: results.gameId } } });

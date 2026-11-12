@@ -1,7 +1,11 @@
 import * as T from "three";
+import { PEOPLE, closestPair, place, type Spot } from "./spacing";
+import { KitMaterials, RealisticBody, equipmentKit, loadSquad, squadPeople } from "./realistic";
+import type { Appearance } from "./athlete-look";
+import { MotionPlayer, loadMotion, type MotionLibrary, type OneShot } from "./motion";
 import {
-  CREASE_Z,
   RELEASE_TICK,
+  SHOT_HEIGHTS,
   STEP,
   STUMPS_Z,
   type CricketConfig,
@@ -10,27 +14,22 @@ import {
   type Outcome,
   type ShotInput,
   type Variation,
+  VENUES,
 } from "@platform/engines/sinverse-cricket";
 import {
   BAT,
   CH,
   CLIPS,
   DELIVERY,
-  IMPACT_TICKS,
-  RELEASE_ROOT,
   RIG,
-  RUN_UP,
+  GATHER,
   FootPlanter,
+  StepFeet,
   applyGait,
-  applyShotBody,
-  batPose,
   blendPose,
   bowlingStyle,
   clamp01,
-  creaseZ,
   makePose,
-  nominalImpact,
-  runUpProgress,
   sampleClip,
   selectBowler,
   selectFielder,
@@ -44,11 +43,17 @@ import {
   type Selection,
   type Vec3,
 } from "./animation";
+import { FLIGHT_TICKS, batterStyle, batting, type BattingInput, type ContactKind } from "./batting";
+import type { BatPose, BowlingStyle } from "./animation";
 import { applyPose, batPoint, buildAthlete, handCentre, holdBat, paintKit, paintRoughness, placeBat, type Athlete, type Role } from "./character";
 import { crowdEnergy, direct, ropeRatio, type CameraName } from "./director";
+import { STUMPING_HIT, fielderPlan, keeperPlan, newMemo, reaction, type BallKin, type FieldMemo, type FieldPlan, type Reaction, type ReactionRole } from "./fielding";
 import { LIGHTS, QUALITY, buildStadium, lightingFor, type Lighting, type QualityName } from "./stadium";
 import { coinPose, type CeremonyFeed } from "./ceremony";
 import { buildCoin, ceremonyCamera } from "./ceremony-scene";
+
+/** Seconds after a diving catch until the diver is back on his feet: the dive, then the `recover` clip. */
+const DIVE_GET_UP = 1 + CLIPS.recover.keys[CLIPS.recover.keys.length - 1]![0] + 0.1;
 
 export type Quality = QualityName;
 export type { CameraName, Lighting };
@@ -68,16 +73,27 @@ export type SceneFeed = {
   /** Where the ball met the bat, so a slow frame rate cannot move the visual contact. */
   contactPoint?: { x: number; y: number; z: number } | null;
   edge?: boolean;
+  /** Tick the ball reached the bat's line, and how far across from the bat it was (replays). */
+  arrivalTick?: number;
+  passLateral?: number;
   variation?: Variation | null;
   replay?: boolean;
   result?: MatchMoment["result"];
   ceremony?: CeremonyFeed;
   intent?: Omit<ShotInput, "tick">;
   aim?: { line: number; length: number };
+  /** A break in play the broadcast covers (an over, the innings, the result). */
+  interlude?: "over" | "innings" | "result" | null;
 };
 export interface SceneDriver {
   draw(feed: SceneFeed): void;
   dispose(): void;
+  /**
+   * Presentation pace for a big catch: below 1 while a fielder launches into a
+   * dive or a leap (or takes one on the rope) and through the landing. The game
+   * stretches wall-clock time by it; the simulation runs the same ticks.
+   */
+  cinematic(): number;
   metrics(): {
     calls: number;
     triangles: number;
@@ -94,6 +110,17 @@ export interface SceneDriver {
     /** Metres a planted foot slid (worst recent). */
     footSlip?: number;
     excite?: number;
+    /** Metres between the two closest people on the field this frame (centre to centre). */
+    spacing?: number;
+    /** Metres between where the hands were going and where the ball was taken, at the last take. */
+    takeError?: number;
+    takeMove?: string;
+    /** Each fielder's current fielding move (fielders, bowler, keeper). */
+    fielding?: string;
+    /** The realistic athletes and their motion clips have loaded. */
+    athletes?: boolean;
+    /** Who each slot looks like (squad model and appearance), for checking it never changes. */
+    looks?: string;
   };
 }
 const v3 = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
@@ -122,6 +149,34 @@ type Actor = {
   team: number;
   kit: T.Texture | null;
   kitCanvas: HTMLCanvasElement | null;
+  /** Realistic body worn over this actor once the squad has loaded. */
+  body?: RealisticBody;
+  /** Motion clips for the realistic body, and this frame's plan for them. */
+  motion?: MotionPlayer;
+  plan?: { speed: number; shot: { clip: OneShot; time: number; weight: number } | null; lower: number; upper: number; twist: number; lean: number } | null;
+  /** Radians the body still has to turn, and how fast it is turning (rad/s). */
+  turnLeft?: number;
+  turnRate?: number;
+  /** Ground speed from the simulation's positions (m/s), lightly smoothed. */
+  ground?: number;
+  motionLower?: number;
+  motionUpper?: number;
+  /** Clip time of a throw still playing out after the simulation moved on. */
+  throwClock?: number;
+  /** Fielding commitments for this ball, and this frame's fielding plan (presentation only). */
+  memo: FieldMemo;
+  field?: FieldPlan | null;
+  /** Display carry: how far the body is ahead of its simulated spot, stepping into a take (x,z). */
+  carry: { x: number; z: number };
+  /** Planted feet for held poses, so a body moving under one steps instead of sliding. */
+  steps: StepFeet;
+  /** Seconds into the dead ball when this player was done with the ball (reactions start then). */
+  freeAt: number;
+  /** The fielding pose being blended in, and the one fading out, so a change of read never snaps. */
+  planPose: { clip: ClipName; time: number; w: number } | null;
+  fadePose: { clip: ClipName; time: number; w: number } | null;
+  /** Each hand's eased goal (world) and weight. */
+  handGoals: { x: number; y: number; z: number; w: number }[];
 };
 
 function canvasOf(size: number) {
@@ -199,6 +254,13 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
     return { tex, material: kitMaterial(tex) };
   });
   const actors: Actor[] = [];
+  const spots = new Float32Array(PEOPLE * 2),
+    holds = new Uint8Array(PEOPLE);
+  let spacing = Infinity;
+  const ballShown = new T.Vector3(),
+    ballOffset = new T.Vector3();
+  let ballHeld = false,
+    ballTick = -1;
   for (let n = 0; n < ACTORS; n++) {
     const role: Role = n <= NON_STRIKER ? "bat" : n === BOWLER ? "bowl" : n === KEEPER ? "keeper" : n === UMPIRE ? "umpire" : "field";
     const close = n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
@@ -214,13 +276,60 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
     const a = buildAthlete(role, n + 1, team, close ? q.closeDetail : q.detail, material);
     a.mesh.castShadow = !!q.shadows && (close || quality === "ultra");
     scene.add(a.root);
-    actors.push({ a, planter: new FootPlanter(), target: makePose(), from: makePose(), out: makePose(), clip: "", fadeAt: -10, action: "ready", actionTick: 0, prev: v3(NaN), prevTick: -1, speed: 0, facing: 0, number: n + 1, team, kit, kitCanvas });
+    actors.push({ a, planter: new FootPlanter(), target: makePose(), from: makePose(), out: makePose(), clip: "", fadeAt: -10, action: "ready", actionTick: 0, prev: v3(NaN), prevTick: -1, speed: 0, facing: 0, number: n + 1, team, kit, kitCanvas, memo: newMemo(), carry: { x: 0, z: 0 }, steps: new StepFeet(), freeAt: 0, planPose: null, fadePose: null, handGoals: [0, 1].map(() => ({ x: 0, y: 0, z: 0, w: 0 })) });
   }
   const captains = [0, 1].map(team => {
     const a = buildAthlete("field", 1, team, q.closeDetail, teamKits[team]!.material);
     a.root.visible = false; a.mesh.castShadow = !!q.shadows; scene.add(a.root);
-    return { a, pose: makePose() };
+    return { a, pose: makePose() } as { a: Athlete; pose: Pose; body?: RealisticBody };
   });
+
+  // ---- realistic bodies -------------------------------------------------------
+  // The procedural bodies show until the squad has loaded, and stay if it can't.
+  // Close players get the detailed athletes on High and Ultra; everyone else, and
+  // everyone on Low and Medium, gets the light ones.
+  let kits: KitMaterials | null = null;
+  const equipment = equipmentKit();
+  const closeDetail = quality === "high" || quality === "ultra";
+  let realisticReady = false;
+  let motionLibrary: MotionLibrary | null = null;
+  // Only the squad models this match shows are downloaded, at the detail each player needs.
+  const isClose = (n: number) => n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
+  // Each slot's person (squad model and appearance) is fixed now, from the slot's
+  // starting role, number and team. Numbers and teams change between innings
+  // (setKit) and the models can finish loading after that, so the bodies must be
+  // dressed from this record, never from the slot's current number.
+  const people = squadPeople([...actors.map((actor) => ({ role: actor.a.role, number: actor.number, team: actor.team })), ...captains.map((c, team) => ({ role: c.a.role, number: 1, team }))]),
+    slots = people.slice(0, actors.length),
+    captainSlots = people.slice(actors.length);
+  const hiNeed: number[] = [],
+    loNeed: number[] = [];
+  for (const [n, slot] of slots.entries()) (closeDetail && isClose(n) ? hiNeed : loNeed).push(slot.model);
+  for (const slot of captainSlots) (closeDetail ? hiNeed : loNeed).push(slot.model);
+  Promise.all([loadSquad("lo", loNeed), closeDetail ? loadSquad("hi", hiNeed) : Promise.resolve(null), loadMotion().catch((error) => (console.warn("motion clips unavailable; using built-in motion", error), null))])
+    .then(([lo, hi, motion]) => {
+      if (disposed) return;
+      kits = new KitMaterials();
+      const wear = (a: Athlete, slot: { model: number; identity: string; appearance: Appearance }, team: number, close: boolean, cast: boolean) => {
+        const detail = close && hi ? "hi" : "lo",
+          squad = detail === "hi" ? hi! : lo,
+          source = squad[slot.model];
+        if (!source) throw new Error(`squad model ${slot.model} (${slot.identity}) was not loaded at ${detail} detail`);
+        // The same player looks the same in every match and replay.
+        const body = new RealisticBody(source, a, kits!, a.role === "umpire" ? -1 : team, { appearance: slot.appearance, antialias: !!q.antialias, detail });
+        equipment.dress(body, a.role, team, a.bones.bat, cast);
+        body.setShadows(cast);
+        return body;
+      };
+      for (const [n, actor] of actors.entries()) actor.body = wear(actor.a, slots[n]!, actor.team, isClose(n), actor.a.mesh.castShadow);
+      for (const [team, c] of captains.entries()) c.body = wear(c.a, captainSlots[team]!, team, true, c.a.mesh.castShadow);
+      if (motion) {
+        motionLibrary = motion;
+        for (const [n, actor] of actors.entries()) if (actor.body && actor.a.role !== "umpire") actor.motion = new MotionPlayer(motion, RIG.thigh + RIG.shin, n * 31 + actor.team);
+      }
+      realisticReady = true;
+    })
+    .catch((error) => console.warn("realistic athletes unavailable; using built-in bodies", error));
 
   // Ground contact shadows for everyone and the ball: one instanced draw.
   const blobTex = (() => {
@@ -360,6 +469,35 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
     prevBallVy = 0;
   const frozenImpact: Vec3 = [0, 0, 0];
   let impactFrozen = false;
+  // Batting presentation: the ball's measured approach speed, the expected arrival
+  // at the bat, the closest it passed the bat, and the bat being drawn (for blends).
+  let ballMemo = { tick: -1, z: 0 },
+    approach = 0,
+    arrivalEst = -1,
+    passGap = Infinity,
+    strikerBat: BatPose | null = null,
+    strikerInput: BattingInput | null = null,
+    batFrom: BatPose | null = null,
+    batFadeAt = -10,
+    lastBat: BatPose | null = null;
+  const contactPose = makePose();
+  // Fielding: the ball's velocity from successive ticks, where the fielders started this
+  // ball, display carries, the tick the ball died, and measured hand-to-ball distances.
+  const kin: BallKin = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, rolling: false };
+  let kinMemo = { tick: -1, x: 0, y: 0, z: 0 },
+    prevBall = { x: 0, y: 0, z: 0 },
+    prevBallTick = -1,
+    deadTick = -1,
+    takeError: number | undefined,
+    takeMove = "",
+    cinema = 1,
+    cinemaCatch = false;
+  /** One-shot clip lengths for the fielding planner (made once, not per fielder per frame). */
+  const clipLength = (clip: OneShot) => motionLibrary?.info.get(clip)?.duration ?? 1;
+  const starts: Spot[] = Array.from({ length: 11 }, () => ({ x: 0, z: 0 })),
+    carries = new Float32Array(PEOPLE * 2),
+    poseTmp = makePose(),
+    goalTmp = v3();
   const planted = [v3(NaN), v3(NaN)];
   let plantResets = 0;
 
@@ -392,11 +530,65 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       paintKit(actor.kitCanvas.getContext("2d")!, team, number, true);
       actor.kit.needsUpdate = true;
     } else actor.a.mesh.material = teamKits[team]!.material;
+    actor.body?.setTeam(team);
     actor.team = team;
     actor.number = number;
   };
 
   /** Writes a clip (with a short crossfade from whatever played before) into `out`. */
+  /** Everything the batting animation needs about this ball, in the striker's root space. */
+  const strikerFrame = (actor: Actor, px: number, pz: number, feed: SceneFeed, tick: number, hit: boolean, contactTick: number, style: BowlingStyle, preMatch: boolean): BattingInput => {
+    const s = actor.a.look.scale,
+      local = (wx: number, wy: number, wz: number): Vec3 => [-(wz - pz) / s, wy / s, (wx - px) / s],
+      shot = feed.shot,
+      // Before a human swings, their selected shot is the plan the body prepares for.
+      plan = shot ?? (feed.humanBatting && !feed.replay && !preMatch ? (feed.intent ?? null) : null),
+      ball = feed.frame.ball,
+      line = 8.8 - (plan?.foot ?? 0) * 0.45;
+    // When the ball reaches the bat: known in replays, otherwise from its measured speed.
+    if (feed.arrivalTick !== undefined) arrivalEst = feed.arrivalTick;
+    else if (tick > RELEASE_TICK + 2 && approach > 2 && ball.z < line) {
+      const est = tick + (line - ball.z) / approach / STEP;
+      arrivalEst = arrivalEst < 0 ? est : arrivalEst + (est - arrivalEst) * 0.35;
+    } else if (arrivalEst < 0 || tick <= RELEASE_TICK) arrivalEst = RELEASE_TICK + FLIGHT_TICKS[style];
+    const batX = plan ? Math.sin((plan.direction * Math.PI) / 180) * 0.45 + plan.face * 0.55 : 0;
+    if (tick > RELEASE_TICK && Math.abs(ball.z - line) < 0.3) passGap = Math.min(passGap, Math.abs(ball.x - batX));
+    const met = feed.contactPoint ?? null,
+      contacted = contactTick >= 0 && !!met;
+    let E = contacted ? contactTick : arrivalEst;
+    if (shot && !contacted) E = Math.max(E, shot.tick + 1);
+    // Where the bat meets the ball: the engine's contact point, or the line the batter chose.
+    let impact: Vec3;
+    if (contacted) impact = local(met!.x, met!.y, met!.z);
+    else {
+      const h = plan ? SHOT_HEIGHTS[plan.kind] : 0.6,
+        near = clamp01(1 - Math.abs(ball.z - line) / 1.1) * 0.6;
+      impact = local(batX + (ball.x - batX) * near, h + (ball.y - h) * near, line);
+    }
+    const gap = feed.passLateral ?? passGap,
+      edgeSide: ContactKind = met && met.x > batX ? "outside-edge" : "inside-edge";
+    const contact: ContactKind = contacted ? (feed.edge ? edgeSide : "clean") : shot && tick > E + 1 ? (gap < 0.45 ? "beaten" : "miss") : "pending";
+    // Eyes: the bowler's hand, then the ball; after contact, off the bat after it.
+    let look: Vec3;
+    if (tick < RELEASE_TICK - 4) look = local(0.55, 2.0, -8.5);
+    else if (contacted && tick > contactTick) {
+      const u = clamp01(((tick - contactTick) * STEP) / 0.3);
+      look = local(met!.x + (ball.x - met!.x) * u, met!.y + (ball.y - met!.y) * u, met!.z + (ball.z - met!.z) * u);
+    } else look = local(ball.x, ball.y, ball.z);
+    const number = feed.actorNumbers?.[STRIKER] ?? actor.number;
+    return {
+      tick,
+      plan,
+      shotTick: shot ? shot.tick : null,
+      contactTick: E,
+      contact,
+      impact,
+      look,
+      style: batterStyle(number * 31 + feed.battingTeam * 7),
+      lateLeave: !shot && feed.humanBatting && !feed.replay && tick > E + 2,
+    };
+  };
+
   const resolve = (actor: Actor, name: string, wall: number, reduced: boolean) => {
     if (actor.clip !== name) {
       actor.from.set(actor.out);
@@ -462,17 +654,64 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         history.length = 0;
         contactSeen = false;
         impactFrozen = false;
+        approach = 0;
+        arrivalEst = -1;
+        passGap = Infinity;
         wicketKick = 0;
         if (tick < lastTick) for (const actor of actors) actor.prev.set(NaN, NaN, NaN);
+        for (const actor of actors) {
+          actor.memo = newMemo();
+          actor.carry.x = actor.carry.z = 0;
+          actor.planPose = actor.fadePose = null;
+          for (const h of actor.handGoals) h.w = 0;
+        }
+        takeError = undefined;
+        // Slow motion belongs to the live moment: a rewind or a scrub starts at normal pace.
+        cinema = 1;
+        cinemaCatch = false;
       }
       const dead = !!outcome && frame.mode === "dead";
       if (dead && !wasDead) deadAt = wall;
+      if (dead && (!wasDead || deadTick < 0)) deadTick = tick;
+      if (!dead) deadTick = -1;
       if (!dead) deadAt = -1;
       const deadAge = dead ? wall - deadAt : -1;
       const contactTick = feed.contactTick ?? (frame.contact ? tick : -1);
       const hit = frame.contact && (contactTick < 0 || tick >= contactTick);
       const running = frame.runner % 1 > 0.0001;
       const style = bowlingStyle(feed.variation ?? undefined);
+      // The ball's approach speed, measured from successive ticks, for when it will reach the bat.
+      if (tick !== ballMemo.tick) {
+        const step = tick - ballMemo.tick;
+        if (step > 0 && step <= 8 && tick > RELEASE_TICK + 1 && frame.ball.z > ballMemo.z) approach = (frame.ball.z - ballMemo.z) / (step * STEP);
+        ballMemo = { tick, z: frame.ball.z };
+      }
+      // The ball's velocity from successive ticks: where it's going, for fielders to anticipate.
+      if (tick !== kinMemo.tick) {
+        const span = (tick - kinMemo.tick) * STEP;
+        prevBall = { x: kinMemo.x, y: kinMemo.y, z: kinMemo.z };
+        prevBallTick = kinMemo.tick;
+        if (span > 0 && span < 0.12 && !rewound) {
+          kin.vx = (frame.ball.x - kinMemo.x) / span;
+          kin.vy = (frame.ball.y - kinMemo.y) / span;
+          kin.vz = (frame.ball.z - kinMemo.z) / span;
+        } else if (span <= 0 || rewound) kin.vx = kin.vy = kin.vz = 0;
+        kinMemo = { tick, x: frame.ball.x, y: frame.ball.y, z: frame.ball.z };
+      }
+      kin.x = frame.ball.x;
+      kin.y = frame.ball.y;
+      kin.z = frame.ball.z;
+      kin.rolling = frame.ball.y < 0.09 && Math.abs(kin.vy) < 0.6;
+      kin.bounced = frame.bounce;
+      // Where the eleven stood for this ball (they're still until it's struck).
+      if (tick <= RELEASE_TICK) frame.fielders.forEach((f, k) => ((starts[k]!.x = f.x), (starts[k]!.z = f.z)));
+      const returnAge = dead && !outcome?.wicket && !feed.result && deadTick >= 0 ? deadAge - 1.6 : -1;
+      // Carries ease back to nothing as everyone walks back.
+      for (let n = 0; n < ACTORS; n++) {
+        const fade = returnAge > 0 ? Math.max(0, 1 - returnAge / 1.2) : 1;
+        carries[n * 2] = actors[n]!.carry.x * fade;
+        carries[n * 2 + 1] = actors[n]!.carry.z * fade;
+      }
       const moment: MatchMoment = { tick, outcome: dead ? outcome : null, deadAge, contact: hit, result: feed.result ?? null };
       const wicket = dead ? (outcome?.wicket ?? null) : null;
       const ceremony = feed.ceremony;
@@ -486,6 +725,32 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       aim.visible = !!feed.aim && !preMatch && tick === 0;
       if (feed.aim) aim.position.set(feed.aim.line, 0.025, 10.0584 - feed.aim.length);
 
+      // ---- where everyone stands this frame ------------------------------------
+      // Display positions only: lanes and separation live in spacing.ts and never
+      // write to the fielders or the match.
+      place(
+        {
+          tick,
+          style,
+          runner: frame.runner,
+          batterGroundZ: frame.batterGroundZ,
+          bowlerFootZ: frame.bowlerFootZ,
+          fielders: frame.fielders,
+          actions: frame.actions,
+          travel: frame.travel,
+          huddleAge: dead && wicket ? deadAge - 1.1 : -1,
+          dismissedStriker: outcome?.dismissed === "striker",
+          entry: ceremony?.stage === "entry" ? clamp01(ceremony.age / 2.4) : -1,
+          keepClear: !preMatch || ceremony?.stage === "entry",
+          starts: preMatch ? undefined : starts,
+          returnAge,
+          offsets: carries,
+        },
+        spots,
+        holds,
+      );
+      spacing = closestPair(spots, ACTORS);
+
       for (let n = 0; n < ACTORS; n++) {
         const actor = actors[n]!,
           a = actor.a;
@@ -495,57 +760,12 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         // Outfielders can update on alternate frames on the lowest preset.
         if (q.fielderEvery > 1 && n >= 2 && n < BOWLER && n % 2 !== frameNo % 2 && actor.clip) continue;
 
-        // ---- where the simulation says this actor is -------------------------
-        let px = 0,
-          pz = 0,
-          simAction: Fielder["action"] = "ready",
-          travel = 0;
-        if (n === STRIKER || n === NON_STRIKER) {
-          const end = n === STRIKER ? 1 : -1;
-          pz = creaseZ(end, frame.runner);
-          px = (n === STRIKER ? -0.38 : 0.72) + (frame.runner > 0 ? 0.28 : 0);
-          if (n === STRIKER && frame.runner === 0) pz = frame.batterGroundZ;
-        } else if (n === UMPIRE) {
-          px = -1.05;
-          pz = -STUMPS_Z - 1.55;
-        } else {
-          const f = frame.fielders[n - 2]!;
-          px = f.x;
-          pz = f.z;
-          simAction = frame.actions[n - 2] ?? "ready";
-          travel = frame.travel[n - 2] ?? 0;
-        }
-        if (n === BOWLER) {
-          const follow = tick > RELEASE_TICK ? ((u) => u * u * (3 - 2 * u))(clamp01((tick - RELEASE_TICK - 6) / 60)) * 1.75 : 0;
-          const fade = 1 - clamp01(travel * 2);
-          if (tick <= RELEASE_TICK) {
-            const u = runUpProgress(tick, style),
-              startZ = -8.5 + RELEASE_ROOT.z - RUN_UP[style];
-            pz = startZ + (RUN_UP[style] + (frame.bowlerFootZ + CREASE_Z + 0.23)) * u;
-            px = 0.55 + RELEASE_ROOT.x + (1 - u) * 0.5;
-          } else {
-            pz += (RELEASE_ROOT.z + follow) * fade;
-            px += RELEASE_ROOT.x * fade;
-          }
-        }
-        // Presentation positions never write to the fielders or match.
-        if (dead && wicket && deadAge > 1.1) {
-          const u = clamp01((deadAge - 1.1) / 3.2);
-          const dismissed = (outcome?.dismissed === "striker" ? STRIKER : NON_STRIKER);
-          if (n === dismissed) { px += u * 4; pz += u * 2.8; }
-          else if (n >= 2 && n < UMPIRE && simAction !== "dive") {
-            const anchor = frame.fielders.find((_, k) => frame.actions[k] === "catch" || frame.actions[k] === "throw") ?? frame.fielders[9]!;
-            const angle = n * 2.4;
-            const maxTravel = Math.min(1, (deadAge - 1.1) * 3 / Math.max(1, Math.hypot(anchor.x - px, anchor.z - pz)));
-            px += (anchor.x + Math.sin(angle) * 1.3 - px) * maxTravel;
-            pz += (anchor.z + Math.cos(angle) * 1.3 - pz) * maxTravel;
-          }
-        }
-        if (ceremony?.stage === "entry") {
-          const u = clamp01(ceremony.age / 2.4);
-          px += (n % 2 ? -1.4 : 1.4) * (1 - u);
-          pz -= 2.2 * (1 - u);
-        }
+        // ---- where this actor is: placed and kept clear of others above --------
+        const px = spots[n * 2]!,
+          pz = spots[n * 2 + 1]!,
+          fielding = n > NON_STRIKER && n !== UMPIRE,
+          simAction: Fielder["action"] = fielding ? (frame.actions[n - 2] ?? "ready") : "ready",
+          travel = fielding ? (frame.travel[n - 2] ?? 0) : 0;
 
         // ---- movement bookkeeping ---------------------------------------------
         const dTick = tick - actor.prevTick;
@@ -563,16 +783,110 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           actor.speed += (measured - actor.speed) * Math.min(1, dTick * 0.12);
         }
         const moving = actor.speed > 0.35;
+        // Ground speed for the motion clips: the simulation's own movement, not the gait's.
+        if (dTick < 0 || !Number.isFinite(actor.ground ?? 0)) actor.ground = 0;
+        else if (dTick > 0) actor.ground = (actor.ground ?? 0) + (moved / (dTick * STEP) - (actor.ground ?? 0)) * Math.min(1, dTick * 0.2);
         if (simAction !== actor.action) {
+          // Where the ball was when the engine's take happened. A pickup moves the
+          // simulated ball onto the fielder, so it's taken from the tick before.
+          if (fielding && (simAction === "pickup" || (simAction === "dive" && actor.action !== "dive" && !dead)))
+            // Only a frame or two back is where it was taken; after a jump (a replay scrub) use the hands' own read.
+            actor.memo.took =
+              tick - prevBallTick <= 4 ? [prevBall.x, Math.max(0.05, prevBall.y), prevBall.z] : actor.memo.goal ? [...actor.memo.goal] : [frame.ball.x, 0.06, frame.ball.z];
+          else if (fielding && (simAction === "catch" || simAction === "drop" || simAction === "dive")) actor.memo.took = [frame.ball.x, frame.ball.y, frame.ball.z];
+          // How close the hands' read was to where the ball was actually taken (the keeper's own read for a delivery).
+          const read = n === KEEPER && simAction === "catch" && !hit ? actor.memo.glove : actor.memo.goal;
+          if (fielding && actor.memo.took && read && simAction !== "throw" && simAction !== "run") {
+            takeError = Math.hypot(read[0] - actor.memo.took[0], read[1] - actor.memo.took[1], read[2] - actor.memo.took[2]);
+            takeMove = n === KEEPER && !hit ? `keeper-${simAction}` : simAction;
+          }
           actor.action = simAction;
           actor.actionTick = tick;
         }
         if (tick < actor.actionTick) actor.actionTick = tick;
         const actionAge = Math.max(0, tick - actor.actionTick) * STEP;
 
+        // ---- fielding and keeping: anticipate the ball, take it, release it ------
+        let plan: FieldPlan | null = null;
+        const asFielder = fielding && !preMatch && (n !== BOWLER || tick > RELEASE_TICK + 40 || travel > 0.02);
+        const involved = simAction !== "ready" || travel > 0.05;
+        // Only fielders on the ball (and the keeper) have anything to plan; the rest cost nothing.
+        if (asFielder && (n === KEEPER || involved || tick < RELEASE_TICK)) {
+          const input = {
+            tick,
+            action: simAction,
+            actionAge,
+            dead,
+            deadAge,
+            outcome: dead ? outcome : null,
+            contact: hit,
+            mode: frame.mode,
+            me: { x: px - actor.carry.x, z: pz - actor.carry.z, speed: actor.ground ?? 0 },
+            ball: kin,
+            friction: VENUES[config.venue].friction,
+            involved,
+            rope: ropeRatio({ x: px, z: pz }, config.venue),
+            length: clipLength,
+            throwRelease: motionLibrary?.info.get("OverhandThrow")?.release ?? 0.6,
+            contactTick: hit ? contactTick : -1,
+          };
+          plan =
+            n === KEEPER
+              ? keeperPlan({ ...input, wicket, directHit: frame.mode === "throw" && Math.abs(frame.ball.x) < 0.6 && Math.hypot(frame.ball.x - px, frame.ball.z - pz) > 1.2 }, actor.memo, Math.max(1e-3, dt))
+              : fielderPlan(input, actor.memo, Math.max(1e-3, dt));
+        }
+        actor.field = plan;
+        // The body steps into a take: its display carries towards the ball, at a human pace.
+        if (fielding && n !== KEEPER) {
+          const hand = plan?.right ?? plan?.left;
+          let wx = 0,
+            wz = 0;
+          if (hand && hand.w > 0.01) {
+            const reach = plan!.move === "dive" || plan!.move === "dive-stop" ? 1.25 : plan!.move === "slide-pickup" ? 0.9 : plan!.move.startsWith("catch") ? 0.4 : 0.6,
+              ex = px - actor.carry.x,
+              ez = pz - actor.carry.z,
+              far = Math.hypot(hand.x - ex, hand.z - ez),
+              excess = Math.min(0.6, Math.max(0, far - reach)) * hand.w;
+            if (far > 1e-3) {
+              wx = ((hand.x - ex) / far) * excess;
+              wz = ((hand.z - ez) / far) * excess;
+            }
+          } else if (dead || simAction === "throw" || simAction === "pickup") {
+            wx = actor.carry.x;
+            wz = actor.carry.z;
+          }
+          const step = 2.5 * dt,
+            cx = wx - actor.carry.x,
+            cz = wz - actor.carry.z,
+            len = Math.hypot(cx, cz);
+          const k = len > step ? step / len : 1;
+          actor.carry.x += cx * k;
+          actor.carry.z += cz * k;
+        }
+
+        // ---- end of the ball: reactions in character, varied, the same in replays --
+        let react: Reaction | null = null,
+          reacting = false;
+        if (!dead || deadAge < 0.05) actor.freeAt = 0;
+        if (dead && outcome && deadAge >= 0 && n !== UMPIRE && !preMatch) {
+          const took = wicket === "caught" && (simAction === "catch" || simAction === "dive");
+          const role: ReactionRole = took ? "taker" : n === STRIKER ? "striker" : n === NON_STRIKER ? "non-striker" : n === BOWLER ? "bowler" : n === KEEPER ? "keeper" : wicket === "run-out" && simAction === "throw" ? "thrower" : "fielder";
+          // Still busy with the ball: finishing a catch, a stumping, getting up off the turf.
+          const busy = (!!plan && plan.move !== "idle" && plan.move !== "keeper-rise") || (simAction === "dive" && deadAge < DIVE_GET_UP);
+          if (busy) actor.freeAt = deadAge;
+          else {
+            // A catcher who dived starts celebrating once up, not from when the ball died.
+            react = reaction(role, outcome, deadAge - actor.freeAt, feed.actorNumbers?.[n] ?? actor.number, deadTick, feed.result ?? null);
+            reacting = n > NON_STRIKER || !!react;
+          }
+        }
+
         // ---- facing -----------------------------------------------------------
         let want: number;
-        if ((ceremony?.stage === "entry" || dead && wicket && deadAge > 1.1) && moving) want = Math.atan2(dx, dz);
+        if (plan?.face) want = Math.atan2(plan.face.x - px, plan.face.z - pz);
+        else if ((ceremony?.stage === "entry" || dead && wicket && deadAge > 1.1 || returnAge > 0 && fielding) && moving) want = Math.atan2(dx, dz);
+        // A fielder with the ball turns to throw at the stumps the engine throws to.
+        else if (n >= 2 && n < UMPIRE && n !== KEEPER && (simAction === "pickup" || simAction === "throw")) want = Math.atan2(-px, STUMPS_Z - pz);
         else if (n === STRIKER && !running && frame.runner === 0) want = Math.PI / 2;
         else if (moved > 0.002 && moving && (n === BOWLER || n <= NON_STRIKER || actor.speed > 2.2)) want = Math.atan2(dx, dz);
         else if (n === UMPIRE) want = 0;
@@ -581,11 +895,73 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         else if (n === KEEPER && !hit) want = Math.PI;
         else want = Math.atan2(frame.ball.x - px, frame.ball.z - pz);
         const diff = ((want - actor.facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-        actor.facing += diff * (feed.reducedMotion ? 1 : Math.min(1, dt * 9));
+        // Bodies turn at a human rate: quick on the spot, slower at a sprint.
+        const turnRate = (actor.ground ?? 0) > 3 ? 4.5 : 8.5;
+        const turned = feed.reducedMotion ? diff : Math.max(-turnRate * dt, Math.min(turnRate * dt, diff * Math.min(1, dt * 9)));
+        actor.facing += turned;
+        actor.turnLeft = diff - turned;
+        actor.turnRate = dt > 0 ? (actor.turnRate ?? 0) + (turned / dt - (actor.turnRate ?? 0)) * Math.min(1, dt * 10) : 0;
         a.root.position.set(px, 0, pz);
         a.root.rotation.y = actor.facing;
         actor.prev.set(px, 0, pz);
         actor.prevTick = tick;
+
+        // ---- motion clips for the realistic body (presentation only) ------------
+        if (actor.motion && motionLibrary) {
+          const g = actor.ground ?? 0,
+            throwInfo = motionLibrary.info.get("OverhandThrow")!,
+            fielder = n >= 2 && n !== UMPIRE && (n !== BOWLER || tick > RELEASE_TICK + 40);
+          let lower = 0,
+            upper = 0,
+            shot: { clip: OneShot; time: number; weight: number } | null = null;
+          if (fielder && !reacting && (simAction === "pickup" || simAction === "throw")) {
+            // The clip's release lands on the engine's release tick (38 ticks after pickup).
+            const time = simAction === "pickup" ? throwInfo.release - 38 * STEP + actionAge : throwInfo.release + actionAge;
+            actor.throwClock = time;
+            shot = { clip: "OverhandThrow", time, weight: simAction === "pickup" ? clamp01(actionAge / 0.12) : 1 };
+            lower = upper = 1;
+          } else if (!reacting && actor.throwClock !== undefined && actor.throwClock < throwInfo.duration) {
+            // Follow-through finishes after the ball has gone.
+            actor.throwClock += dt;
+            shot = { clip: "OverhandThrow", time: actor.throwClock, weight: clamp01((throwInfo.duration - actor.throwClock) / 0.3) };
+            lower = upper = 1;
+          } else {
+            actor.throwClock = undefined;
+            const chasing = fielder && g > 0.45 && (simAction === "run" || simAction === "ready"),
+              walking = (ceremony?.stage === "entry" || (dead && !!wicket && deadAge > 1.1)) && g > 0.3 && simAction !== "dive",
+              runUp = n === BOWLER && tick > 0 && tick < RELEASE_TICK - GATHER[style] / STEP - 6,
+              batterRun = (n === STRIKER || n === NON_STRIKER) && running && g > 0.45;
+            // A diver gets up with the procedural `recover` clip, which starts from where
+            // the dive leaves him, face down. (The library's LayToIdle starts lying on his
+            // back: blending into it rolled a face-down diver over in a quarter second.)
+            const boundaryCheer = n === NON_STRIKER && dead && !!outcome?.boundary && deadAge > 0.4 && deadAge < 0.4 + motionLibrary.info.get("Yes")!.duration;
+            if (boundaryCheer) {
+              // The non-striker acknowledges a boundary: a thumbs-up, from a standstill.
+              shot = { clip: "Yes", time: deadAge - 0.4, weight: clamp01((deadAge - 0.4) / 0.2) };
+              upper = 1;
+            } else if (chasing || walking || runUp) lower = upper = 1;
+            else if (batterRun) lower = 1; // legs run; arms keep the bat
+          }
+          if (plan?.motion && !reacting) {
+            lower = plan.motion.lower;
+            upper = plan.motion.upper;
+            shot = plan.motion.shot;
+            if (shot?.clip !== "OverhandThrow") actor.throwClock = undefined;
+          }
+          if (react?.kind === "clip") {
+            const len = motionLibrary.info.get(react.clip)!.duration;
+            shot = { clip: react.clip, time: react.loop ? ((react.time % len) + len) % len : react.time, weight: clamp01(react.time / 0.25 + (react.loop ? 1 : 0)) };
+            upper = 1;
+            if (!react.upper) lower = 1;
+          }
+          const k = feed.reducedMotion ? 1 : Math.min(1, dt * (plan?.motion ? 14 : 7));
+          actor.motionLower = (actor.motionLower ?? 0) + (lower - (actor.motionLower ?? 0)) * k;
+          actor.motionUpper = (actor.motionUpper ?? 0) + (upper - (actor.motionUpper ?? 0)) * k;
+          // Into a turn the head and chest lead and the body leans with speed (presentation only).
+          const twist = feed.reducedMotion ? 0 : Math.max(-0.55, Math.min(0.55, actor.turnLeft ?? 0)) * clamp01(g / 1.5),
+            lean = feed.reducedMotion ? 0 : Math.max(-0.2, Math.min(0.2, -(actor.turnRate ?? 0) * g * 0.025));
+          actor.plan = actor.motionLower > 0.01 || actor.motionUpper > 0.01 ? { speed: g, shot, lower: actor.motionLower, upper: actor.motionUpper, twist, lean } : null;
+        }
 
         // ---- which clip -------------------------------------------------------
         const p = actor.target;
@@ -600,22 +976,26 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         else sel = selectFielder({ ...moment, action: simAction, actionAge, moving, speed: actor.speed, ballY: frame.ball.y, id: n - 2, chasing: travel > 0.05 });
         if (dead && wicket && deadAge > 1.1 && moved > 0.002 && n !== UMPIRE && simAction !== "dive") sel = "gait";
         if (ceremony?.stage === "entry" && moving) sel = "gait";
+        if (reacting) {
+          const walking = moving && moved > 0.002;
+          if (react?.kind === "pose" && !(walking && wicket && deadAge > 1.1)) sel = { clip: react.clip, time: react.time };
+          else if (walking) sel = "gait";
+          else if (n > NON_STRIKER) sel = { clip: "idle", time: wall };
+        }
 
         let name: string;
         if (sel === "gait" && actor.speed < 0.2 && tick === 0) sel = { clip: "idle", time: wall };
         if (sel === "gait") {
           gaitInto(actor);
           name = "gait";
-        } else if (sel === "bat") {
+        } else if (sel === "bat" || (n === STRIKER && typeof sel === "object" && sel.clip === "beaten")) {
+          sel = "bat";
           sampleClip(CLIPS.stance, 0, p);
-          const swing = shot ? clamp01((tick - shot.tick) / IMPACT_TICKS) : 0;
-          if (shot) applyShotBody(p, shot.kind, shot.foot, swing);
-          else if (feed.intent && !preMatch) applyShotBody(p, feed.intent.kind, feed.intent.foot, 0.65);
-          // A little trigger movement as the bowler lets go.
-          const trigger = clamp01((tick - RELEASE_TICK + 12) / 20);
-          p[CH.hipY] = p[CH.hipY]! + trigger * 0.012;
-          p[CH.headY] = 1.15;
-          name = shot ? `bat-${shot.kind}` : "bat";
+          const input = strikerFrame(actor, px, pz, feed, tick, hit, contactTick, style, !!preMatch);
+          const result = batting(input, p);
+          strikerInput = input;
+          strikerBat = result.bat;
+          name = `bat-${result.shot}`;
         } else if (sel === "delivery") {
           sampleClip(DELIVERY[style], (tick - RELEASE_TICK) * STEP, p);
           name = `delivery-${style}`;
@@ -624,37 +1004,44 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           name = sel.clip;
         }
 
-        // ---- contact points ---------------------------------------------------
-        const ball = frame.ball;
-        if (n === KEEPER && !hit && tick >= RELEASE_TICK && ball.z > 4.5) {
-          // Gloves meet the actual ball as it arrives.
-          const [lx, ly, lz] = toLocal(actor, ball.x, ball.y, ball.z);
-          const w = clamp01((ball.z - 4.5) / 4.5);
-          const reach = Math.hypot(lx, ly - 1, lz);
-          if (reach < 1.7) {
-            setHand(p, true, lx + 0.055, ly, lz, w);
-            setHand(p, false, lx - 0.055, ly, lz, w);
-            // Stretch the body towards a wide or low ball rather than just the arms.
-            p[CH.hipX] = p[CH.hipX]! + lx * 0.45 * w;
-            p[CH.roll] = p[CH.roll]! - lx * 0.5 * w;
+        // ---- fielding plan onto the driver: body shape and hands on the ball --------
+        // Weights ease (about 0.07 s) and a change of pose crossfades, so a read of
+        // the ball that changes or goes away never snaps the body or the hands.
+        if (fielding) {
+          const ease = feed.reducedMotion ? 1 : 1 - Math.exp(-dt / 0.07),
+            want = plan && !reacting ? plan.pose : null;
+          if (want && actor.planPose?.clip !== want.clip) {
+            if (actor.planPose && actor.planPose.w > 0.02) actor.fadePose = actor.planPose;
+            actor.planPose = { clip: want.clip, time: want.time, w: 0 };
           }
-        }
-        if (n === KEEPER && dead && wicket === "stumped" && deadAge < 0.5) {
-          const [lx, ly, lz] = toLocal(actor, 0, 0.62, STUMPS_Z);
-          setHand(p, true, lx + 0.05, ly, lz, 1);
-          setHand(p, false, lx - 0.05, ly, lz, 1);
-        }
-        if ((simAction === "catch" || simAction === "drop" || simAction === "dive") && n >= 2 && n !== UMPIRE && actionAge < 0.5) {
-          const [lx, ly, lz] = toLocal(actor, ball.x, ball.y, ball.z);
-          if (Math.hypot(lx, ly - 1, lz) < 1.9) {
-            const w = 1 - clamp01((actionAge - 0.3) / 0.2);
-            setHand(p, true, lx + 0.05, ly, lz, w);
-            setHand(p, false, lx - 0.05, ly, lz, w);
+          const cur = actor.planPose;
+          if (cur) {
+            if (want && cur.clip === want.clip) cur.time = want.time;
+            cur.w += ((want && cur.clip === want.clip ? Math.min(1, want.weight) : 0) - cur.w) * ease;
+            if (!want && cur.w < 0.01) actor.planPose = null;
           }
-        }
-        if (simAction === "pickup" && n >= 2 && n !== UMPIRE) {
-          const [lx, ly, lz] = toLocal(actor, ball.x, ball.y, ball.z);
-          if (Math.hypot(lx, ly - 1, lz) < 1.6) setHand(p, false, lx, ly, lz, 1);
+          if (actor.fadePose) {
+            actor.fadePose.w *= 1 - ease;
+            if (actor.fadePose.w < 0.01) actor.fadePose = null;
+          }
+          for (const layer of [actor.fadePose, actor.planPose])
+            if (layer && layer.w > 0.001) {
+              sampleClip(CLIPS[layer.clip], layer.time, poseTmp);
+              blendPose(p, poseTmp, layer.w, p);
+            }
+          for (const [k, g] of [plan && !reacting ? plan.left : null, plan && !reacting ? plan.right : null].entries()) {
+            const h = actor.handGoals[k]!;
+            if (g && g.w > 0.001) {
+              // The goal follows the read (already eased in fielding.ts); the weight rises
+              // with it and falls away gently when the read lets go.
+              Object.assign(h, { x: g.x, y: g.y, z: g.z });
+              h.w += (g.w - h.w) * (g.w > h.w ? 1 : ease);
+            } else h.w *= 1 - ease;
+            if (h.w > 0.001) {
+              const [lx, ly, lz] = toLocal(actor, h.x, h.y, h.z);
+              setHand(p, k === 0, lx, ly, lz, h.w);
+            }
+          }
         }
         // Bowling hand arrives exactly at the simulated release point.
         if (n === BOWLER && sel === "delivery") {
@@ -665,38 +1052,57 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           }
         }
 
+        if (n === STRIKER && actor.clip !== name && name.startsWith("bat-") && actor.clip.startsWith("bat-") && lastBat) {
+          batFrom = lastBat;
+          batFadeAt = wall;
+        }
         resolve(actor, name, wall, feed.reducedMotion);
         const out = actor.out;
+        // Feet stay planted under held poses (keeping, gathering, catching, reacting).
+        if (n > NON_STRIKER && n !== UMPIRE && !preMatch) {
+          const airborne = (!!plan && /dive|leap|slide/.test(plan.move)) || simAction === "dive" || (actor.motionLower ?? 0) >= 0.5;
+          const s = a.look.scale,
+            c = Math.cos(a.root.rotation.y),
+            si = Math.sin(a.root.rotation.y),
+            wx = (lx: number, lz: number) => px + (lx * c + lz * si) * s,
+            wz = (lx: number, lz: number) => pz + (-lx * si + lz * c) * s;
+          if (name === "gait" || name.startsWith("delivery")) {
+            for (const [k, f] of actor.planter.feet.entries()) Object.assign(actor.steps.feet[k]!, { x: f.x, z: f.z, t: 1, lift: 0 });
+          } else if (airborne) {
+            // Feet off the ground or the clip's own: follow the pose, ready to plant when it lands.
+            for (const [k, X] of [CH.lFootX, CH.rFootX].entries()) Object.assign(actor.steps.feet[k]!, { x: wx(out[X]!, out[X + 2]!), z: wz(out[X]!, out[X + 2]!), t: 1, lift: 0 });
+          } else {
+            actor.steps.update(wx(out[CH.lFootX]!, out[CH.lFootZ]!), wz(out[CH.lFootX]!, out[CH.lFootZ]!), wx(out[CH.rFootX]!, out[CH.rFootZ]!), wz(out[CH.rFootX]!, out[CH.rFootZ]!), feed.reducedMotion ? 1 : dt);
+            for (const [k, f] of actor.steps.feet.entries()) {
+              const X = k === 0 ? CH.lFootX : CH.rFootX,
+                [lx, , lz] = toLocal(actor, f.x, 0, f.z);
+              out[X] = lx;
+              out[X + 1] = out[X + 1]! + f.lift / s;
+              out[X + 2] = lz;
+            }
+          }
+        }
 
         // ---- apply --------------------------------------------------------------
-        if (n === STRIKER && sel === "bat") {
-          // Contact point in this batter's root space (chest +z = world +x, left = bowler).
-          const s = a.look.scale;
-          const local = (wx: number, wy: number, wz: number): Vec3 => [-(wz - pz) / s, wy / s, (wx - px) / s];
-          let impact: Vec3 | null = null;
-          if (shot) {
-            const nominal = nominalImpact(shot);
-            const near = clamp01(1 - Math.abs(ball.z - nominal.z) / 1.1);
-            const aimed = hit ? null : local(nominal.x + (ball.x - nominal.x) * near, nominal.y + (ball.y - nominal.y) * near, nominal.z);
-            if (hit && !impactFrozen) {
-              const met = feed.contactPoint ?? ball;
-              const at = local(met.x, met.y, met.z);
-              frozenImpact[0] = at[0];
-              frozenImpact[1] = at[1];
-              frozenImpact[2] = at[2];
-              impactFrozen = true;
-            }
-            impact = hit ? frozenImpact : aimed;
-          }
-          if (hit && shot && !contactSeen) {
+        if (n === STRIKER && sel === "bat" && strikerBat && strikerInput) {
+          if (hit && shot && !contactSeen && feed.contactPoint) {
             // Measure the rig at the contact tick itself, even if no frame was drawn on that tick.
             contactSeen = true;
-            const met = feed.contactPoint ?? ball;
-            holdBat(a, out, batPose({ tick: contactTick, shot, contactTick, impact }));
+            const met = feed.contactPoint;
+            sampleClip(CLIPS.stance, 0, contactPose);
+            const atContact = batting({ ...strikerInput, tick: contactTick }, contactPose);
+            holdBat(a, contactPose, atContact.bat);
             a.root.updateMatrixWorld(true);
             contactError = batPoint(a, BAT.sweet, tmp).distanceTo(tmp2.set(met.x, met.y, met.z));
+            if (strikerInput.contact === "inside-edge" || strikerInput.contact === "outside-edge") contactError = Math.max(0, contactError - 0.055);
           }
-          const bat = batPose({ tick, shot, contactTick: hit ? contactTick : -1, impact });
+          // A change of shot (a live batter changing their mind) blends rather than jumps.
+          let bat = strikerBat;
+          if (batFrom && wall - batFadeAt < 0.16 && !feed.reducedMotion) {
+            const w = clamp01((wall - batFadeAt) / 0.16);
+            bat = { grip: [batFrom.grip[0] + (bat.grip[0] - batFrom.grip[0]) * w, batFrom.grip[1] + (bat.grip[1] - batFrom.grip[1]) * w, batFrom.grip[2] + (bat.grip[2] - batFrom.grip[2]) * w], dir: bat.dir.map((v, k) => batFrom!.dir[k]! + (v - batFrom!.dir[k]!) * w) as Vec3, face: bat.face.map((v, k) => batFrom!.face[k]! + (v - batFrom!.face[k]!) * w) as Vec3 };
+          }
+          lastBat = bat;
           holdBat(a, out, bat);
           a.root.updateMatrixWorld(true);
           if (shot) {
@@ -763,18 +1169,87 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         blobs.setMatrixAt(n, dummy.matrix);
       }
 
+      // ---- a big catch: slow the presentation as the fielder launches, through the landing ----
+      let slow = false;
+      if (!feed.reducedMotion && !preMatch) {
+        for (let n = 2; n < 13; n++) {
+          const f = actors[n]!.field;
+          if (!f || !hit || frame.bounce || dead) continue;
+          const at = actors[n]!.a.root.position,
+            big = f.move === "dive" || f.move === "catch-leap" || (f.move.startsWith("catch-") && ropeRatio({ x: at.x, z: at.z }, config.venue) > 0.85);
+          if (big && (f.right?.w ?? 0) > 0.2) slow = true;
+        }
+        if (slow) cinemaCatch = true;
+        if (dead && cinemaCatch && wicket === "caught" && deadAge < 0.9) slow = true;
+        if (!hit || tick < lastTick - 0.001) cinemaCatch = false;
+      }
+      cinema += ((slow ? 0.35 : 1) - cinema) * (feed.reducedMotion ? 1 : 1 - Math.exp(-dt / 0.12));
+
+      // ---- realistic bodies follow their drivers (before the ball, which they hold) ----
+      if (realisticReady)
+        for (const actor of actors) {
+          if (!actor.a.root.visible || !actor.body) continue;
+          let motionFrame = null;
+          if (actor.motion && actor.plan) {
+            const loco = actor.motion.locomotion(dt, actor.plan.speed);
+            motionFrame = actor.motion.pose(loco, actor.plan.shot);
+            motionFrame.lower = actor.plan.lower;
+            motionFrame.upper = actor.plan.upper;
+            motionFrame.twist = actor.plan.twist;
+            motionFrame.lean = actor.plan.lean;
+          }
+          actor.body.sync(motionFrame);
+          actor.body.setDistance(camera.position.distanceTo(actor.a.root.position));
+          // A clip-driven body still puts its hands on the ball.
+          if ((actor.motionUpper ?? 0) >= 0.5)
+            for (const [k, h] of actor.handGoals.entries()) if (h.w > 0.001) actor.body.reachHand(k === 0, goalTmp.set(h.x, h.y, h.z), h.w);
+        }
+
       // ---- ball -------------------------------------------------------------------
+      // The simulation's ball is authoritative. What's drawn sits in the hand that
+      // holds it and leaves that hand on release, with the difference to the
+      // simulated flight fading out in a few frames, so it never jumps.
       const b = frame.ball;
       ball.visible = !preMatch;
       blobs.visible = !preMatch;
-      if (tick >= RELEASE_TICK) ball.position.set(b.x, b.y, b.z);
-      if (dead && wicket === "caught") {
-        const catcher = frame.actions.findIndex(action => action === "catch");
-        if (catcher >= 0) ball.position.copy(handCentre(actors[catcher + 2]!.a, false, tmp));
+      if (tick >= RELEASE_TICK) {
+        if (rewound || tick < ballTick || tick > ballTick + 90) {
+          ballOffset.set(0, 0, 0);
+          ballHeld = false;
+          ballShown.set(b.x, b.y, b.z);
+        }
+        const holding = frame.mode === "struck" ? frame.actions.findIndex((action) => action === "pickup") : -1,
+          caught = dead && wicket === "caught" ? frame.actions.findIndex((action) => action === "catch" || action === "dive") : -1,
+          kept = dead && frame.actions[10] === "catch" ? 10 : -1,
+          holder = holding >= 0 ? holding : caught >= 0 ? caught : kept;
+        if (holder >= 0) {
+          const actor = actors[holder + 2]!,
+            twoHands = holder === 10 || (!actor.field?.oneHand && (actor.field?.left?.w ?? 0) > 0.3);
+          if (actor.body) actor.body.palm(false, tmp);
+          else handCentre(actor.a, false, tmp);
+          // Taken in both hands (or gloves): the ball sits between the palms.
+          if (twoHands) {
+            if (actor.body) actor.body.palm(true, tmp2);
+            else handCentre(actor.a, true, tmp2);
+            tmp.lerp(tmp2, 0.5);
+          }
+          ballShown.lerp(tmp, feed.reducedMotion || !ballHeld && rewound ? 1 : 1 - Math.exp(-dt / 0.045));
+          ballHeld = true;
+        } else {
+          if (ballHeld) ballOffset.copy(ballShown).sub(tmp2.set(b.x, b.y, b.z));
+          ballHeld = false;
+          ballOffset.multiplyScalar(feed.reducedMotion ? 0 : Math.exp(-dt / 0.09));
+          ballShown.set(b.x + ballOffset.x, b.y + ballOffset.y, b.z + ballOffset.z);
+        }
+        ballTick = tick;
+        ball.position.copy(ballShown);
       }
       ball.scale.setScalar(Math.max(1, Math.min(2.4, camera.position.distanceTo(ball.position) / 16)));
-      ball.rotation.x = tick * 0.14;
-      ball.rotation.y = tick * 0.05;
+      // Seam presentation: pace comes out with backspin, the seam upright; spin turns
+      // about the line of flight; off the bat it tumbles. Visual only.
+      if (hit) ball.rotation.set(tick * 0.3, tick * 0.11, 0);
+      else if (style === "spin") ball.rotation.set(0.35, 0, -tick * 0.42);
+      else ball.rotation.set(-tick * 0.36, 0.08, 0);
       const vy = (b.y - prevBallY) / Math.max(1e-3, (tick - lastTick) * STEP);
       // A bounce: a downward ball that's now rising at ground level. Purely a visual cue.
       if (tick > RELEASE_TICK && tick !== lastTick && !rewound && b.y < 0.25 && prevBallVy < -1 && vy > 0 && !feed.reducedMotion) puff(b.x, 0.04, b.z, Math.min(8, DUST / 7), 0.7);
@@ -807,14 +1282,15 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       // ---- stumps -------------------------------------------------------------------
       const broke = dead && (outcome?.wicket === "bowled" || outcome?.wicket === "stumped" || outcome?.wicket === "run-out");
       if (broke && !wasDead) wicketKick = outcome?.wicket === "bowled" ? 1 : 0.55;
-      const since = broke ? Math.min(1.5, Math.max(0, deadAge)) : 0;
+      const breakAt = outcome?.wicket === "stumped" ? STUMPING_HIT : 0,
+        since = broke ? Math.min(1.5, Math.max(0, deadAge - breakAt)) : 0;
       nearStumps.rotation.x = wicketKick && outcome?.wicket === "bowled" ? -Math.min(0.22, since * 1.5) * wicketKick * Math.exp(-since * 0.4) : 0;
       bails.forEach((bail, n) => {
         const side = n ? 1 : -1;
         bail.position.set(side * 0.038 + since * side * 0.75 * wicketKick, Math.max(0.03, 0.718 + since * 2.1 * wicketKick - 4.9 * since * since), STUMPS_Z + since * 1.1 * wicketKick);
         bail.rotation.x = since * 9;
       });
-      if (broke && deadAge < 0.1 && !feed.reducedMotion) puff(0, 0.25, STUMPS_Z, 2, 0.5);
+      if (broke && deadAge >= breakAt && deadAge < breakAt + 0.1 && !feed.reducedMotion) puff(0, 0.25, STUMPS_Z, 2, 0.5);
       wasDead = dead;
 
       // ---- dust ---------------------------------------------------------------------
@@ -869,7 +1345,17 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
           if (order === 0 && ceremony.stage === "hand") { coin.position.copy(handCentre(a, false, tmp)); coin.position.y += 0.055; }
         }
       }
-      const reactionIndex = wicket === "caught" || wicket === "run-out" ? frame.actions.findIndex(action => action === (wicket === "caught" ? "catch" : "throw")) : -1;
+      const reactionIndex = wicket === "caught" || wicket === "run-out" ? frame.actions.findIndex((action) => (wicket === "caught" ? action === "catch" || action === "dive" : action === "throw")) : -1;
+      // Whoever is going for the ball (or has it), for the fielding camera.
+      let onBall = -1,
+        onBallGap = Infinity;
+      if (hit || frame.mode === "throw" || tick > RELEASE_TICK + 60)
+        frame.actions.forEach((action, k) => {
+          if (action === "ready" || (frame.travel[k] ?? 0) < 0.05 && action === "run") return;
+          const at = actors[k + 2]!.a.root.position,
+            gap = Math.hypot(at.x - b.x, at.z - b.z);
+          if (gap < onBallGap) (onBall = k + 2), (onBallGap = gap);
+        });
       const reactionActor = actors[reactionIndex >= 0 ? reactionIndex + 2 : wicket === "stumped" ? KEEPER : BOWLER]!;
       const pick = (ceremony ? ceremonyCamera(ceremony) : null) ?? direct({
         camera: feed.camera,
@@ -881,10 +1367,21 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         batterX: actors[STRIKER]!.a.root.position.x,
         batterZ: actors[STRIKER]!.a.root.position.z,
         replay: !!feed.replay,
-        reaction: dead && wicket ? reactionActor.a.root.position : undefined,
+        contactTick,
+        reaction: dead && (wicket || feed.result) ? (wicket ? reactionActor : actors[STRIKER]!).a.root.position : undefined,
+        bowler: { x: actors[BOWLER]!.a.root.position.x, z: actors[BOWLER]!.a.root.position.z },
+        fielder: onBall >= 0 ? { x: actors[onBall]!.a.root.position.x, z: actors[onBall]!.a.root.position.z } : undefined,
+        interlude: feed.interlude ?? null,
+        time: wall,
+        cinematic: cinema < 0.8,
       });
+      // A change of shot to somewhere else entirely is a cut, as on television, not a
+      // sweep across the ground; nearby changes (and moving shots) ease. The replay
+      // director always cuts.
+      const far = Math.hypot(pick.px - camera.position.x, pick.py - camera.position.y, pick.pz - camera.position.z),
+        cut = pick.name !== shotName && !!shotName && (pick.name.startsWith("replay-") || far > 14);
+      const snap = feed.reducedMotion || snapCamera || cut;
       shotName = pick.name;
-      const snap = feed.reducedMotion || snapCamera;
       const kP = snap ? 1 : 1 - Math.exp(-pick.rate * dt),
         kL = snap ? 1 : 1 - Math.exp(-pick.lookRate * dt);
       snapCamera = false;
@@ -908,8 +1405,10 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         camera.fov += (pick.fov - camera.fov) * (snap ? 1 : kP);
         camera.updateProjectionMatrix();
       }
+      if (realisticReady) for (const c of captains) if (c.a.root.visible) c.body?.sync();
       renderer.render(scene, camera);
     },
+    cinematic: () => cinema,
     metrics: () => ({
       calls: renderer.info.render.calls,
       triangles: renderer.info.render.triangles,
@@ -922,6 +1421,20 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       gripError,
       footSlip,
       excite,
+      spacing,
+      takeError,
+      takeMove,
+      athletes: realisticReady,
+      looks: realisticReady
+        ? actors
+            .flatMap((a, n) => (a.body ? [`${slots[n]!.identity}=${a.body.appearance.model}:${a.body.appearance.facialHair}:${a.body.appearance.haircut}:${a.body.appearance.skinTint.map((c) => c.toFixed(3)).join("/")}`] : []))
+            .sort()
+            .join("|")
+        : "",
+      fielding: actors
+        .slice(2, 13)
+        .map((a) => a.field?.move ?? "idle")
+        .join(","),
     }),
     dispose() {
       if (disposed) return;
@@ -947,6 +1460,9 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
         textures.add(kit.tex);
         materials.add(kit.material);
       }
+      for (const m of kits?.all() ?? []) materials.add(m);
+      for (const m of equipment.materials) materials.add(m);
+      for (const g of equipment.geometries) geometries.add(g);
       stadium.dispose();
       textures.forEach((t) => t.dispose());
       materials.forEach((m) => m.dispose());

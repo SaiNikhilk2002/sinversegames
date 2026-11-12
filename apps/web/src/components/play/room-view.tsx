@@ -172,7 +172,7 @@ export function RoomView({ code }: { code: string }) {
 
       <AnimatePresence>
         {status === "reconnecting" && (
-          <motion.div key="lost" role="alert" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mb-4 flex items-center gap-3 rounded-2xl border-2 border-sun/50 bg-sun/15 px-4 py-3 text-sm font-semibold">
+          <motion.div key="lost" role="alert" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mb-4 flex items-center gap-3 rounded-2xl border border-sun/50 bg-sun/15 px-4 py-3 text-sm font-semibold">
             <span className="relative grid size-8 place-items-center">
               <span className="absolute inset-0 animate-ping rounded-full bg-sun/40" />
               <WifiOff className="relative size-4" />
@@ -184,7 +184,7 @@ export function RoomView({ code }: { code: string }) {
           </motion.div>
         )}
         {backOnline && status === "connected" && (
-          <motion.div key="back" role="status" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-4 flex items-center gap-2 rounded-2xl border-2 border-mint/50 bg-mint/15 px-4 py-3 text-sm font-semibold">
+          <motion.div key="back" role="status" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-4 flex items-center gap-2 rounded-2xl border border-mint/50 bg-mint/15 px-4 py-3 text-sm font-semibold">
             <Wifi className="size-4" /> Back online — you&apos;re in sync.
           </motion.div>
         )}
@@ -194,6 +194,7 @@ export function RoomView({ code }: { code: string }) {
         <client.Game key={room.matchId} code={code} room={room} game={state.game!} selfId={player.id} send={send} />
       ) : (
         <>
+          {room.status === "finished" && (state.results ?? room.lastResults) && client.Results && <client.Results results={(state.results ?? room.lastResults)!} selfId={player.id} />}
           {room.status === "finished" && (state.results ?? room.lastResults) && <ResultsPanel results={(state.results ?? room.lastResults)!} selfId={player.id} room={room} send={send} />}
           <div id="room-lobby" className="scroll-mt-4">
             <Lobby room={room} selfId={player.id} send={send} onLeave={leave} />

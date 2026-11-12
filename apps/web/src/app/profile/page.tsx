@@ -31,7 +31,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <Card className="overflow-hidden border-2">
+      <Card className="overflow-hidden border">
         {/* Banner: a strip of the game covers */}
         <div className="flex h-28 overflow-hidden" aria-hidden>
           {GAMES.map((g) => (
@@ -41,12 +41,12 @@ export default async function ProfilePage() {
         <div className="-mt-12 flex flex-col gap-4 px-6 pb-6 sm:flex-row sm:items-end">
           <div className="relative w-fit">
             <CosmeticAvatar name={session.name} color={session.color} size={80} avatarKey={profile?.avatarKey} frameId={profile?.equipment.find((item) => item.category === "profile-frame")?.itemId} />
-            <span className="absolute -right-2 -bottom-1 grid size-10 place-items-center rounded-xl border-[3px] border-surface bg-[#ffb23d] font-display text-lg font-black text-[#17142b]" aria-label={`Level ${level}`}>
+            <span className="absolute -right-2 -bottom-1 grid size-10 place-items-center rounded-xl border border-surface bg-[#ffb23d] font-display text-lg font-semibold text-[#17142b]" aria-label={`Level ${level}`}>
               {level}
             </span>
           </div>
           <div className="flex-1">
-            <h1 className="font-display text-3xl font-black" style={{ color: cosmeticTextColor(profile?.equipment.find((item) => item.category === "nameplate")?.itemId) }}>{session.name}</h1>
+            <h1 className="font-display text-3xl font-semibold" style={{ color: cosmeticTextColor(profile?.equipment.find((item) => item.category === "nameplate")?.itemId) }}>{session.name}</h1>
             {profile?.username&&<p className="mt-1 text-sm font-semibold text-brand-400">@{profile.username}</p>}
             <p className="text-sm text-ink-muted">
               {session.kind === "guest" ? "Guest player" : "Google linked"} · Level {level} · {unlocked.size}/{ACHIEVEMENTS.length} achievements
@@ -65,7 +65,7 @@ export default async function ProfilePage() {
           </div>
         </div>
       </Card>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"><p className="max-w-xl text-sm text-ink-muted">{session.kind==="guest"?"Save your player with email or Google to recover coins, badges and your chef's passport on another device. Guests can keep playing freely.":"Your player is connected. Manage your username, picture and active sessions."}</p><Link href="/account" className="rounded-xl bg-brand-500 px-4 py-3 text-sm font-bold text-white">{session.kind==="guest"?"Save my player":"Account settings"}</Link></div>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-4"><p className="max-w-xl text-sm text-ink-muted">{session.kind==="guest"?"Save your player with email or Google to recover coins, badges and your chef's passport on another device. Guests can keep playing freely.":"Your player is connected. Manage your username, picture and active sessions."}</p><Link href="/account" className="inline-flex h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-ink transition-colors hover:bg-primary-hover">{session.kind==="guest"?"Save my player":"Account settings"}</Link></div>
 
       {!db && (
         <p className="mt-6 rounded-2xl border border-sun/40 bg-sun/10 p-4 text-sm">
@@ -80,9 +80,9 @@ export default async function ProfilePage() {
           { label: "Losses", value: totals.played - totals.wins },
           { label: brand.rewardCurrencyName, value: profile?.rewardBalance ?? "—", icon: Star },
         ].map((s) => (
-          <Card key={s.label} className="border-2 p-5">
-            <p className="text-xs font-black tracking-[0.2em] text-ink-muted uppercase">{s.label}</p>
-            <p className="mt-1 flex items-center gap-2 font-mono text-3xl font-black tabular-nums">
+          <Card key={s.label} className="border p-5">
+            <p className="text-xs font-medium tracking-[0.1em] text-ink-faint uppercase">{s.label}</p>
+            <p className="mt-1 flex items-center gap-2 font-display text-3xl font-semibold tracking-tight tabular-nums">
               {s.icon && <s.icon className="size-6 fill-sun text-sun" aria-hidden />}
               {s.value.toLocaleString()}
             </p>
@@ -103,7 +103,7 @@ export default async function ProfilePage() {
               const s = profile?.stats.find((x) => x.gameId === g.id);
               const fav = profile?.favorites.some((f) => f.gameId === g.id);
               return (
-                <Card key={g.id} className="flex items-center gap-4 border-2 p-3" style={{ borderLeftColor: GAME_THEME[g.id].accent, borderLeftWidth: 5 }}>
+                <Card key={g.id} className="flex items-center gap-4 border p-3" style={{ borderLeftColor: GAME_THEME[g.id].accent, borderLeftWidth: 5 }}>
                   <GameArt gameId={g.id} className="h-14 w-[5.6rem] shrink-0 rounded-xl" />
                   <div className="min-w-0 flex-1">
                     <p className="font-bold">
@@ -113,7 +113,7 @@ export default async function ProfilePage() {
                       {s ? `${s.gamesPlayed} played · ${s.wins} wins · ${s.totalPoints.toLocaleString()} pts · best ${s.bestScore}` : "Not played yet"}
                     </p>
                   </div>
-                  <Link href={`/play/${g.slug}`} className="rounded-full px-3 py-1 text-xs font-black text-[#17142b]" style={{ background: GAME_THEME[g.id].accent }}>
+                  <Link href={`/play/${g.slug}`} className="rounded-full px-3 py-1 text-xs font-semibold text-[#17142b]" style={{ background: GAME_THEME[g.id].accent }}>
                     PLAY
                   </Link>
                 </Card>
@@ -170,9 +170,9 @@ export default async function ProfilePage() {
                 const got = unlocked.has(a.key);
                 const medal = ["#ffb23d", "#2fd6a8", "#ff4f8b", "#3d8bff", "#c04dff"][i % 5]!;
                 return (
-                  <li key={a.key} className={cn("flex items-center gap-3 rounded-2xl border-2 p-3", got ? "bg-surface" : "border-dashed bg-surface-2 opacity-60")} style={got ? { borderColor: medal } : undefined}>
+                  <li key={a.key} className={cn("flex items-center gap-3 rounded-2xl border p-3", got ? "bg-surface" : "border-dashed bg-surface-2 opacity-60")} style={got ? { borderColor: medal } : undefined}>
                     <span
-                      className={cn("relative grid size-11 shrink-0 place-items-center rounded-full border-[3px]", got ? "text-[#17142b]" : "border-line text-ink-faint")}
+                      className={cn("relative grid size-11 shrink-0 place-items-center rounded-full border", got ? "text-[#17142b]" : "border-line text-ink-faint")}
                       style={got ? { background: medal, borderColor: "#17142b", boxShadow: `0 3px 0 #17142b, 0 0 14px ${medal}88` } : undefined}
                     >
                       <AchievementEmblem achievementKey={a.key} earned={got} />

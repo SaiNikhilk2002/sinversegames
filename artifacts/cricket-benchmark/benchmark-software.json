@@ -1,0 +1,83 @@
+{
+  "loading": {
+    "groundMs": 2245,
+    "athletesMs": 3053
+  },
+  "machine": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "cores": 16,
+    "viewport": "1280x800"
+  },
+  "low": {
+    "loadMs": 5458,
+    "draws": 189,
+    "drawnFps": 21.9,
+    "intervalMedianMs": 33.4,
+    "intervalP95Ms": 83.3,
+    "intervalP99Ms": 150,
+    "intervalMaxMs": 166.6,
+    "hitchesOver50ms": 36,
+    "drawCpuMedianMs": 11,
+    "drawCpuP95Ms": 19.8,
+    "drawCalls": 87,
+    "triangles": 137052,
+    "textures": 42,
+    "geometries": 69,
+    "dpr": 0.75,
+    "heapMB": 61
+  },
+  "medium": {
+    "loadMs": 4125,
+    "draws": 75,
+    "drawnFps": 8.6,
+    "intervalMedianMs": 116.6,
+    "intervalP95Ms": 216.7,
+    "intervalP99Ms": 300.1,
+    "intervalMaxMs": 300.1,
+    "hitchesOver50ms": 67,
+    "drawCpuMedianMs": 12.3,
+    "drawCpuP95Ms": 20.8,
+    "drawCalls": 88,
+    "triangles": 164224,
+    "textures": 42,
+    "geometries": 69,
+    "dpr": 1,
+    "heapMB": 61
+  },
+  "high": {
+    "loadMs": 4289,
+    "draws": 37,
+    "drawnFps": 4,
+    "intervalMedianMs": 233.3,
+    "intervalP95Ms": 466.6,
+    "intervalP99Ms": 466.7,
+    "intervalMaxMs": 466.7,
+    "hitchesOver50ms": 34,
+    "drawCpuMedianMs": 18.4,
+    "drawCpuP95Ms": 24.6,
+    "drawCalls": 132,
+    "triangles": 503113,
+    "textures": 75,
+    "geometries": 101,
+    "dpr": 1,
+    "heapMB": 61
+  },
+  "ultra": {
+    "loadMs": 7246,
+    "draws": 27,
+    "drawnFps": 3.1,
+    "intervalMedianMs": 283.4,
+    "intervalP95Ms": 566.7,
+    "intervalP99Ms": 566.7,
+    "intervalMaxMs": 566.7,
+    "hitchesOver50ms": 21,
+    "drawCpuMedianMs": 16.6,
+    "drawCpuP95Ms": 24.9,
+    "drawCalls": 149,
+    "triangles": 616038,
+    "textures": 54,
+    "geometries": 87,
+    "dpr": 1,
+    "heapMB": 61
+  }
+}

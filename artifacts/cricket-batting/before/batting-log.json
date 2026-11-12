@@ -1,0 +1,259 @@
+[
+  {
+    "match": 1,
+    "want": "forward-defence",
+    "shot": {
+      "kind": "defend",
+      "direction": 0,
+      "power": 0.4,
+      "foot": 0.4,
+      "face": -0.06,
+      "tick": 156
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 163,
+    "filmed": "forward-defence"
+  },
+  {
+    "filmed": "forward-defence",
+    "contact": 163,
+    "contactError": 0,
+    "gripError": 0,
+    "closeup": {
+      "frames": 60,
+      "fps": 15.1,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 46,
+      "fps": 15.7,
+      "speed": 1
+    }
+  },
+  {
+    "match": 1,
+    "want": "straight-drive",
+    "shot": {
+      "kind": "straight",
+      "direction": 0,
+      "power": 0.85,
+      "foot": 0.35,
+      "face": -0.06,
+      "tick": 156
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 163,
+    "filmed": "straight-drive"
+  },
+  {
+    "filmed": "straight-drive",
+    "contact": 163,
+    "contactError": 0,
+    "gripError": 0.001,
+    "closeup": {
+      "frames": 60,
+      "fps": 15.1,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 47,
+      "fps": 15.4,
+      "speed": 1
+    }
+  },
+  {
+    "match": 1,
+    "want": "lofted-drive",
+    "shot": {
+      "kind": "loft",
+      "direction": 0,
+      "power": 1,
+      "foot": 0.35,
+      "face": -0.6,
+      "tick": 178
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 184,
+    "filmed": "lofted-drive"
+  },
+  {
+    "filmed": "lofted-drive",
+    "contact": 184,
+    "contactError": 0,
+    "gripError": 0,
+    "closeup": {
+      "frames": 65,
+      "fps": 15,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 53,
+      "fps": 14.9,
+      "speed": 1
+    }
+  },
+  {
+    "match": 1,
+    "want": "cover-drive",
+    "shot": {
+      "kind": "cover",
+      "direction": 45,
+      "power": 0.85,
+      "foot": 0.35,
+      "face": -0.48,
+      "tick": 202
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 208,
+    "filmed": "cover-drive"
+  },
+  {
+    "filmed": "cover-drive",
+    "contact": 208,
+    "contactError": 0,
+    "gripError": 0,
+    "closeup": {
+      "frames": 71,
+      "fps": 15,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 57,
+      "fps": 15.2,
+      "speed": 1
+    }
+  },
+  {
+    "match": 1,
+    "want": "missed-delivery",
+    "shot": {
+      "kind": "cover",
+      "direction": 30,
+      "power": 0.85,
+      "foot": 0.2,
+      "face": -0.6,
+      "tick": 158
+    },
+    "outcome": "DOT",
+    "hit": false,
+    "edge": false,
+    "contactTick": -1,
+    "filmed": "missed-delivery"
+  },
+  {
+    "filmed": "missed-delivery",
+    "contact": 166,
+    "contactError": null,
+    "gripError": 0,
+    "closeup": {
+      "frames": 37,
+      "fps": 15.4,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 26,
+      "fps": 15.6,
+      "speed": 1
+    }
+  },
+  {
+    "match": 1,
+    "want": "sweep",
+    "shot": {
+      "kind": "sweep",
+      "direction": -80,
+      "power": 0.7,
+      "foot": 0.45,
+      "face": -0.6,
+      "tick": 202
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": false,
+    "contactTick": 208,
+    "filmed": "sweep"
+  },
+  {
+    "filmed": "sweep",
+    "contact": 208,
+    "contactError": 0.072,
+    "gripError": 0,
+    "closeup": {
+      "frames": 71,
+      "fps": 15,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 67,
+      "fps": 17.9,
+      "speed": 1
+    }
+  },
+  {
+    "match": 1,
+    "want": "leave",
+    "shot": null,
+    "outcome": "DOT",
+    "hit": false,
+    "edge": false,
+    "contactTick": -1,
+    "filmed": "leave"
+  },
+  {
+    "filmed": "leave",
+    "contact": 168,
+    "contactError": null,
+    "gripError": 0,
+    "closeup": {
+      "frames": 52,
+      "fps": 16.4,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 31,
+      "fps": 15.1,
+      "speed": 1
+    }
+  },
+  {
+    "match": 1,
+    "want": "edged-delivery",
+    "shot": {
+      "kind": "cover",
+      "direction": 30,
+      "power": 0.85,
+      "foot": 0.2,
+      "face": 0.12,
+      "tick": 178
+    },
+    "outcome": "DOT",
+    "hit": true,
+    "edge": true,
+    "contactTick": 183,
+    "filmed": "edged-delivery"
+  },
+  {
+    "filmed": "edged-delivery",
+    "contact": 183,
+    "contactError": 0,
+    "gripError": 0,
+    "closeup": {
+      "frames": 71,
+      "fps": 16.4,
+      "speed": 0.5
+    },
+    "director": {
+      "frames": 62,
+      "fps": 17.5,
+      "speed": 1
+    }
+  }
+]

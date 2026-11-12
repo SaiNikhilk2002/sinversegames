@@ -1,0 +1,36 @@
+{
+  "id": "athlete-01",
+  "note": "Fictional athlete built only from CC0 MakeHuman system assets. Not based on any real person.",
+  "age": 0.53,
+  "muscle": 0.66,
+  "weight": 0.42,
+  "height": 0.6,
+  "proportions": 0.72,
+  "race": {
+    "african": 0.2,
+    "asian": 0.45,
+    "caucasian": 0.35
+  },
+  "skin": "toigo_light_skin_male_bronze/toigo_light_skin_male_bronze.mhmat",
+  "eyebrows": "eyebrow002/eyebrow002.mhclo",
+  "hair": "short02/short02.mhclo",
+  "eye": "brown",
+  "face": {
+    "nose-hump-incr": 0.35,
+    "nose-point-width-decr": 0.2,
+    "chin-height-incr": 0.25,
+    "l-cheek-bones-incr": 0.25,
+    "r-cheek-bones-incr": 0.22,
+    "mouth-lowerlip-volume-incr": 0.2,
+    "head-oval": 0.35,
+    "asym-nose-1-l": 0.35,
+    "asym-eye-2-r": 0.25
+  },
+  "body": {
+    "torso-vshape-incr": 0.25,
+    "breast-point-decr": 0.36,
+    "breast-volume-vert-up": 0.36,
+    "measure-bust-circ-decr": 0.15,
+    "stomach-pregnant-decr": 0.6
+  }
+}

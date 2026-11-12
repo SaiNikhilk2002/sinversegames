@@ -1,1 +1,1 @@
-export { PageLoading as default } from "@/components/layout/page-loading";
+export { ProfileLoading as default } from "@/components/layout/page-loading";

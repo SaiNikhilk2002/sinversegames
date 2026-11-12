@@ -1,0 +1,240 @@
+{
+ "lineup-front": {
+  "triangles": 365540,
+  "calls": 65,
+  "textures": 30,
+  "geometries": 36,
+  "models": 6
+ },
+ "lineup-faces": {
+  "triangles": 365540,
+  "calls": 65,
+  "textures": 38,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-front-0": {
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 41,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-side-0": {
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 44,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-0": {
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 47,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-front-1": {
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 50,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-side-1": {
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 53,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-1": {
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 56,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-front-2": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 59,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-side-2": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 62,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-2": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 65,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-front-3": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 68,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-side-3": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 71,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-3": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 74,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-front-4": {
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 77,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-side-4": {
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 80,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-4": {
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 83,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-front-5": {
+  "triangles": 56316,
+  "calls": 10,
+  "textures": 86,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-side-5": {
+  "triangles": 56316,
+  "calls": 10,
+  "textures": 89,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-5": {
+  "triangles": 56316,
+  "calls": 10,
+  "textures": 92,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-front": {
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 95,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-side": {
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 98,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-rear": {
+  "triangles": 63004,
+  "calls": 12,
+  "textures": 101,
+  "geometries": 36,
+  "models": 6
+ },
+ "body-3q-day": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 104,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-day": {
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 107,
+  "geometries": 36,
+  "models": 6
+ },
+ "face-3q-night": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 110,
+  "geometries": 36,
+  "models": 6
+ },
+ "batting-stance": {
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 113,
+  "geometries": 38,
+  "models": 6
+ },
+ "batting-drive": {
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 116,
+  "geometries": 38,
+  "models": 6
+ },
+ "batting-hands": {
+  "triangles": 66356,
+  "calls": 16,
+  "textures": 119,
+  "geometries": 38,
+  "models": 6
+ },
+ "bowling-action": {
+  "triangles": 60700,
+  "calls": 12,
+  "textures": 122,
+  "geometries": 38,
+  "models": 6
+ },
+ "sprinting": {
+  "triangles": 58416,
+  "calls": 12,
+  "textures": 125,
+  "geometries": 38,
+  "models": 6
+ },
+ "diving-catch": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 128,
+  "geometries": 38,
+  "models": 6
+ },
+ "landing-recovery": {
+  "triangles": 63672,
+  "calls": 12,
+  "textures": 131,
+  "geometries": 38,
+  "models": 6
+ },
+ "keeper": {
+  "triangles": 57612,
+  "calls": 12,
+  "textures": 134,
+  "geometries": 39,
+  "models": 6
+ }
+}

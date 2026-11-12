@@ -106,15 +106,15 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
   const rematchLabel = isHost ? (enough && othersReady ? "Rematch" : enough ? "Waiting for rematch votes…" : "Waiting for players…") : meInRoom?.ready ? "Ready — waiting for host" : "Rematch";
 
   return (
-    <section className="relative mb-6 overflow-hidden rounded-[28px] border-[3px] shadow-[0_24px_60px_-30px_rgb(0_0_0/0.9)]" style={{ borderColor: theme.accent, background: theme.deep, color: theme.ink }} data-testid="results">
+    <section className="relative mb-6 overflow-hidden rounded-[28px] border shadow-[0_24px_60px_-30px_rgb(0_0_0/0.9)]" style={{ borderColor: theme.accent, background: theme.deep, color: theme.ink }} data-testid="results">
       {iWon && <Confetti colors={[theme.accent, "#ffb23d", "#2fd6a8", "#ff4f8b", "#fff"]} />}
       <div className="relative px-5 pt-7 pb-4 text-center sm:px-8">
-        <p className="text-xs font-black tracking-[0.3em] uppercase opacity-70">{REASON_COPY[results.reason]}</p>
+        <p className="text-xs font-semibold tracking-[0.3em] uppercase opacity-70">{REASON_COPY[results.reason]}</p>
         <motion.h2
           initial={{ scale: 2.2, opacity: 0, rotate: -6 }}
           animate={{ scale: 1, opacity: 1, rotate: iWon ? -2 : 0 }}
           transition={{ type: "spring", stiffness: 260, damping: 15 }}
-          className={cn("mt-1 font-display text-5xl font-black tracking-tight sm:text-6xl", !iWon && me && "opacity-90")}
+          className={cn("mt-1 font-display text-5xl font-semibold tracking-tight sm:text-6xl", !iWon && me && "opacity-90")}
           style={{ color: iWon ? theme.accent : theme.ink, textShadow: iWon ? `0 0 34px ${theme.accent}88, 0 5px 0 rgb(0 0 0 / 0.45)` : "0 4px 0 rgb(0 0 0 / 0.4)" }}
         >
           {headline}
@@ -142,8 +142,8 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
                   <Avatar name={e.name} color={e.color} size={e.placement === 1 ? 52 : 42} />
                 </div>
                 <p className="mt-1 max-w-full truncate text-xs font-bold">{e.playerId === selfId ? "You" : e.name}</p>
-                <div className="mt-1 flex w-full flex-col items-center justify-start rounded-t-xl border-2 border-b-0 border-white/10 pt-2" style={{ height: h, background: e.placement === 1 ? `${theme.accent}40` : "rgb(255 255 255 / 0.06)" }}>
-                  <span className="font-display text-2xl font-black">{e.placement}</span>
+                <div className="mt-1 flex w-full flex-col items-center justify-start rounded-t-xl border border-b-0 border-white/10 pt-2" style={{ height: h, background: e.placement === 1 ? `${theme.accent}40` : "rgb(255 255 255 / 0.06)" }}>
+                  <span className="font-display text-2xl font-semibold">{e.placement}</span>
                 </div>
               </motion.div>
             );
@@ -155,7 +155,7 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
       <ol className="relative border-t-2 border-white/10 bg-black/20">
         {sorted.map((e, i) => (
           <motion.li key={e.playerId} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 + i * 0.08 }} className={cn("flex items-center gap-3 px-4 py-2.5 sm:px-6", e.playerId === selfId && "bg-white/8")}>
-            <span className="w-8 text-center font-display text-lg font-black" style={{ color: e.placement === 1 ? theme.accent : undefined, opacity: e.placement === 1 ? 1 : 0.6 }}>
+            <span className="w-8 text-center font-display text-lg font-semibold" style={{ color: e.placement === 1 ? theme.accent : undefined, opacity: e.placement === 1 ? 1 : 0.6 }}>
               {e.placement === 1 ? <Crown className="mx-auto size-5 fill-current" aria-label="1st" /> : ORDINAL[e.placement]}
             </span>
             <Avatar name={e.name} color={e.color} size={32} />
@@ -171,7 +171,7 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
                   </span>
                 ))}
             </span>
-            <span className="min-w-16 text-right font-display text-lg font-black tabular-nums" aria-label={`${e.score} points`}>
+            <span className="min-w-16 text-right font-display text-lg font-semibold tabular-nums" aria-label={`${e.score} points`}>
               <span aria-hidden>
                 <CountUp value={e.score} delay={0.8 + i * 0.08} tick={e.playerId === selfId} />
               </span>
@@ -192,7 +192,7 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
             onClick={rematch}
             disabled={busy || (isHost && !(enough && othersReady))}
             data-testid="rematch"
-            className="inline-flex items-center gap-2 rounded-full px-6 py-3 font-display font-black text-[#17142b] shadow-[0_4px_0_rgb(0_0_0/0.4)] transition hover:-translate-y-0.5 active:translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
+            className="inline-flex items-center gap-2 rounded-full px-6 py-3 font-display font-semibold text-[#17142b] transition disabled:opacity-60 disabled:hover:translate-y-0"
             style={{ background: theme.accent }}
           >
             {meInRoom?.ready && !isHost ? <Check className="size-5" /> : <RotateCcw className="size-5" />} {rematchLabel}
@@ -200,7 +200,7 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
           <button
             type="button"
             onClick={() => document.getElementById("room-lobby")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="inline-flex items-center gap-2 rounded-full border-2 border-white/20 px-5 py-2.5 font-bold transition hover:border-white/50"
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-2.5 font-bold transition hover:border-white/50"
           >
             <ArrowDown className="size-4" /> Back to the lobby
           </button>

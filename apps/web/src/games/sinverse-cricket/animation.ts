@@ -6,7 +6,6 @@ import {
   type Dismissal,
   type Fielder,
   type Outcome,
-  type ShotInput,
   type ShotKind,
   type Variation,
 } from "@platform/engines/sinverse-cricket";
@@ -217,7 +216,8 @@ export const CLIPS = {
   salute: clip([[0, { rHandY: 1.0 }], [0.45, { yaw: -0.25, chestY: -0.2, rHandX: -0.25, rHandY: 2.08, rHandZ: 0.12 }], [1.5, { yaw: -0.4, rHandY: 1.5, rHandZ: 0.25 }], [3, { yaw: -0.5 }]]),
   showCatch: clip([[0, { hipY: 0.86, lHandX: 0.08, rHandX: -0.08, lHandY: 1.05, rHandY: 1.05, lHandZ: 0.28, rHandZ: 0.28 }], [0.6, { rHandX: -0.15, rHandY: 1.85, rHandZ: 0.3, lHandY: 1.0, yaw: 0.25 }], [2, { rHandX: -0.2, rHandY: 1.55, rHandZ: 0.25, yaw: 0.4 }]]),
   directHit: clip([[0, { pitch: 0.2, rHandY: 1.1 }], [0.4, { yaw: 0.35, rHandX: -0.25, rHandY: 1.3, rHandZ: 0.65, lHandY: 1.1 }], [1.3, { yaw: 0.5, rHandX: -0.2, rHandY: 1.5, rHandZ: 0.35 }], [2.6, { yaw: 0.5 }]]),
-  recover: clip([[0, { hipY: 0.24, pitch: 1.35, lHandY: 0.2, rHandY: 0.2, lHandZ: 0.7, rHandZ: 0.7, lFootZ: -0.5, rFootZ: -0.5 }], [0.5, { hipY: 0.55, pitch: 0.65, lHandY: 0.35, rHandY: 0.35, lHandZ: 0.4, rHandZ: 0.4, lFootZ: 0.25, rFootZ: -0.4 }], [1.2, { hipY: 0.93, pitch: 0.12 }]]),
+  // Starts exactly where the dive ends (its last key), so getting up never snaps.
+  recover: clip([[0, { hipY: 0.2, pitch: 1.5, chestX: -0.22, headX: -0.95, lHandX: 0.14, lHandY: 0.2, lHandZ: 1.1, rHandX: -0.14, rHandY: 0.2, rHandZ: 1.1, lFootY: 0.14, lFootZ: -0.85, rFootY: 0.14, rFootZ: -0.92 }], [0.5, { hipY: 0.55, pitch: 0.65, lHandY: 0.35, rHandY: 0.35, lHandZ: 0.4, rHandZ: 0.4, lFootZ: 0.25, rFootZ: -0.4 }], [1.2, { hipY: 0.93, pitch: 0.12 }]]),
   appeal: clip([
     [0, { hipY: 0.92, pitch: 0.2, rHandX: -0.3, rHandY: 1.2, rHandZ: 0.3 }],
     [0.22, { hipY: 0.98, pitch: -0.12, headX: -0.32, yaw: -0.25, lHandX: 0.42, lHandY: 1.5, lHandZ: 0.3, rHandX: -0.2, rHandY: 2.12, rHandZ: 0.22, lFootZ: 0.2, rFootZ: -0.2 }],
@@ -249,6 +249,36 @@ export const CLIPS = {
     0.28,
   ),
   stance: clip([[0, STANCE]]),
+  // ---- fielding (posed onto the ball by fielding.ts; times are the clip's own) ----
+  /** Two-handed pickup: knees bent, head over the ball, both hands down in front, the left foot leading. */
+  gather: clip([[0, { hipY: 0.6, pitch: 0.95, chestX: 0.22, headX: -0.55, lHandX: 0.08, lHandY: 0.14, lHandZ: 0.6, rHandX: -0.08, rHandY: 0.14, rHandZ: 0.6, lFootX: 0.2, lFootZ: 0.34, rFootX: -0.22, rFootZ: -0.3 }]]),
+  /** One-handed pickup on the run: bent at the waist, throwing hand to the ball, the other back for balance. */
+  reach: clip([[0, { hipY: 0.8, pitch: 0.9, chestX: 0.18, headX: -0.5, yaw: -0.15, lHandX: 0.32, lHandY: 0.95, lHandZ: -0.1, rHandX: -0.24, rHandY: 0.16, rHandZ: 0.55 }]]),
+  /** Ball at the chest: soft hands in front of the sternum. */
+  catchChest: clip([[0, { hipY: 0.9, pitch: 0.12, headX: -0.25, lHandX: 0.06, lHandY: 1.18, lHandZ: 0.36, rHandX: -0.06, rHandY: 1.18, rHandZ: 0.36, lFootZ: 0.12, rFootZ: -0.14 }], [0.25, { hipY: 0.92, pitch: 0.06, headX: -0.1, lHandX: 0.06, lHandY: 1.1, lHandZ: 0.2, rHandX: -0.06, rHandY: 1.1, rHandZ: 0.2 }]]),
+  /** Down on the right knee after a slide or a dive, upright from the hips, ready to throw. */
+  kneel: clip([[0, { hipY: 0.5, pitch: 0.08, chestX: 0.04, lFootX: 0.16, lFootZ: 0.38, rFootX: -0.12, rFootY: 0.14, rFootZ: -0.5, lHandX: 0.26, lHandY: 0.75, lHandZ: 0.3, rHandX: -0.24, rHandY: 0.8, rHandZ: 0.1 }]]),
+  /**
+   * Underarm flick at the stumps from close in. Keys are seconds from the
+   * release, so the hand lets go on the engine's throw tick.
+   */
+  underarm: clip([
+    [-0.32, { hipY: 0.66, pitch: 0.8, chestX: 0.2, headX: -0.5, lHandX: 0.24, lHandY: 0.45, lHandZ: 0.42, rHandX: -0.14, rHandY: 0.24, rHandZ: 0.5, lFootX: 0.2, lFootZ: 0.3, rFootX: -0.22, rFootZ: -0.3 }],
+    [-0.14, { hipY: 0.7, pitch: 0.7, chestX: 0.18, headX: -0.45, yaw: -0.25, lHandX: 0.3, lHandY: 0.62, lHandZ: 0.35, rHandX: -0.26, rHandY: 0.32, rHandZ: -0.3, lFootX: 0.2, lFootZ: 0.34, rFootX: -0.22, rFootZ: -0.3 }],
+    [0, { hipY: 0.76, pitch: 0.5, chestX: 0.12, headX: -0.35, yaw: 0.15, lHandX: 0.34, lHandY: 0.7, lHandZ: 0.15, rHandX: -0.1, rHandY: 0.62, rHandZ: 0.62, lFootX: 0.2, lFootZ: 0.5, rFootX: -0.22, rFootZ: -0.28 }],
+    [0.22, { hipY: 0.84, pitch: 0.32, headX: -0.25, yaw: 0.25, lHandX: 0.3, lHandY: 0.8, lHandZ: 0.05, rHandX: -0.04, rHandY: 1.12, rHandZ: 0.5, lFootX: 0.2, lFootZ: 0.5, rFootX: -0.2, rFootY: 0.12, rFootZ: -0.1 }],
+    [0.8, { hipY: 0.94, pitch: 0.1, lFootZ: 0.2, rFootZ: -0.05 }],
+  ]),
+  /** The keeper's gloves taking a ball below the knee: still down, fingers to the turf. */
+  keeperLow: clip([[0, { hipY: 0.5, pitch: 0.78, chestX: 0.22, headX: -0.8, lHandX: 0.09, lHandY: 0.2, lHandZ: 0.5, rHandX: -0.09, rHandY: 0.2, rHandZ: 0.5, lFootX: 0.27, lFootZ: -0.02, rFootX: -0.27, rFootZ: -0.02 }]]),
+  /** Risen with the bounce to take it at the waist or above. */
+  keeperHigh: clip([[0, { hipY: 0.8, pitch: 0.3, chestX: 0.08, headX: -0.25, lHandX: 0.08, lHandY: 1.05, lHandZ: 0.42, rHandX: -0.08, rHandY: 1.05, rHandZ: 0.42, lFootX: 0.26, rFootX: -0.26 }]]),
+  /** Ball in the gloves swept onto the bails, the body following the hands forward. */
+  stumping: clip([
+    [0, { hipY: 0.62, pitch: 0.62, chestX: 0.2, headX: -0.7, lHandX: 0.07, lHandY: 0.5, lHandZ: 0.36, rHandX: -0.07, rHandY: 0.5, rHandZ: 0.36, lFootX: 0.27, rFootX: -0.27 }],
+    [0.16, { hipY: 0.58, hipZ: 0.18, pitch: 0.9, chestX: 0.25, headX: -0.75, lHandX: 0.05, lHandY: 0.66, lHandZ: 0.95, rHandX: -0.05, rHandY: 0.66, rHandZ: 0.95, lFootX: 0.27, lFootZ: 0.25, rFootX: -0.27 }],
+    [0.45, { hipY: 0.74, hipZ: 0.1, pitch: 0.5, chestX: 0.12, headX: -0.4, lHandX: 0.12, lHandY: 0.9, lHandZ: 0.7, rHandX: -0.12, rHandY: 0.9, rHandZ: 0.7, lFootX: 0.27, lFootZ: 0.25, rFootX: -0.27 }],
+  ]),
   umpire: clip([[0, { hipY: 0.94, pitch: 0.2, lHandX: 0.12, lHandY: 0.95, lHandZ: -0.16, rHandX: -0.12, rHandY: 0.95, rHandZ: -0.16 }]]),
   umpireOut: clip([
     [0, { lHandX: 0.25, lHandY: 0.9 }],
@@ -323,8 +353,8 @@ export function runUpProgress(tick: number, style: BowlingStyle) {
 }
 
 // ---------------------------------------------------------------------------
-// Batting. The bat is posed first and the hands are solved onto it, so they
-// can't drift off the handle during a swing.
+// Batting lives in batting.ts. The bat is posed first and the hands are solved
+// onto it, so they can't drift off the handle during a swing.
 // ---------------------------------------------------------------------------
 
 export type Vec3 = [number, number, number];
@@ -335,118 +365,8 @@ export interface BatPose {
   /** Direction the hitting face points. */
   face: Vec3;
 }
-const unit = (v: Vec3): Vec3 => {
-  const l = Math.hypot(v[0], v[1], v[2]) || 1;
-  return [v[0] / l, v[1] / l, v[2] / l];
-};
-const mix3 = (a: Vec3, b: Vec3, u: number): Vec3 => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
-
 /** Same mapping the batting physics uses for where the bat meets the ball. */
 export const BAT_HEIGHTS: Record<ShotKind, number> = SHOT_HEIGHTS;
-/** Ticks after the shot input at which the physics rates contact as best timed. */
-export const IMPACT_TICKS = 8;
-export function nominalImpact(shot: Pick<ShotInput, "kind" | "direction" | "face" | "foot">) {
-  const angle = (shot.direction * Math.PI) / 180;
-  return { x: Math.sin(angle) * 0.45 + shot.face * 0.55, y: BAT_HEIGHTS[shot.kind], z: 8.8 - shot.foot * 0.45 };
-}
-
-const STANCE_BAT: BatPose = { grip: [0.02, 0.94, 0.3], dir: unit([-0.06, -0.96, 0.1]), face: [1, 0, 0] };
-const BACKLIFT: BatPose = { grip: [0.02, 1.08, 0.38], dir: unit([-0.7, 0.6, -0.22]), face: [0.6, 0.7, 0] };
-const IMPACT_DIR: Record<ShotKind, Vec3> = {
-  defend: unit([0.28, -0.95, 0.06]),
-  straight: unit([0.32, -0.92, 0.08]),
-  cover: unit([0.22, -0.9, 0.36]),
-  "on-drive": unit([0.3, -0.92, -0.2]),
-  cut: unit([0.08, -0.28, 0.95]),
-  pull: unit([0.72, 0.05, 0.68]),
-  sweep: unit([0.72, -0.55, 0.42]),
-  loft: unit([0.5, -0.82, 0.1]),
-};
-const FOLLOW: Record<ShotKind, BatPose> = {
-  defend: { grip: [0.12, 0.95, 0.3], dir: unit([0.3, -0.95, 0.06]), face: [1, 0, 0] },
-  straight: { grip: [0.32, 1.46, 0.22], dir: unit([-0.2, 0.75, -0.62]), face: [0.1, 0.4, -0.9] },
-  cover: { grip: [0.2, 1.4, 0.42], dir: unit([-0.45, 0.6, -0.65]), face: [0, 0.6, -0.8] },
-  "on-drive": { grip: [0.32, 1.38, 0.04], dir: unit([-0.1, 0.72, -0.68]), face: [0.2, 0.3, -0.9] },
-  cut: { grip: [0.16, 1.1, 0.46], dir: unit([-0.65, 0.2, 0.72]), face: [0.6, 0.3, 0.7] },
-  pull: { grip: [0.12, 1.34, -0.1], dir: unit([-0.72, 0.42, -0.55]), face: [-0.5, 0.2, 0.8] },
-  sweep: { grip: [0.2, 0.86, -0.08], dir: unit([-0.5, 0.42, -0.75]), face: [-0.3, 0.5, 0.8] },
-  loft: { grip: [0.3, 1.56, 0.12], dir: unit([-0.32, 0.86, -0.4]), face: [0, 0.5, -0.85] },
-};
-
-/**
- * The bat at this moment. `impact` is the contact point in the batter's root
- * space: the rig passes the live ball there while it's close, so the blade
- * meets the ball the simulation actually hit.
- */
-export function batPose(args: {
-  tick: number;
-  shot: Pick<ShotInput, "kind" | "tick"> | null;
-  contactTick: number;
-  impact: Vec3 | null;
-}): BatPose {
-  const { tick, shot, contactTick, impact } = args;
-  const lift = ease(clamp01((tick - RELEASE_TICK + 8) / 34));
-  const ready: BatPose = {
-    grip: mix3(STANCE_BAT.grip, BACKLIFT.grip, lift),
-    dir: unit(mix3(STANCE_BAT.dir, BACKLIFT.dir, lift)),
-    face: unit(mix3(STANCE_BAT.face, BACKLIFT.face, lift)),
-  };
-  if (!shot) {
-    // No shot played: the bat comes back down out of the line as the ball goes through.
-    const leave = ease(clamp01((tick - RELEASE_TICK - 52) / 30));
-    return leave ? { grip: mix3(ready.grip, [0.04, 1.02, 0.18], leave), dir: unit(mix3(ready.dir, [-0.1, -0.9, 0.1], leave)), face: ready.face } : ready;
-  }
-  const phase = tick - shot.tick,
-    dir = IMPACT_DIR[shot.kind],
-    point = impact ?? [0.1, BAT_HEIGHTS[shot.kind], 0.42];
-  const atImpact: BatPose = {
-    grip: [point[0] - dir[0] * BAT.sweet, point[1] - dir[1] * BAT.sweet, point[2] - dir[2] * BAT.sweet],
-    dir,
-    face: [1, 0.1, 0],
-  };
-  const peak = contactTick >= 0 ? Math.max(1, contactTick - shot.tick) : IMPACT_TICKS;
-  if (phase < peak) {
-    const u = ease(clamp01(phase / peak));
-    return { grip: mix3(ready.grip, atImpact.grip, u), dir: unit(mix3(ready.dir, atImpact.dir, u)), face: unit(mix3(ready.face, atImpact.face, u)) };
-  }
-  const end = FOLLOW[shot.kind];
-  const u = ease(clamp01((phase - peak) / (shot.kind === "defend" ? 26 : 24)));
-  const settled = ease(clamp01((phase - peak - 90) / 50));
-  const follow = { grip: mix3(atImpact.grip, end.grip, u), dir: unit(mix3(atImpact.dir, end.dir, u)), face: unit(mix3(atImpact.face, end.face, u)) };
-  return settled ? { grip: mix3(follow.grip, [0.06, 1.0, 0.2], settled), dir: unit(mix3(follow.dir, [-0.15, -0.95, 0.1], settled)), face: follow.face } : follow;
-}
-
-/** Body shape of the batter through a shot: 0 at stance, 1 at impact and after. */
-export function applyShotBody(p: Pose, kind: ShotKind, foot: number, u: number) {
-  const front = Math.max(0, foot),
-    back = Math.max(0, -foot);
-  p[CH.hipX] = p[CH.hipX]! + (front * 0.3 - back * 0.35) * u;
-  p[CH.lFootX] = p[CH.lFootX]! + (front * 0.75 + (kind === "pull" || kind === "cut" ? -0.04 : 0.12)) * u;
-  p[CH.rFootX] = p[CH.rFootX]! - back * 0.5 * u;
-  if (kind === "sweep") {
-    p[CH.hipY] = p[CH.hipY]! - 0.34 * u;
-    p[CH.pitch] = p[CH.pitch]! + 0.26 * u;
-    p[CH.lFootX] = p[CH.lFootX]! + 0.28 * u;
-    p[CH.rFootY] = p[CH.rFootY]! + 0.08 * u;
-  } else if (kind === "pull" || kind === "cut") {
-    p[CH.hipY] = p[CH.hipY]! + 0.03 * u;
-    p[CH.pitch] = p[CH.pitch]! - 0.2 * u;
-    p[CH.yaw] = p[CH.yaw]! + (kind === "pull" ? 0.75 : -0.15) * u;
-    p[CH.chestY] = p[CH.chestY]! + (kind === "pull" ? 0.45 : -0.1) * u;
-  } else if (kind === "cover") {
-    p[CH.yaw] = p[CH.yaw]! - 0.25 * u;
-    p[CH.pitch] = p[CH.pitch]! + 0.12 * u;
-  } else if (kind === "on-drive") {
-    p[CH.yaw] = p[CH.yaw]! + 0.32 * u;
-    p[CH.pitch] = p[CH.pitch]! + 0.1 * u;
-  } else if (kind === "loft") {
-    p[CH.pitch] = p[CH.pitch]! - 0.06 * u;
-    p[CH.yaw] = p[CH.yaw]! + 0.3 * u;
-  } else {
-    p[CH.pitch] = p[CH.pitch]! + (kind === "defend" ? 0.14 : 0.08) * u;
-  }
-  return p;
-}
 
 // ---------------------------------------------------------------------------
 // Clip selection: what the match state says each actor is doing.
@@ -608,6 +528,56 @@ export class FootPlanter {
       } else f.y = 0;
       f.swinging = swinging;
     });
+  }
+}
+
+/**
+ * Planted feet for posed (not running) actors: the keeper shuffling across, a
+ * fielder stepping into a take. Each foot stays where it is on the turf until
+ * the pose wants it more than STEP_REACH away, then takes a quick lifted step;
+ * only one foot steps at a time. So a body that moves under a held pose steps
+ * rather than slides.
+ */
+export const STEP_REACH = 0.17;
+export class StepFeet {
+  feet = [0, 1].map(() => ({ x: NaN, z: NaN, fromX: 0, fromZ: 0, toX: 0, toZ: 0, t: 1, lift: 0 }));
+  reset() {
+    for (const f of this.feet) f.x = NaN;
+  }
+  /** Takes where the pose wants each foot (world x,z) and leaves where it actually is in `feet`. */
+  update(lx: number, lz: number, rx: number, rz: number, dt: number) {
+    const want = [
+      [lx, lz],
+      [rx, rz],
+    ] as const;
+    for (const [k, f] of this.feet.entries()) {
+      const [wx, wz] = want[k]!;
+      if (!Number.isFinite(f.x) || Math.hypot(wx - f.x, wz - f.z) > 1.2) {
+        f.x = f.toX = wx;
+        f.z = f.toZ = wz;
+        f.t = 1;
+        f.lift = 0;
+      }
+    }
+    for (const [k, f] of this.feet.entries()) {
+      const [wx, wz] = want[k]!,
+        other = this.feet[1 - k]!;
+      if (f.t >= 1 && other.t >= 1 && Math.hypot(wx - f.x, wz - f.z) > STEP_REACH) {
+        f.fromX = f.x;
+        f.fromZ = f.z;
+        f.t = 0;
+      }
+      if (f.t < 1) {
+        // A step takes about a tenth of a second and lands where the pose now wants it.
+        f.t = Math.min(1, f.t + dt / 0.11);
+        f.toX = wx;
+        f.toZ = wz;
+        const u = ease(f.t);
+        f.x = f.fromX + (f.toX - f.fromX) * u;
+        f.z = f.fromZ + (f.toZ - f.fromZ) * u;
+        f.lift = Math.sin(f.t * Math.PI) * 0.07;
+      } else f.lift = 0;
+    }
   }
 }
 

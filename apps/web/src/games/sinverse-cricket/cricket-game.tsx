@@ -36,6 +36,8 @@ import { getSettings, updateSettings, useSettings } from "@/lib/settings";
 import { CAMERA_LABELS, QualityGovernor, crowdEnergy, presentationRate, ropeRatio, type CameraName } from "./director";
 import type { Lighting, Quality, SceneDriver, SceneFeed } from "./scene";
 import { TossSequence, type CoinFace } from "./ceremony";
+import { BroadcastGraphics, broadcastCards, newIntroMemo, standouts, type IntroMemo } from "./broadcast";
+import { CATEGORIES, choiceFor, deliveryRead, shotChoice, shotsIn, stepChoice, type ShotChoice } from "./shots";
 import { DEFAULT_BINDINGS, INPUT_STORAGE, acceptsGameplayKey, finishGesture, gestureBowl, gestureShot, keyboardIntent, keyLabel, parseBindings, rebind, type Bindings, type BindingName, type GestureStart } from "./input";
 import "./cricket.css";
 
@@ -57,12 +59,17 @@ const CAMERAS: CameraName[] = [
   "broadcast",
   "batter",
   "bowler",
+  "runup",
+  "bowling",
   "side",
+  "closeup",
   "behind",
   "keeper",
   "slip",
+  "fielding",
   "boundary",
   "aerial",
+  "stadium",
   "track",
 ];
 const LABELS: Record<string, string> = {
@@ -399,6 +406,102 @@ function CricketViewport({
     </>
   );
 }
+/**
+ * When the ball reached the bat's line and how far across from the bat it was,
+ * from the recorded frames (presentation only). Unknown until it has happened;
+ * a finished delivery's answer is kept.
+ */
+const arrivals = new WeakMap<Delivery, { arrivalTick?: number; passLateral?: number }>();
+function arrival(d: Delivery): { arrivalTick?: number; passLateral?: number } {
+  const known = arrivals.get(d);
+  if (known) return known;
+  const line = 8.8 - (d.shot?.foot ?? 0) * 0.45,
+    f = d.frames.find((f) => f.tick >= RELEASE_TICK && f.ball.z >= line),
+    batX = d.shot ? Math.sin((d.shot.direction * Math.PI) / 180) * 0.45 + d.shot.face * 0.55 : 0;
+  const result = f ? { arrivalTick: f.tick, passLateral: Math.abs(f.ball.x - batX) } : {};
+  if (d.outcome) arrivals.set(d, result);
+  return result;
+}
+/** How far a six carried from the bat before it cleared the rope, from the recorded frames (metres). */
+const carries = new WeakMap<Delivery, number | null>();
+function carryOf(d: Delivery | null | undefined, venue: CricketConfig["venue"]): number | null {
+  if (!d?.outcome || d.outcome.boundary !== 6 || !d.hit) return null;
+  if (carries.has(d)) return carries.get(d)!;
+  const over = d.frames.find((f) => f.tick > d.contactTick && ropeRatio(f.ball, venue) >= 1),
+    from = d.contactPoint;
+  const carry = over && from ? Math.hypot(over.ball.x - from.x, over.ball.z - from.z) : null;
+  carries.set(d, carry);
+  return carry;
+}
+/**
+ * The batting shot selector: shot families, then the shots in the chosen one.
+ * It sits below the field so it never covers the ball or the batter. The shot
+ * is only played when the player presses to play it.
+ */
+function ShotBar({ current, direction, locked, onChoose }: { current: ShotChoice; direction: number; locked: boolean; onChoose: (c: ShotChoice) => void }) {
+  const family = current.category;
+  return (
+    <section className="cr-shotbar" aria-label="Shot selection" data-testid="cricket-shotbar" data-shot={current.id}>
+      <div className="cr-shot-families" role="tablist" aria-label="Shot family">
+        {CATEGORIES.map((c, n) => (
+          <button key={c.id} role="tab" aria-selected={family === c.id} disabled={locked} onClick={() => onChoose(shotsIn(c.id)[0]!)}>
+            <kbd aria-hidden>{n + 1}</kbd>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <div className="cr-shot-choices" role="radiogroup" aria-label={`${CATEGORIES.find((c) => c.id === family)!.label} shots`}>
+        {shotsIn(family).map((s) => (
+          <button key={s.id} role="radio" aria-checked={s.id === current.id} disabled={locked} data-shot={s.id} onClick={() => onChoose(s)} title={s.hint}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+      <p className="cr-shot-read" aria-live="polite">
+        <b>{current.label}</b>
+        <span>{current.input ? `${current.footwork === "front" ? "Front foot" : current.footwork === "back" ? "Back foot" : "Stays put"} · ${current.lofted ? "In the air" : "Along the ground"} · aim ${Math.round(direction)}°` : "No shot: let it go"}</span>
+        <small>{current.hint}</small>
+      </p>
+    </section>
+  );
+}
+/** Pace off the hand (from the recorded frames just after release) and the delivery's name, once it's been bowled. */
+const releaseSpeeds = new WeakMap<Delivery, number>();
+function SpeedRead({ d }: { d: Delivery }) {
+  let speed = releaseSpeeds.get(d);
+  if (speed === undefined) {
+    const a = d.frames.find((f) => f.tick >= RELEASE_TICK + 1),
+      b = d.frames.find((f) => f.tick >= RELEASE_TICK + 4);
+    speed = a && b && b.tick > a.tick ? Math.hypot(b.ball.x - a.ball.x, b.ball.y - a.ball.y, b.ball.z - a.ball.z) / ((b.tick - a.tick) * STEP) : 0;
+    releaseSpeeds.set(d, speed);
+  }
+  if (!speed) return null;
+  const read = deliveryRead(speed, d.bowling.variation);
+  return (
+    <b className="cr-speed" data-testid="cricket-speed">
+      {read.kmh} km/h · {read.name}
+    </b>
+  );
+}
+/** The best batting and bowling of an innings, from its scorecard. */
+function Standouts({ innings, team }: { innings: Innings; team?: string }) {
+  const { bat, bowl } = standouts(innings);
+  return (
+    <dl className="cr-standouts">
+      {team && <dt>{team}</dt>}
+      {bat && (
+        <dd>
+          <b>{bat.name}</b> {bat.runs} ({bat.balls})
+        </dd>
+      )}
+      {bowl && (
+        <dd>
+          <b>{bowl.name}</b> {bowl.wickets}/{bowl.runs}
+        </dd>
+      )}
+    </dl>
+  );
+}
 function frameOf(d: Delivery): Frame {
   return {
     tick: d.tick,
@@ -455,6 +558,10 @@ type Runtime = {
   nextAt: number;
   replayFinishedAt: number;
   releaseHeard: boolean;
+  /** Which batter and bowler have had their introduction card, and when. */
+  intro: IntroMemo;
+  /** Presentation seconds: wall time, slowed through a big catch. */
+  presentTime: number;
 };
 function actorNumbers(m: CricketMatch) {
   const i = m.current;
@@ -501,6 +608,8 @@ export function CricketGame({
     error: "",
     replayAt: 0,
     endedAt: 0,
+    intro: newIntroMemo(),
+    presentTime: 0,
     pickupHeard: false,
     ceremony: new TossSequence(),
     nextAt: 0,
@@ -529,6 +638,10 @@ export function CricketGame({
   const [bindingTarget, setBindingTarget] = useState<BindingName | null>(null);
   const [bindingMessage, setBindingMessage] = useState("");
   const [continuous, setContinuous] = useState(true);
+  // The player's chosen shot. "Leave" means a press during the ball does not swing.
+  const [leaving, setLeaving] = useState(false);
+  // The winning moment plays first (reactions, the result camera); the summary card follows.
+  const [finishShown, setFinishShown] = useState(false);
   const [assist, setAssist] = useState(false);
   const [sensitivity, setSensitivity] = useState(1);
   const gesture = useRef<GestureStart | null>(null);
@@ -579,6 +692,13 @@ export function CricketGame({
     i = m.current,
     live = !!r.delivery && !r.settled,
     batting = i ? m.humanBatting : true;
+  const finished = m.phase === "finished";
+  useEffect(() => {
+    if (!finished) return setFinishShown(false);
+    const reduced = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => setFinishShown(true), reduced ? 0 : 3200);
+    return () => window.clearTimeout(timer);
+  }, [finished]);
   const setMenu = useCallback(
     (next: typeof panel) => {
       r.paused = !!next;
@@ -601,6 +721,10 @@ export function CricketGame({
     r.nextAt = r.elapsed + 5200;
     requestAnimationFrame(() => root.current?.focus());
     refresh();
+  };
+  const chooseShot = (choice: ShotChoice) => {
+    setLeaving(!choice.input);
+    if (choice.input) setShot((s) => ({ ...s, ...choice.input! }));
   };
   const primary = (shotOverride?: typeof shot, bowlOverride?: BowlingInput) => {
     unlockAudio();
@@ -635,7 +759,8 @@ export function CricketGame({
     if (m.phase !== "ready") return;
     r.replayAt = 0;
     if (r.delivery && !r.settled) {
-      if (m.humanBatting && r.delivery.swingBat(shotOverride ?? shot)) {
+      // Leave selected: the ball goes by unless the player deliberately gestures a shot.
+      if (m.humanBatting && !(leaving && !shotOverride) && r.delivery.swingBat(shotOverride ?? shot)) {
         sfx.whoosh();
         refresh();
       }
@@ -744,6 +869,11 @@ export function CricketGame({
       if (event.code === bindings.replay) { replay(); return true; }
       if (event.code === bindings.camera) { actions.current.camera(); return true; }
       if (r.replay || (r.delivery?.shot && live) || (!batting && live)) return false;
+      // Batting: 1-7 choose a shot family; the same key again steps through it.
+      if (batting && /^Digit[1-7]$/.test(event.code)) {
+        chooseShot(stepChoice(leaving ? shotChoice("leave")! : choiceFor(shot), CATEGORIES[Number(event.code.slice(-1)) - 1]!.id));
+        return true;
+      }
       const intent = keyboardIntent(event.code, bindings, shot, bowl, batting);
       if (intent?.bat) setShot(intent.bat);
       if (intent?.bowl && !r.arming) setBowl(intent.bowl);
@@ -768,12 +898,17 @@ export function CricketGame({
       last = performance.now(),
       uiAt = last,
       drawAt = 0,
+      drawMs = 0,
+      drawCount = 0,
       fpsAt = last,
       frames = 0;
     let previousPad: boolean[] = [];
     const governor = new QualityGovernor();
     const frame = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
+      // The scene's own clock slows with a big catch, so the landing plays in slow motion as well.
+      // Like the match clock, it stands still while the game is paused.
+      if (!r.paused) r.presentTime += dt * (driver.current?.cinematic() ?? 1);
       // Only sustained slow frames change quality, and never during a menu or a hidden tab.
       if (preferences.current.autoQuality && !r.paused && !document.hidden && preferences.current.quality !== "tactical") {
         const next = governor.sample(now - last, now, preferences.current.quality as Quality);
@@ -799,7 +934,7 @@ export function CricketGame({
           const replay = r.replay,
             entry = r.replays[replay.index];
           if (entry && replay.playing) {
-            replay.tick += dt * 120 * replay.speed;
+            replay.tick += dt * 120 * replay.speed * (driver.current?.cinematic() ?? 1);
             const end = entry.delivery.frames.at(-1)!.tick;
             if (replay.tick >= end) {
               replay.tick = end;
@@ -814,7 +949,8 @@ export function CricketGame({
           const d = r.delivery;
           // Slow motion stretches wall-clock time only; the same ticks run either way.
           const rate = presentationRate({ hit: d.hit, groundAfterHit: d.groundAfterHit, y: d.pos.y, vy: d.velocity.y, x: d.pos.x, z: d.pos.z, venue: config.venue, finished: !!d.outcome, reduced: preferences.current.reduced });
-          r.acc += dt * (d.tick < RELEASE_TICK ? 0.28 : preferences.current.simple ? 0.65 : 1) * rate;
+          // A big catch slows the presentation too (wall-clock only: the same ticks run).
+          r.acc += dt * (d.tick < RELEASE_TICK ? 0.28 : preferences.current.simple ? 0.65 : 1) * rate * (driver.current?.cinematic() ?? 1);
           let steps = 0;
           while (r.acc >= STEP && !d.outcome && steps < 14) {
             d.step();
@@ -960,8 +1096,11 @@ export function CricketGame({
         if (entry) {
           const frames = entry.delivery.frames;
           const at = frames.findIndex((f) => f.tick >= r.replay!.tick);
+          // On a recorded tick (and at the end) show that frame itself, so the
+          // replay reaches the dead ball and its reactions, not the frame before.
+          const exact = at < 0 || frames[at]!.tick === r.replay.tick;
           const b = frames[at < 0 ? frames.length - 1 : at]!,
-            a = frames[Math.max(0, (at < 0 ? frames.length - 1 : at) - 1)]!;
+            a = exact ? b : frames[Math.max(0, at - 1)]!;
           const u =
             a.tick === b.tick
               ? 0
@@ -1003,6 +1142,7 @@ export function CricketGame({
         (r.paused ? 200 : preferences.current.quality === "low" ? 30 : 15)
       ) {
         if (driver.current) {
+          const drawStart = performance.now();
           driver.current.draw({
             frame: visual,
             shot: visualShot,
@@ -1012,16 +1152,18 @@ export function CricketGame({
             camera: r.replay ? r.replay.camera : preferences.current.reduced && preferences.current.camera === "broadcast" ? human ? "batter" : "bowler" : preferences.current.camera,
             reducedMotion: preferences.current.reduced,
             score,
-            time: r.elapsed / 1000,
+            time: r.presentTime,
             actorNumbers: numbers,
             contactTick: source.hit ? source.contactTick : -1,
             contactPoint: source.hit ? source.contactPoint : null,
             edge: source.edge,
+            ...arrival(source),
             variation: r.arming ? preferences.current.bowl.variation : source.bowling.variation,
             ceremony: r.ceremony.feed(m.tossFace, config.team, preferences.current.reduced),
             intent: preferences.current.intent,
             aim: !m.current || m.humanBatting ? undefined : preferences.current.bowl,
             replay: !!r.replay,
+            interlude: r.replay ? null : m.phase === "finished" ? "result" : m.phase === "interval" ? "innings" : r.settled && m.phase === "ready" && !!m.current && m.current.balls > 0 && m.current.balls % 6 === 0 && !!r.delivery?.outcome?.legal ? "over" : null,
             result:
               m.phase === "finished" && !r.replay && m.current
                 ? m.target && m.current.runs >= m.target
@@ -1031,13 +1173,18 @@ export function CricketGame({
                     : null
                 : null,
           });
+          // CPU cost of one draw (animation, scene sync and command submission), for benchmarks.
+          drawMs = performance.now() - drawStart;
           frames++;
+          drawCount++;
         }
         drawAt = now;
       }
       const element = root.current;
       if (element) {
         element.dataset.ballTick = String(r.delivery?.tick ?? 0);
+        element.dataset.draws = String(drawCount);
+        element.dataset.drawMs = drawMs.toFixed(2);
         element.dataset.ballX = String(r.delivery?.pos.x ?? 0);
         element.dataset.ballY = String(r.delivery?.pos.y ?? 0);
         element.dataset.ballZ = String(r.delivery?.pos.z ?? 0);
@@ -1072,6 +1219,12 @@ export function CricketGame({
           element.dataset.releaseError = metrics.releaseError?.toFixed(3) ?? "";
           element.dataset.gripError = metrics.gripError?.toFixed(3) ?? "";
           element.dataset.footSlip = metrics.footSlip?.toFixed(3) ?? "";
+          element.dataset.takeError = metrics.takeError?.toFixed(3) ?? "";
+          element.dataset.athletes = String(!!metrics.athletes);
+          element.dataset.looks = metrics.looks ?? "";
+          element.dataset.takeMove = metrics.takeMove ?? "";
+          element.dataset.fielding = metrics.fielding ?? "";
+          element.dataset.spacing = metrics.spacing !== undefined && Number.isFinite(metrics.spacing) ? metrics.spacing.toFixed(3) : "";
         }
       }
       try {
@@ -1237,7 +1390,7 @@ export function CricketGame({
         </div>
         <div className="cr-totals">
           <strong data-testid="cricket-score">
-            {i?.runs ?? 0}
+            <span className="cr-tick" key={`${i?.runs ?? 0}-${i?.wickets ?? 0}`}>{i?.runs ?? 0}</span>
             <i>/{i?.wickets ?? 0}</i>
           </strong>
           <span>
@@ -1310,6 +1463,7 @@ export function CricketGame({
         <div className="cr-field-corner">
           <span className="cr-live-dot" />
           {r.replay ? "REPLAY" : live ? "LIVE DELIVERY" : "AT THE CREASE"}
+          {r.settled && !r.replay && r.delivery && <SpeedRead d={r.delivery} />}
           {i?.freeHit && <b className="cr-free-hit">FREE HIT</b>}
         </div>
         <div className={`cr-scene-options${quality === "tactical" ? " is-tactical" : ""}`}>
@@ -1384,21 +1538,46 @@ export function CricketGame({
             {r.ceremony.stage !== "decision" && <button className="cr-small cr-skip" disabled={r.ceremony.stage === "flight" && !r.ceremony.call} onClick={() => { r.ceremony.skip(); unlockAudio(); refresh(); }}>Skip cinematic <kbd>{keyLabel(bindings.action)}</kbd></button>}
           </div>
         )}
-        {m.phase === "interval" && !r.replay && <div className="cr-transition"><p className="cr-eyebrow">INNINGS BREAK</p><h2>The chase begins.</h2><p>{humanName(1 - m.firstBat)} need {(m.innings[0]?.runs ?? 0) + 1} from {config.overs * 6} balls.</p><button className="cr-button" onClick={() => primary()}>Begin the chase</button></div>}
-        {r.settled && !r.replay && m.phase === "ready" && r.elapsed - r.endedAt < 3000 && (r.delivery?.outcome?.wicket || r.delivery?.outcome?.boundary || !!i?.balls && i.balls % 6 === 0) && <div className="cr-event" role="status">
-          <small>{r.delivery?.outcome?.wicket ? "THE BREAKTHROUGH" : r.delivery?.outcome?.boundary ? "TO THE ROPE" : "CHANGE OF ENDS"}</small>
-          <strong>{r.delivery?.outcome?.wicket ? "WICKET" : r.delivery?.outcome?.boundary === 6 ? "SIX" : r.delivery?.outcome?.boundary === 4 ? "FOUR" : "OVER COMPLETE"}</strong>
-          <span>{r.delivery?.outcome?.wicket ? r.delivery.outcome.wicket.toUpperCase() : `${i.runs}/${i.wickets} · ${oversText(i.balls)} overs`}</span>
-        </div>}
+        {m.phase === "interval" && !r.replay && <div className="cr-transition"><p className="cr-eyebrow">INNINGS BREAK</p><h2>The chase begins.</h2><p>{humanName(1 - m.firstBat)} need {(m.innings[0]?.runs ?? 0) + 1} from {config.overs * 6} balls.</p>{m.innings[0] && <Standouts innings={m.innings[0]} />}<button className="cr-button" onClick={() => primary()}>Begin the chase</button></div>}
+        <BroadcastGraphics
+          cards={
+            m.current
+              ? broadcastCards(
+                  {
+                    now: r.elapsed,
+                    endedAt: r.endedAt,
+                    settled: r.settled,
+                    live: !!live,
+                    replay: !!r.replay,
+                    ready: m.phase === "ready" && r.ceremony.stage === "done",
+                    innings: m.current,
+                    inningsNo: m.innings.length,
+                    history: m.history,
+                    outcome: r.delivery?.outcome ?? null,
+                    carry: carryOf(r.delivery, config.venue),
+                    batting: TEAMS[m.current.team]!.name,
+                    fielding: TEAMS[1 - m.current.team]!.name,
+                  },
+                  r.intro,
+                )
+              : []
+          }
+        />
         {r.ceremony.stage === "done" && m.phase === "ready" && !r.replay && <div className="cr-intent" aria-label="Current intent">
-          <span>{batting ? `${LABELS[shot.kind]} · ${Math.round(shot.direction)}° · ${shot.foot > 0 ? "Front foot" : shot.foot < 0 ? "Back foot" : "Balanced"}` : `${LABELS[bowl.variation]} · ${bowl.line.toFixed(1)} m · ${bowl.length.toFixed(1)} m length`}</span>
+          {/* Batting: the shot bar below the field already shows the chosen shot. */}
+          {!batting && <span>{`${LABELS[bowl.variation]} · ${bowl.line.toFixed(1)} m · ${bowl.length.toFixed(1)} m length`}</span>}
           <small>{batting ? live ? r.delivery?.tick! < RELEASE_TICK ? "Watch the hand. Read the flight." : r.delivery?.shot ? "Shot committed" : `TIME YOUR SHOT · ${keyLabel(bindings.action)} / swipe` : continuous ? `Next delivery follows · ${keyLabel(bindings.action)} when ready` : `${keyLabel(bindings.action)} / tap to face` : r.arming ? `Release at centre · ${keyLabel(bindings.action)} / tap` : `Arrows to aim · ${keyLabel(bindings.action)} / swipe to run in`}</small>
           {batting && live && !r.delivery?.shot && r.delivery!.tick >= RELEASE_TICK && <div className="cr-flight-cue" aria-label="Delivery approaching the crease"><i style={{ width: `${Math.max(0, Math.min(100, (r.delivery!.pos.z + 8.5) / 17.3 * 100))}%` }} /></div>}
         </div>}
-        {m.phase === "finished" && !r.replay && (
+        {m.phase === "finished" && finishShown && !r.replay && (
           <div className="cr-match-finish">
             <p className="cr-eyebrow">MATCH COMPLETE</p>
             <h2>{m.result}</h2>
+            <div className="cr-finish-standouts">
+              {m.innings.map((inn) => (
+                <Standouts key={inn.team} innings={inn} team={TEAMS[inn.team]!.short} />
+              ))}
+            </div>
             <p>
               {m.innings
                 .map(
@@ -1448,7 +1627,7 @@ export function CricketGame({
           </div>
         )}
         {r.replay && (
-          <div className="cr-replay">
+          <div className="cr-replay" data-playing={r.replay.playing ? "true" : "false"}>
             <div className="cr-replay-head">
               <strong>Actual delivery replay</strong>
               <select
@@ -1546,6 +1725,14 @@ export function CricketGame({
       </section>
       {m.phase !== "toss" && (
         <>
+          {batting && !r.replay && (
+            <ShotBar
+              current={leaving ? shotChoice("leave")! : choiceFor(shot)}
+              direction={shot.direction}
+              locked={!!r.delivery?.shot && live}
+              onChoose={chooseShot}
+            />
+          )}
           <div className="cr-players">
             <span>
               <b>{i.batsmen[i.striker]!.name} *</b> {i.batsmen[i.striker]!.runs}{" "}
@@ -1575,6 +1762,7 @@ export function CricketGame({
                     disabled={locked}
                     onChange={(e) => {
                       const kind = e.target.value as ShotInput["kind"];
+                      setLeaving(false);
                       setShot((s) => ({
                         ...s,
                         kind,

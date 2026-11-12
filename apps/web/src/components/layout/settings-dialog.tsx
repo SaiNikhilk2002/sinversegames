@@ -2,7 +2,7 @@
 
 import { Modal } from "../ui/modal";
 import { Segmented, Switch } from "../ui/primitives";
-import { updateSettings, useSettings } from "@/lib/settings";
+import { updateSettings, useSettings, resolveLowEffects } from "@/lib/settings";
 import { sfx, unlockAudio } from "@/lib/sound";
 
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -42,6 +42,12 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
             description="Turns off animations. Your system setting is always respected."
             checked={s.reducedMotion}
             onChange={(reducedMotion) => updateSettings({ reducedMotion })}
+          />
+          <Switch
+            label="Low effects"
+            description="Removes decorative motion and blur on slower devices. Gameplay feedback stays."
+            checked={resolveLowEffects(s)}
+            onChange={(lowEffects) => updateSettings({ lowEffects })}
           />
         </div>
         <p className="text-xs text-ink-faint">Settings are saved on this device only.</p>

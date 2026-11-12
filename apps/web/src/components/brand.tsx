@@ -6,7 +6,7 @@ import { cn } from "./ui/primitives";
  * Platform mark: an ink tile with a two-tone "S" swirl and a spark — the
  * arcade-cabinet coin slot read as a letter. The wordmark comes from brand config.
  */
-export function LogoMark({ size = 36, className }: { size?: number; className?: string }) {
+export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" className={className} aria-hidden>
       <rect width="40" height="40" rx="11" fill="#17142b" />
@@ -22,7 +22,7 @@ export function Logo({ className }: { className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <LogoMark />
-      <span className="font-display text-xl font-black tracking-tight">{brand.name}</span>
+      <span className="font-display text-[19px] font-semibold tracking-[-0.02em]">{brand.name}</span>
     </span>
   );
 }

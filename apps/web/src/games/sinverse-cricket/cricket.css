@@ -619,6 +619,23 @@
   display: grid;
   gap: 2px;
 }
+/* While a replay plays, the strip fades back so close cameras show the whole
+   delivery stride and stumps. Hover or keyboard focus brings it straight back;
+   touch screens (no hover) and reduced motion keep it fully shown. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .cr-replay {
+    transition: opacity 0.18s ease;
+  }
+  /* Keyboard focus (focus-visible) restores it; a mouse click on Play doesn't hold it open. */
+  .cr-replay[data-playing="true"]:not(:hover):not(:has(:focus-visible)) {
+    animation: cr-replay-quiet 0.5s ease 1.6s forwards;
+  }
+}
+@keyframes cr-replay-quiet {
+  to {
+    opacity: 0.14;
+  }
+}
 .cr-replay-head,
 .cr-replay-foot {
   display: flex;
@@ -1326,10 +1343,6 @@
 .cr-intent small { font-size: 10px; color: #c9dad1; }
 .cr-flight-cue { width: 150px; max-width: 100%; height: 3px; margin-top: 4px; background: #adbfbb44; }
 .cr-flight-cue i { height: 3px; display: block; background: #edce93; }
-.cr-event { position: absolute; top: 32%; right: 5%; display: flex; flex-direction: column; align-items: flex-end; text-align: right; padding: 12px 18px; border-right: 3px solid #edce93; background: linear-gradient(90deg, transparent, #0a1e2ed9); pointer-events: none; }
-.cr-event small { color: #f2d292; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; }
-.cr-event strong { font-size: clamp(24px, 4vw, 58px); font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; color: #faf0d5; }
-.cr-event span { font-size: 10px; color: #c9d9d1; }
 .cr-v2 .cr-release { bottom: 80px; max-width: 360px; padding: 10px 15px; border-color: #e8c98b6b; border-radius: 4px; }
 .cr-v2 .cr-release > div { background: linear-gradient(90deg, #3e565d 0%, #3e565d 66%, #e5c880 74%, #e5c880 81%, #9d6255 89%); }
 .cr-transition { position: absolute; inset: 30% 12% auto; text-align: center; padding: 24px; background: #0c202aeb; border-block: 1px solid #efce9666; border-radius: 7px; }
@@ -1390,3 +1403,92 @@
 @media (pointer: coarse) {
   .cr-v2 .cr-ceremony .cr-button { min-height: 44px; }
 }
+
+/* ---- Broadcast graphics: between deliveries only, one event and one lower third at most ---- */
+.cr-gfx { position: absolute; z-index: 3; pointer-events: none; display: flex; flex-direction: column; gap: 3px; color: #faf0d5; animation: cr-gfx-in 0.48s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+.cr-gfx.is-leaving { animation: cr-gfx-out 0.42s ease-in both; }
+.cr-gfx small { color: #f2d292; font-size: 9px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; }
+.cr-gfx strong { font-weight: 900; letter-spacing: -0.03em; line-height: 1.05; }
+.cr-gfx span { font-size: 12px; color: #e6ede4; font-variant-numeric: tabular-nums; }
+.cr-gfx span i { font-style: normal; color: #b9cbc6; }
+.cr-gfx em { font-style: normal; font-size: 10px; color: #c3d3cd; letter-spacing: 0.02em; }
+.cr-gfx-wicket, .cr-gfx-four, .cr-gfx-six, .cr-gfx-over { top: 30%; right: 4%; align-items: flex-end; text-align: right; min-width: 210px; padding: 14px 20px 14px 28px; border-right: 3px solid #edce93; background: linear-gradient(90deg, #0a1e2e00, #0a1e2ee8 22%); }
+.cr-gfx-wicket { border-right-color: #e98a6f; }
+.cr-gfx-wicket small { color: #f2a98f; }
+.cr-gfx-wicket strong { font-size: clamp(22px, 3.2vw, 44px); }
+.cr-gfx-four strong, .cr-gfx-six strong { font-size: clamp(30px, 5vw, 70px); }
+.cr-gfx-six strong { color: #ffe6ab; }
+.cr-gfx-over strong { font-size: 18px; }
+.cr-gfx-balls { display: flex; gap: 5px; margin: 4px 0 2px; }
+.cr-gfx-balls b { min-width: 24px; height: 24px; padding-inline: 4px; display: grid; place-items: center; border-radius: 3px; background: #1d3742; color: #eef2e8; font-size: 11px; font-weight: 800; }
+.cr-gfx-balls b.is-boundary { background: #efd297; color: #17343c; }
+.cr-gfx-balls b.is-wicket { background: #c9654d; color: #fff3ea; }
+.cr-gfx-batter, .cr-gfx-bowler { left: 23px; bottom: 74px; padding: 10px 18px 10px 14px; border-left: 3px solid #83d4bf; border-radius: 0 4px 4px 0; background: linear-gradient(90deg, #0b202cf0, #0b202cc0 70%, #0b202c00); min-width: 230px; }
+.cr-gfx-bowler { border-left-color: #edce93; }
+.cr-gfx-batter strong, .cr-gfx-bowler strong { font-size: clamp(17px, 2.2vw, 26px); }
+.cr-gfx-batter { animation-name: cr-third-in; }
+.cr-gfx-bowler { animation-name: cr-third-in; }
+.cr-gfx-batter.is-leaving, .cr-gfx-bowler.is-leaving { animation-name: cr-third-out; }
+@keyframes cr-gfx-in { from { opacity: 0; transform: translateX(28px); clip-path: inset(0 0 0 100%); } to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }
+@keyframes cr-gfx-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(18px); } }
+@keyframes cr-third-in { from { opacity: 0; transform: translateX(-22px); clip-path: inset(0 100% 0 0); } to { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }
+@keyframes cr-third-out { from { opacity: 1; } to { opacity: 0; transform: translateX(-12px); } }
+/* The total ticks over when it changes. */
+.cr-tick { display: inline-block; animation: cr-tick 0.55s cubic-bezier(0.2, 0.8, 0.3, 1); }
+@keyframes cr-tick { 0% { transform: translateY(-35%); opacity: 0.2; color: #ffe2a2; } 60% { color: #ffe2a2; } 100% { transform: none; opacity: 1; } }
+.cr-standouts { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin: 8px 0; font-size: 12px; color: #dfe8df; }
+.cr-standouts dt { color: #efd297; font-weight: 800; letter-spacing: 0.12em; font-size: 10px; align-self: center; }
+.cr-standouts dd { margin: 0; }
+.cr-standouts b { color: #fff4dc; }
+.cr-finish-standouts { display: grid; gap: 2px; }
+.cr-v2 .cr-match-finish { animation: cr-finish-in 0.7s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+.cr-v2 .cr-match-finish h2 { animation: cr-finish-title 0.9s 0.15s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+@keyframes cr-finish-in { from { opacity: 0; transform: translate(-50%, -46%) scale(0.97); } to { opacity: 1; } }
+@keyframes cr-finish-title { from { opacity: 0; letter-spacing: 0.08em; } to { opacity: 1; } }
+.cr-v2 .cr-transition { animation: cr-gfx-in 0.55s cubic-bezier(0.2, 0.75, 0.2, 1) both; }
+@media (max-width: 650px) {
+  .cr-gfx-wicket, .cr-gfx-four, .cr-gfx-six, .cr-gfx-over { top: auto; bottom: 70px; right: 8px; min-width: 0; padding: 9px 12px 9px 18px; }
+  .cr-gfx-batter, .cr-gfx-bowler { left: 10px; bottom: 66px; min-width: 0; max-width: 62%; padding: 7px 12px 7px 10px; }
+  .cr-gfx span { font-size: 10px; }
+  .cr-gfx-balls b { min-width: 19px; height: 19px; font-size: 9px; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .cr-gfx-wicket, .cr-gfx-four, .cr-gfx-six, .cr-gfx-over { top: 18%; padding-block: 8px; }
+  .cr-gfx-batter, .cr-gfx-bowler { bottom: 46px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cr-gfx, .cr-gfx.is-leaving, .cr-tick, .cr-v2 .cr-match-finish, .cr-v2 .cr-match-finish h2, .cr-v2 .cr-transition { animation: cr-fade 0.2s both; }
+  .cr-gfx.is-leaving { animation-direction: reverse; }
+}
+@keyframes cr-fade { from { opacity: 0; } to { opacity: 1; } }
+/* Keep the render status clear of the collapsed controls button, and the live chip clear of the score panel on short landscape screens. */
+.cr-v2:not(.cr-expanded):not(.cr-assist) .cr-render-status { bottom: 38px; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .cr-v2 .cr-field-corner { top: calc(46px + env(safe-area-inset-top, 0px)); left: calc(56% + 34px); }
+}
+/* The result card is a lower third, so the winners and the result camera stay in view. */
+.cr-v2 .cr-match-finish { top: auto; left: 28px; bottom: 28px; transform: none; text-align: left; width: min(460px, calc(100% - 56px)); border: 0; border-left: 3px solid #e8c98b; border-radius: 0 8px 8px 0; background: linear-gradient(100deg, #0b1a25f2, #0b1a25d0); animation-name: cr-finish-third; }
+.cr-v2 .cr-match-finish .cr-standouts { justify-content: flex-start; }
+@keyframes cr-finish-third { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@media (max-width: 650px) { .cr-v2 .cr-match-finish { left: 10px; bottom: 12px; width: calc(100% - 20px); } }
+@media (prefers-reduced-motion: reduce) { .cr-v2 .cr-match-finish { animation-name: cr-fade; } }
+
+/* ---- Batting shot selector: below the field, never over the ball or the batter ---- */
+.cr-shotbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 14px; padding: 6px 22px; background: #0e2029; border-top: 1px solid #ffffff12; }
+.cr-shot-families, .cr-shot-choices { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.cr-shot-families button, .cr-shot-choices button { flex: none; min-height: 28px; padding: 3px 9px; border: 1px solid #3c5960; border-radius: 4px; background: #132b34; color: #d7e3dc; font-size: 10px; font-weight: 700; cursor: pointer; }
+.cr-shot-families button kbd { margin-right: 4px; padding: 0 3px; border-radius: 2px; background: #ffffff14; color: #b7c8c3; font-size: 9px; }
+.cr-shot-families button[aria-selected="true"] { border-color: #83d4bf; color: #f4f1e8; background: #1b3a43; }
+.cr-shot-choices button[aria-checked="true"] { border-color: #edce93; background: #edce93; color: #17343c; }
+.cr-shotbar button:disabled { opacity: 0.45; cursor: default; }
+.cr-shotbar button:focus-visible { outline: 2px solid #edce93; outline-offset: 1px; }
+.cr-shot-read { margin: 0; display: grid; justify-items: end; text-align: right; line-height: 1.25; }
+.cr-shot-read b { font-size: 12px; color: #fff4dc; }
+.cr-shot-read span { font-size: 10px; color: #c9dad1; }
+.cr-shot-read small { font-size: 9px; color: #9fb4ae; }
+@media (max-width: 900px) { .cr-shotbar { grid-template-columns: 1fr; padding: 5px 10px; } .cr-shot-read { justify-items: start; text-align: left; } .cr-shot-read small { display: none; } }
+@media (orientation: landscape) and (max-height: 500px) { .cr-shotbar { grid-template-columns: auto 1fr; padding-block: 3px; } .cr-shot-read { display: none; } .cr-shotbar button { min-height: 24px; } }
+@media (pointer: coarse) { .cr-shot-families button, .cr-shot-choices button { min-height: 40px; } }
+.cr-speed { margin-left: 10px; padding-left: 10px; border-left: 1px solid #ffffff2a; color: #f2d292; font-variant-numeric: tabular-nums; }
+/* Collapsed controls: the shot bar (batting) or the intent cue (bowling) is enough; the fine controls wait behind "More control". */
+.cr-v2:not(.cr-expanded):not(.cr-assist) .cr-controls > :not(.cr-small) { display: none; }

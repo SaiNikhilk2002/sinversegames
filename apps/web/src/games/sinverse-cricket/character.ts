@@ -647,10 +647,8 @@ export function solveLimb(upper: T.Bone, lower: T.Bone, l1: number, l2: number, 
 const poleElbowL = new T.Vector3(0.7, -0.35, -0.6),
   poleElbowR = new T.Vector3(-0.7, -0.35, -0.6),
   poleKnee = new T.Vector3(0, 0, 1),
-  vTarget = new T.Vector3(),
   vLocal = new T.Vector3(),
   vPole = new T.Vector3(),
-  vFore = new T.Vector3(),
   shoulderL = new T.Vector3(SH, RIG.shoulderUp, 0),
   shoulderR = new T.Vector3(-SH, RIG.shoulderUp, 0),
   chestM = new T.Matrix4(),
@@ -663,14 +661,10 @@ function solveHand(a: Athlete, left: boolean, x: number, y: number, z: number) {
     shoulder = left ? shoulderL : shoulderR;
   vLocal.set(x, y, z).applyMatrix4(inv);
   vPole.copy(left ? poleElbowL : poleElbowR).transformDirection(inv);
-  // The target is the middle of the hand, which sits along the forearm, so the
-  // wrist has to end up short of it in the direction the forearm finally points.
-  vFore.copy(vLocal).sub(shoulder).normalize();
-  for (let n = 0; n < 6; n++) {
-    vTarget.copy(vLocal).addScaledVector(vFore, -RIG.hand);
-    solveLimb(up, fore, RIG.upperArm, RIG.forearm, shoulder, vTarget, vPole);
-    vFore.lerp(vT.copy(vW).sub(vE).normalize(), 0.6).normalize();
-  }
+  // The target is the middle of the hand, which sits straight along the forearm,
+  // so forearm and hand solve as one segment: exact in one step, including a
+  // tightly bent elbow (an iterative guess at the forearm could fold the wrong way).
+  solveLimb(up, fore, RIG.upperArm, RIG.forearm + RIG.hand, shoulder, vLocal, vPole);
 }
 
 /** Writes a pose (root-space targets) onto the skeleton. */

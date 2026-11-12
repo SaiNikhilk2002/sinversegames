@@ -1,0 +1,28 @@
+[
+  {
+    "scene": "sprint-pickup-throw",
+    "outcome": "DOT",
+    "moment": 387,
+    "takeError": "0.337",
+    "takeMove": "pickup",
+    "spacing": "2.458",
+    "films": [
+      {
+        "camera": "director",
+        "frames": 38,
+        "fps": 15.1,
+        "speed": 1
+      },
+      {
+        "camera": "fielding",
+        "frames": 60,
+        "fps": 17.6,
+        "speed": 0.5
+      }
+    ]
+  },
+  {
+    "missing": [],
+    "matches": 4
+  }
+]
