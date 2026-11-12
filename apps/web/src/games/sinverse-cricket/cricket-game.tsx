@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import {
   CricketMatch,
   configSchema,
+  replayMatch,
+  type CricketLog,
   CREASE_Z,
   Delivery,
   oversText,
@@ -646,9 +648,22 @@ export function CricketGame({
   config: raw,
   onFinish,
   onQuit,
+  initialLog,
+  onCheckpoint,
 }: SoloGameProps<CricketConfig>) {
   const [config] = useState(() => configSchema.parse(raw));
-  const [match] = useState(() => new CricketMatch(seed, config));
+  // A refreshed international match resumes from its saved log, replayed exactly
+  // as the server will replay it; anything that doesn't replay starts afresh.
+  const [match] = useState(() => {
+    if (Array.isArray(initialLog) && initialLog.length) {
+      const resumed = replayMatch(seed, config, initialLog as CricketLog);
+      if ("match" in resumed) return resumed.match;
+    }
+    return new CricketMatch(seed, config);
+  });
+  const resumed = match.phase !== "toss";
+  /** Saves the log so far for refresh recovery (international matches only). */
+  const save = () => onCheckpoint?.([...match.inputLog]);
   // The renderer wears this match's kits. Declared before the scene's own effect,
   // so the sides are in place whenever (and however often) the scene is built.
   useEffect(() => {
@@ -662,7 +677,8 @@ export function CricketGame({
     plan: null,
     field: "balanced",
     settled: false,
-    elapsed: 0,
+    // Resuming: the match clock carries on from the last saved entry.
+    elapsed: match.lastTime + (resumed ? 1500 : 0),
     acc: 0,
     paused: false,
     arming: false,
@@ -679,7 +695,7 @@ export function CricketGame({
     intro: newIntroMemo(),
     presentTime: 0,
     pickupHeard: false,
-    ceremony: new TossSequence(),
+    ceremony: Object.assign(new TossSequence(), resumed ? { stage: "done" as const } : {}),
     nextAt: 0,
     replayFinishedAt: 0,
     releaseHeard: false,
@@ -790,6 +806,7 @@ export function CricketGame({
   const commitDecision = (value: "bat" | "bowl") => {
     if (r.paused || !r.ceremony.enter() || !r.ceremony.call) return;
     m.toss({ k: "toss", call: r.ceremony.call, decision: value, t: Math.floor(r.elapsed) });
+    save();
     setFeedback(`${m.tossFace.toUpperCase()}. ${sideOf(m.tossWinner).name} win the toss. ${sideOf(m.firstBat).name} bat first.`);
     r.nextAt = r.elapsed + 5200;
     requestAnimationFrame(() => root.current?.focus());
@@ -921,6 +938,7 @@ export function CricketGame({
       wickets = innings.wickets - before.wickets,
       legalPlayed = innings.balls - before.balls,
       overs = legalPlayed % 6 ? `${legalPlayed} ball${legalPlayed === 1 ? "" : "s"}` : `${legalPlayed / 6} over${legalPlayed === 6 ? "" : "s"}`;
+    save();
     r.delivery = null;
     r.settled = false;
     r.nextAt = r.elapsed + 1200;
@@ -1106,6 +1124,7 @@ export function CricketGame({
               r.error =
                 "The delivery didn't pass the local integrity check. It has not been saved.";
             else {
+              save();
               r.replays.push({
                 delivery: d,
                 team: oldTeam,

@@ -113,6 +113,10 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
   const best = useBest(gameId, refresh);
   const { player } = usePlayer();
   const storageKey = client.recoverable && player ? `platform:solo:${player.id}:${gameId}` : null;
+  /** Whether this run keeps a recovery snapshot: always, or (cricket) only for some configs. */
+  const recovers = useCallback((config: Record<string, unknown>) => (typeof client.recoverable === "function" ? client.recoverable(config) : !!client.recoverable), [client]);
+  const cuisine = gameId === "cuisine-quest";
+  const words = client.recovery ?? { checking: "Checking your saved kitchen", banner: "Your unfinished kitchen is saved in this tab.", resume: "Resume kitchen", discard: "Discard unfinished shift" };
   const [pending, setPending] = useState<SoloSnapshot | null>(null);
   const [storageWarning, setStorageWarning] = useState(false);
   const [recoveryChecked, setRecoveryChecked] = useState(!client.recoverable);
@@ -130,7 +134,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
         const body = await expectJson<Run & { config: Record<string, unknown> }>(res, "Couldn't start the game. Please try again.");
         setLastConfig(body.config);
         setPhase({ kind: "playing", run: body as Run });
-        if (client.recoverable) { const snapshot: SoloSnapshot = { stage: "playing", run: body as Run, log: [] }; checkpoint(snapshot); setPending(snapshot); }
+        if (recovers(body.config)) { const snapshot: SoloSnapshot = { stage: "playing", run: body as Run, log: [] }; checkpoint(snapshot); setPending(snapshot); }
         recordRecentlyPlayed(gameId);
         window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (e) {
@@ -139,14 +143,15 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
         setBusy(false);
       }
     },
-    [gameId, toast, checkpoint, client.recoverable],
+    [gameId, toast, checkpoint, recovers],
   );
 
   const finish = useCallback(
     async (run: Run, log: unknown, summary: SoloSummary) => {
       setPhase({ kind: "submitting", summary });
       const snapshot: SoloSnapshot = { stage: "pending", run, log: Array.isArray(log) ? log : [], summary };
-      if (client.recoverable) { checkpoint(snapshot); setPending(snapshot); }
+      const keep = recovers(run.config);
+      if (keep) { checkpoint(snapshot); setPending(snapshot); }
       try {
         const res = await fetch("/api/solo/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: run.token, log }), signal: AbortSignal.timeout(15_000) });
         const parsed = await readJson<SubmitResponse>(res);
@@ -155,14 +160,14 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
         const body = parsed as SubmitResponse;
         if (!res.ok && res.status !== 503) throw new Error(body.error ?? "Your score couldn't be verified");
         if (summary.completed) sfx.win();
-        setPhase({ kind: "done", summary, result: body, error: body.error ?? (client.recoverable && !body.saved ? "Your score is verified, but campaign saving is unavailable. Retry saving before continuing." : null) });
-        if (client.recoverable && body.saved) { checkpoint({ ...snapshot, stage: "done" }); setPending(null); }
+        setPhase({ kind: "done", summary, result: body, error: body.error ?? (keep && !body.saved ? (cuisine ? "Your score is verified, but campaign saving is unavailable. Retry saving before continuing." : "Your result is verified, but it couldn't be saved yet. Retry saving to keep it.") : null) });
+        if (keep && body.saved) { checkpoint({ ...snapshot, stage: "done" }); setPending(null); }
       } catch (e) {
         setPhase({ kind: "done", summary, result: null, error: (e as Error).message });
       }
       setRefresh((n) => n + 1);
     },
-    [client.recoverable, checkpoint],
+    [recovers, checkpoint, cuisine],
   );
 
   useEffect(() => {
@@ -182,13 +187,13 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
     return () => { alive = false; clearTimeout(timeout); controller.abort(); };
   }, [client.recoverable, storageKey]);
 
-  if (client.recoverable && !recoveryChecked) return <div className="flex justify-center p-12"><Spinner label="Checking your saved kitchen" /></div>;
+  if (client.recoverable && !recoveryChecked) return <div className="flex justify-center p-12"><Spinner label={words.checking} /></div>;
 
   if (phase.kind === "playing") {
     const run = phase.run;
     return (
       <div className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-6">
-        <client.Game key={run.runId} seed={run.seed} config={run.config} initialLog={phase.initialLog} onCheckpoint={client.recoverable ? log => checkpoint({ stage: "playing", run, log }) : undefined} onFinish={(log, summary) => finish(run, log, summary)} onQuit={() => { if (storageKey) setPending(readSoloSnapshot(storageKey)); setPhase({ kind: "setup" }); }} />
+        <client.Game key={run.runId} seed={run.seed} config={run.config} initialLog={phase.initialLog} onCheckpoint={recovers(run.config) ? log => checkpoint({ stage: "playing", run, log }) : undefined} onFinish={(log, summary) => finish(run, log, summary)} onQuit={() => { if (storageKey) setPending(readSoloSnapshot(storageKey)); setPhase({ kind: "setup" }); }} />
       </div>
     );
   }
@@ -197,8 +202,8 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
     const { summary } = phase;
     const result = phase.kind === "done" ? phase.result : null;
     const score = result?.score ?? summary.score;
-    const questLevel = gameId === "cuisine-quest" ? Number(result?.details.level) : 0;
-    const nextConfig = client.recoverable ? (result?.saved && result.completed && questLevel < 7 ? { level: questLevel + 1 } : undefined) : summary.nextConfig;
+    const questLevel = cuisine ? Number(result?.details.level) : 0;
+    const nextConfig = cuisine ? (result?.saved && result.completed && questLevel < 7 ? { level: questLevel + 1 } : undefined) : summary.nextConfig;
     return (
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
@@ -208,7 +213,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
                 <GameArt gameId={gameId} className="size-full scale-125 blur-xl" />
               </div>
               <p className="relative text-xs font-semibold tracking-[0.3em] uppercase opacity-70">{game.name}</p>
-              <p className="relative mt-1 font-display text-xl font-semibold">{client.recoverable && result ? (result.completed ? `Cuisine ${questLevel} complete` : "A little more practice") : summary.headline}</p>
+              <p className="relative mt-1 font-display text-xl font-semibold">{cuisine && result ? (result.completed ? `Cuisine ${questLevel} complete` : "A little more practice") : summary.headline}</p>
               <motion.p
                 initial={{ scale: 1.6, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -264,7 +269,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
                   <RotateCcw className="size-4" /> Play again
                 </Button>
                 <Button variant="ghost" onClick={backToSetup} disabled={phase.kind === "submitting"}>
-                  <Settings2 className="size-4" /> {client.recoverable ? "Campaign map" : "Change settings"}
+                  <Settings2 className="size-4" /> {cuisine ? "Campaign map" : "Change settings"}
                 </Button>
               </div>
             </div>
@@ -276,7 +281,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      {client.recoverable && pending?.stage === "playing" && <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4"><p className="flex-1 text-sm">Your unfinished kitchen is saved in this tab.</p><Button onClick={() => setPhase({ kind: "playing", run: pending.run, initialLog: pending.log })}>Resume kitchen</Button><Button variant="ghost" onClick={backToSetup}>Discard unfinished shift</Button></div>}
+      {client.recoverable && pending?.stage === "playing" && <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-4"><p className="flex-1 text-sm">{words.banner}</p><Button onClick={() => setPhase({ kind: "playing", run: pending.run, initialLog: pending.log })} data-testid="solo-resume">{words.resume}</Button><Button variant="ghost" onClick={backToSetup}>{words.discard}</Button></div>}
       {storageWarning && <p role="status" className="mb-4 text-sm text-ink-muted">Refresh recovery is unavailable in this browser. Keep this tab open while playing.</p>}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
         <GameArt gameId={gameId} className="h-28 w-44 shrink-0 rounded-2xl border border-line object-cover shadow-card" />
@@ -288,7 +293,7 @@ export function SoloRunner({ gameId }: { gameId: SoloGameId }) {
           <Trophy className="size-4" /> Leaderboard
         </Link>
       </div>
-      {client.recoverable || client.fullWidthSetup ? <div className={cn("mt-8", busy && "opacity-80")}><client.Setup onStart={start} busy={busy} /></div> : <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {client.recoverable === true || client.fullWidthSetup ? <div className={cn("mt-8", busy && "opacity-80")}><client.Setup onStart={start} busy={busy} /></div> : <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card className={cn("p-6", busy && "opacity-80")}>
           <client.Setup onStart={start} busy={busy} />
         </Card>

@@ -32,6 +32,12 @@ export interface SoloClient {
   fullWidthSetup?: boolean;
   Setup: ComponentType<SoloSetupProps>;
   Game: ComponentType<SoloGameProps<any>>;
-  recoverable?: boolean;
+  /**
+   * Tab-scoped refresh recovery. `true` for every run, or a function deciding per
+   * run from its config (cricket recovers its long international matches only).
+   */
+  recoverable?: boolean | ((config: Record<string, unknown>) => boolean);
+  /** Words the recovery banner uses for this game (Cuisine Quest's kitchen wording by default). */
+  recovery?: { checking: string; banner: string; resume: string; discard: string };
   ResultDetails?: ComponentType<{ details: Record<string, number | string>; saved: boolean }>;
 }
