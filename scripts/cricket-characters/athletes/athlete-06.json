@@ -3,7 +3,7 @@
   "note": "Fictional athlete built only from CC0 MakeHuman system assets. Not based on any real person.",
   "age": 0.62,
   "muscle": 0.66,
-  "weight": 0.58,
+  "weight": 0.53,
   "height": 0.53,
   "proportions": 0.65,
   "race": {
@@ -26,5 +26,11 @@
     "r-ear-scale-incr": 0.2,
     "asym-ear-1-l": 0.3,
     "asym-cheek-2-r": 0.3
+  },
+  "body": {
+    "breast-point-decr": 0.6,
+    "breast-volume-vert-up": 0.6,
+    "measure-bust-circ-decr": 0.25,
+    "stomach-pregnant-decr": 0.6
   }
 }

@@ -301,6 +301,128 @@ export function prepareMotion(ual1: GLTF, ual2: GLTF): MotionLibrary {
   return { libraries, info, libraryOf };
 }
 
+/** Each joint's children in the athletes' skeleton (the joints the clips drive). */
+const CHILDREN: Partial<Record<Joint, Joint[]>> = {
+  Hips: ["Spine", "LeftUpLeg", "RightUpLeg"],
+  Spine: ["Spine1"],
+  Spine1: ["Spine2"],
+  Spine2: ["Neck", "LeftShoulder", "RightShoulder"],
+  Neck: ["Head"],
+  LeftShoulder: ["LeftArm"],
+  LeftArm: ["LeftForeArm"],
+  LeftForeArm: ["LeftHand"],
+  RightShoulder: ["RightArm"],
+  RightArm: ["RightForeArm"],
+  RightForeArm: ["RightHand"],
+  LeftUpLeg: ["LeftLeg"],
+  LeftLeg: ["LeftFoot"],
+  LeftFoot: ["LeftToeBase"],
+  RightUpLeg: ["RightLeg"],
+  RightLeg: ["RightFoot"],
+  RightFoot: ["RightToeBase"],
+};
+/** Turns joint `j` and everything it carries by `q` (athlete root frame). */
+function turn(pose: Map<Joint, T.Quaternion>, j: Joint, q: T.Quaternion) {
+  pose.get(j)?.premultiply(q);
+  for (const c of CHILDREN[j] ?? []) turn(pose, c, q);
+}
+const X_AXIS = new T.Vector3(1, 0, 0),
+  AHEAD = new T.Vector3(0, 0, 1);
+/** Forward lean of a joint's bone from upright, radians (the spine and neck rise at rest). */
+function lean(q: T.Quaternion) {
+  const d = tv.copy(UP).applyQuaternion(q);
+  return Math.atan2(d.z, d.y);
+}
+const deg = Math.PI / 180;
+/**
+ * How a trained athlete carries himself in each gait: forward lean of the lower
+ * back, mid back, chest and neck (degrees from upright) and the head's downward
+ * look. Standing is tall and relaxed; running leans from the ankles and hips,
+ * not by curling the back, and the eyes stay on the field ahead.
+ */
+const CARRIAGE: Record<LocoClip, { trunk: [number, number, number]; neck: number; head: number; hold: number }> = {
+  Idle_Loop: { trunk: [2, 0, -2], neck: 9, head: 3, hold: 0.9 },
+  Walk_Loop: { trunk: [4, 2, 0], neck: 10, head: 4, hold: 0.5 },
+  Jog_Fwd_Loop: { trunk: [8, 6, 4], neck: 10, head: 4, hold: 0.55 },
+  Sprint_Loop: { trunk: [16, 12, 9], neck: 10, head: 2, hold: 0.7 },
+};
+/**
+ * Corrects the stock clips towards a professional athlete's carriage: the
+ * library's idle slumps (head forward, knees bent, hands in front of the
+ * thighs) and its sprint curls the back with the head hanging. `loco` is the
+ * locomotion mix being played and `weight` how much of the pose it owns.
+ * Pitch only for the trunk, so each gait keeps its own sway and rhythm.
+ */
+export function carriage(pose: Map<Joint, T.Quaternion>, loco: { clip: string; weight: number }[], weight: number) {
+  if (weight <= 0) return;
+  let idle = 0;
+  const want = { trunk: [0, 0, 0], neck: 0, head: 0, hold: 0 };
+  let total = 0;
+  for (const l of loco) {
+    const c = CARRIAGE[l.clip as LocoClip];
+    if (!c || l.weight <= 0) continue;
+    total += l.weight;
+    for (let i = 0; i < 3; i++) want.trunk[i]! += c.trunk[i]! * l.weight;
+    want.neck += c.neck * l.weight;
+    want.head += c.head * l.weight;
+    want.hold += c.hold * l.weight;
+    if (l.clip === "Idle_Loop") idle += l.weight;
+  }
+  if (total <= 0) return;
+  const k = weight * (want.hold / total);
+  const chain: [Joint, number][] = [
+    ["Spine", want.trunk[0]! / total],
+    ["Spine1", want.trunk[1]! / total],
+    ["Spine2", want.trunk[2]! / total],
+    ["Neck", want.neck / total],
+  ];
+  for (const [j, target] of chain) {
+    const q = pose.get(j);
+    if (!q) continue;
+    turn(pose, j, tq.setFromAxisAngle(X_AXIS, -(lean(q) - target * deg) * k));
+  }
+  // Eyes level on the field ahead.
+  const head = pose.get("Head");
+  if (head) {
+    const f = tv.copy(AHEAD).applyQuaternion(head),
+      down = Math.atan2(-f.y, Math.hypot(f.x, f.z));
+    turn(pose, "Head", tq.setFromAxisAngle(X_AXIS, -(down - (want.head / total) * deg) * k));
+  }
+  // Standing: arms hang relaxed at the sides, knees soft but not bent, feet under the hips.
+  const s = weight * idle * 0.9;
+  if (s <= 0) return;
+  for (const side of ["Left", "Right"] as const) {
+    const out = side === "Left" ? 1 : -1;
+    // The athletes' left is +X (they face +Z).
+    // Arms hang free of the sides, elbows in a relaxed 12 degree bend with the
+    // forearm swinging forward, wrists straight and palms towards the thighs:
+    // no twist from the aligned rest, where the palms face in. (The clip's own
+    // forearm twist, made for its bent elbows, would turn the palms forward.)
+    const upper = tv2.set(0.2 * out, -1, 0.07).normalize(),
+      fore = new T.Vector3().copy(upper).applyAxisAngle(X_AXIS, -12 * deg),
+      armQ = new T.Quaternion().setFromUnitVectors(DOWN, upper),
+      foreQ = new T.Quaternion().setFromUnitVectors(DOWN, fore);
+    pose.get(`${side}Arm`)?.slerp(armQ, s);
+    pose.get(`${side}ForeArm`)?.slerp(foreQ, s);
+    pose.get(`${side}Hand`)?.slerp(foreQ, s);
+    const foot = pose.get(`${side}Foot`)!.clone(),
+      toe = pose.get(`${side}ToeBase`)!.clone();
+    aimBone(pose, `${side}UpLeg`, DOWN, tv2.set(0.035 * out, -1, -0.03).normalize(), s);
+    const thigh = tv.copy(DOWN).applyQuaternion(pose.get(`${side}UpLeg`)!);
+    aimBone(pose, `${side}Leg`, DOWN, new T.Vector3().copy(thigh).applyAxisAngle(X_AXIS, 5 * deg), s);
+    // Feet keep their own placement on the turf (flat, toes as the clip turns them).
+    pose.get(`${side}Foot`)!.copy(foot);
+    pose.get(`${side}ToeBase`)!.copy(toe);
+  }
+}
+/** Swings joint `j` (and what it carries) so its bone, `rest` at rest, points `to`, by share `k`. */
+function aimBone(pose: Map<Joint, T.Quaternion>, j: Joint, rest: T.Vector3, to: T.Vector3, k: number) {
+  const q = pose.get(j);
+  if (!q) return;
+  const from = new T.Vector3().copy(rest).applyQuaternion(q);
+  turn(pose, j, power(new T.Quaternion().setFromUnitVectors(from, to), k).clone());
+}
+
 /** What the body should play this frame. Weights are per region, 0 = driver only. */
 export interface MotionFrame {
   pose: Map<Joint, T.Quaternion>;
@@ -463,6 +585,7 @@ export class MotionPlayer {
     }
     if (have) {
       this.lengthen(this.poseA, loco ? this.stride : 1, loco && !shot ? this.armSwing : 1);
+      if (loco) carriage(this.poseA, loco, shot ? 1 - shot.weight : 1);
       for (const [j, q] of this.poseA) (out.pose.get(j) ?? out.pose.set(j, new T.Quaternion()).get(j)!).copy(q);
     }
     return out;

@@ -42,7 +42,13 @@ To add a squad model, add a JSON file to `athletes/` and its name to `SQUAD` in 
 - the face: `face`, a map of MakeHuman target names to weights (nose, jaw, chin, cheeks, mouth, ears, head shape), including a couple of `asym-*` targets so no face is perfectly symmetric
 - skin, `eye` colour (a MakeHuman eye material: brown, brownlight, bluegreen, grey and so on), eyebrows and hair (empty for a close crop, drawn by the skin shader)
 
-`height` is steep: 0.5 is about 1.70 m, and 0.58 is about 1.88 m.
+`height` is steep: 0.5 is about 1.70 m, and 0.58 is about 1.88 m. The squad runs from about 1.75 to 1.93 m.
+
+Body rules every athlete follows (see the anatomy section of `docs/SINVERSE_CRICKET_CHARACTER_REALISM_REPORT.md`):
+
+- `age` at least 0.5. Below that, MakeHuman blends in its child shape (a larger head, a softer torso): at 0.47 the body is 9% child.
+- `weight` at most about 0.55. Above it the male chest gathers soft volume that reads as rounded under a shirt; give heavier builds their size with `muscle` and waist targets instead.
+- Every athlete carries the chest targets `breast-volume-vert-up`, `breast-point-decr` and `measure-bust-circ-decr` (full strength on broad builds, 60% on lean ones) and `stomach-pregnant-decr` 0.6. They lift and square the lower edge of the pectorals, which otherwise droops in a rounded curve with a shadow under it, without flattening the muscle.
 
 ## What the build does
 
@@ -50,8 +56,8 @@ To add a squad model, add a JSON file to `athletes/` and its name to `SQUAD` in 
 |---|---|
 | `HumanService.refit` with detailed helpers on | Without the helpers, MPFB places the skeleton for the default body, so the joints don't match the athlete's shape |
 | Face and body targets per athlete | Ten distinct faces (nose, jaw, chin, cheekbones, lips, ears, head shape) with small asymmetries, rather than one face recoloured |
-| **Cricket kit cut from the `helper-tights` geometry** | The tights follow the athlete's exact shape and carry the rig's weights. They are cut into a shirt (short sleeves, neckline) and trousers (waist to ankle). The sleeve cuts only remove arm geometry, and stray scraps are dropped |
-| Ease, drape and folds | The shirt is eased off the body (looser over the belly), then smoothed and pushed back outside its own eased shape, so it bridges the hollows under the chest and down the spine instead of clinging. Openings are pinned so hems stay put. Trousers hang straight below the knee. Compression folds are added across the elbows, waist, knees and ankles |
+| **Cricket kit cut from the `helper-tights` geometry** | The tights follow the athlete's exact shape and carry the rig's weights. They are cut into a shirt (short sleeves, neckline) and trousers (waist to ankle). The sleeve cuts only remove arm geometry, and stray scraps are dropped, again after the shirt's last decimation (a scrap joined to the sleeve by a thin strip is severed only then) |
+| Ease, drape and folds | The shirt is eased off the body (barely looser over the belly, eased in over 10 cm to the tuck, so it falls straight from the chest rather than ballooning), then smoothed and pushed back outside its own eased shape, so it bridges the hollows under the chest and down the spine instead of clinging. Openings are pinned so hems stay put. Trousers hang straight below the knee. Compression folds are added across the elbows, waist, knees and ankles |
 | Collar, cuffs, waistband | A two-row fold-over collar (higher at the back), turned hems on the sleeves and ankles, and a waistband. The collar and cuffs are marked as trim, which the game colours in the team's accent |
 | Shirt subdivision (detailed only) | The collar and shoulders are seen up close in every batting and bowling shot. Trousers stay at the tights' density |
 | Skin under the kit removed | About 2,300 body faces covered by the kit are deleted, so skin can never show through cloth when a limb bends |
@@ -121,5 +127,7 @@ blender -b --python-exit-code 1 -P scripts/cricket-characters/extract_motion.py 
 ```
 
 On Windows pass the library paths as `D:/...`, not Git Bash's `/d/...`; Blender can't read the latter.
+
+The library's idle slumps (head forward, knees bent, hands cupped in front of the thighs) and its sprint curls the back with the head hanging, so `carriage()` in `motion.ts` corrects every locomotion pose towards an athlete's carriage: trunk and neck pitch per gait, eyes level, and, standing, arms hanging free with palms to the thighs, soft knees and feet under the hips. It changes pitch only, so each gait keeps its sway.
 
 The libraries have no cricket-specific motion (no strokes, keeping or bowling), so those are procedural: `batting.ts`, `fielding.ts` and the keyed poses in `animation.ts`, solved onto the ball with IK.

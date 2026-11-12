@@ -264,9 +264,9 @@ GPU frame time on the RTX 3050 can't be separated from the 60 fps cap: the inter
 | Full beards look painted on light skin (shader shading on the skin, not strands) | Needs a different approach: shell or card facial hair |
 | Buzz cuts on light skin look slightly painted up close | Cosmetic at gameplay distance; needs a different approach up close |
 | Hair cards: hard cut-out edges and a limited set of styles (four card styles, an afro, two shader crops) | Needs a different approach: new hair card assets, or a strand-to-card pipeline |
-| Idle clip holds the hands in front of the thighs | Cosmetic. They no longer intersect the cloth |
+| Idle clip holds the hands in front of the thighs | Fixed in section 13: arms hang at the sides, palms to the thighs |
 | Elbow thinning at full flexion (linear skinning) | Cosmetic; corrective shapes or dual quaternions would be needed |
-| Shirt slightly full over the chest from some angles | Cosmetic; a tighter drape or a different body proxy |
+| Shirt slightly full over the chest from some angles | Largely fixed in section 13. A gentle rounded underside to the chest remains in the diving catch (arms forward), from linear skinning; corrective shapes would be needed |
 | Small dark spot at athlete 04's neck | Cosmetic; collar or skin-removal margin |
 | A touch of trouser at the pad top in a deep crouch | Cosmetic |
 | No mouth interior, teeth or facial expressions | Needs a different approach: expression targets and teeth |
@@ -324,6 +324,7 @@ No test was removed or weakened. The light-model triangle budget went back to it
 | The 22 sampled players | `artifacts/cricket-character/visual-qa/players22*` |
 | Gameplay cameras, High and Low | `artifacts/cricket-character/visual-qa/gameplay/` |
 | Benchmarks | `artifacts/cricket-benchmark/` |
+| Anatomy, posture and stance refinement (section 13): bare bodies, neutral and action poses for all ten, chest in motion, lineups, chest target study, the sleeve defect found | `artifacts/cricket-character/anatomy-posture/` |
 | Asset licences | `scripts/cricket-characters/LICENSES.md` (all CC0 MakeHuman assets; the kit, gear and shaders are original code) |
 
 ## 12. Recommended next steps
@@ -331,5 +332,122 @@ No test was removed or weakened. The light-model triangle budget went back to it
 1. **Facial hair as geometry.** Shell or card beards and stubble generated from the beard mask, for close-ups.
 2. **More hairstyles.** A CC0 hair-card set, or MPFB's strand hair converted to cards, in place of the four MakeHuman cards.
 3. **Faces in motion.** Expressions (MakeHuman's expression targets) and teeth, for celebrations and appeals.
-4. **A better idle clip.** One where the hands rest at the sides.
+4. **A better idle clip.** Done in section 13 by correcting the stock clip. A captured or authored cricket-specific idle would still add natural weight shifts.
 5. **Elbows.** Corrective shapes at the elbows, or dual-quaternion skinning.
+
+## 13. Anatomy, posture and stance refinement
+
+A focused pass after the milestone: male anatomy, body proportions, posture, cricket stances and clothing fit. No change to triangle budgets, textures, levels of detail, appearances, scoring, identities, replays or verification.
+
+### What was wrong, and why
+
+Each problem was traced to its source before it was fixed.
+
+| Problem seen | Cause |
+|---|---|
+| Rounded, breast-like chest under the shirt, worst in bowling and diving | Four causes together: (1) the realistic rig bent the whole chest at one vertebra (Spine1 followed Spine rigidly and Spine2 took all of the driver's chest rotation), so skin and shirt weighted between them folded into a shelf under the pectorals; (2) collarbones stayed fixed as an arm went overhead, so the arm dragged the side of the chest up into the armpit; (3) on the broader bodies the lower edge of the pectorals drooped in a rounded curve with a shadow under it; (4) the shirt was eased 1.6 cm off the belly and pinched in over the 4 cm tuck, so it ballooned between the chest and the waist |
+| Slumped standing pose: forward head, bent knees, hands cupped in front of the thighs, wide stance | The CC0 library's idle clip itself. Measured: trunk 6.4° forward, neck 16.3°, elbows 42.7°, knees about 24°, feet 39 cm apart |
+| Sprinter curled over with the head hanging | The library's sprint clip: trunk 40.5°, neck 51.2° |
+| Batting guard close to a squat (knees 58°) | The stance hip height in `batting.ts` |
+| Large heads and soft torsos on athletes 01, 08 and 09; athletes 04 and 09 1.62 to 1.64 m tall | MakeHuman `age` below 0.5 blends in its child shape (9% child at 0.47); low `height` values |
+| Rounded chests and bellies level with the chest on 04, 06, 07, 10 | `weight` 0.58 to 0.62 adds soft chest volume to MakeHuman's male body; waist-increase targets on 04 and 10 |
+
+### What changed
+
+- **Bodies at the source** (`athletes/*.json`):
+  - Every athlete is an adult shape (`age` ≥ 0.52) and at most `weight` 0.55.
+  - Heights now run 1.75 to 1.93 m.
+  - Chest targets lift and square the lower pectoral edge without flattening the muscle. The study sheet compares five combinations on the two worst bodies.
+  - A flatter stomach for all; athlete 09's head is 2.5% smaller.
+  - Identities, faces and build differences are kept: the broad builds stay broad through `muscle` and the V-shape and waist targets.
+- **Shirt** (`build_athlete.py`): falls straight from the chest (belly ease 1.6 → 1.1 cm, eased into the tuck over 10 cm instead of 4).
+- **Rig** (`realistic.ts`, `share`):
+  - The lower chest vertebra takes half of the chest's bend, so the back curves through its length.
+  - Each collarbone rises with its arm once the arm passes about 63° from hanging, up to a quarter of the lift overhead (about 35° at full stretch, within the human range).
+  - The chest, arms and hands keep the driver's exact rotations, so grips, release points and planted feet are unchanged.
+- **Posture** (`motion.ts`, `carriage`): corrects every locomotion pose towards an athlete's carriage.
+  - Per gait, it sets the forward lean of the lower back, mid back, chest and neck, and keeps the eyes level on the field.
+  - Standing, the arms hang free of the sides with a relaxed 12° elbow and palms to the thighs, the knees are soft, and the feet are under the hips.
+  - It changes pitch only, so each gait keeps its own sway and rhythm.
+- **Batting guard** (`batting.ts`): knees about 30° flexed, more for a batter whose style crouches low, instead of a squat. Presentation only: the batting outcome never reads the pose.
+- **Bowling, keeping and fielding**: the keyed clips were measured and kept. At release the front leg is braced with the hips over it and the trunk 17° forward; the keeper squats with the back inclined about 49° and the head up. They benefit from the rig changes above.
+
+### Measured before and after (all ten bodies, the game's own renderer)
+
+Degrees, averaged over the ten athletes. Lean is forward from upright.
+
+| Pose | Measure | Before | After |
+|---|---|---|---|
+| Standing | trunk lean | 6.4 | 1.0 |
+| Standing | neck lean | 16.3 | 8.1 |
+| Standing | elbow bend (hands in front) | 42.7 | 14.3 |
+| Standing | knee bend, left / right | 26.6 / 21.7 | 7.1 / 6.0 |
+| Standing | feet apart | 39 cm | 27 cm |
+| Sprinting | trunk lean | 40.5 | 20.0 |
+| Sprinting | neck lean | 51.2 | 11.2 |
+| Batting guard | knee bend | 58.0 | 43.2 |
+| Bowling release | trunk lean | 16.9 | 17.2 (kept) |
+| Keeper crouch | trunk lean / knee bend | 48.7 / 118.7 | 49.4 / 118.6 (kept) |
+
+Bare bodies (Blender, before kit):
+
+- The nipple line no longer projects 0.8 to 0.9 cm ahead of the sternum. That forward point is what read as breast-like.
+- Head size relative to height now ranges from 0.136 to 0.145, down from 0.136 to 0.152.
+
+### Visual inspection
+
+All views were rendered through the game's own code, with identical cameras for `52ee6fb` and the new build. Inspected sheets are in `artifacts/cricket-character/anatomy-posture/`.
+
+- Every one of the ten bodies, before and after: front, side, three-quarter and back; chest close-ups from three-quarter and side; batting guard from the side and front; bowling front-foot landing and release; keeper crouch from two angles; sprinting; and a diving catch.
+- **Confirmed:**
+  - No athlete shows a breast-like chest at rest or in the extreme poses. The bowling release went from a pronounced rounded bulge to a flat male chest line.
+  - Bare chests stay muscular and defined.
+  - Standing posture is upright and relaxed on all ten.
+  - The batting guard reads as a professional's set-up.
+  - The shirt follows the chest and stays clear of the trousers.
+- **One defect was introduced and fixed during the pass.** The taller bodies left scraps of shirt on the backs of the elbows on five athletes (`defect-sleeve-scraps-found.jpg`). A thin strip of cloth had joined them to the sleeve until decimation severed it.
+  - Fix: the sleeve cut now reaches 14 cm from the arm's line, up from 11, and scraps are dropped again after decimation.
+  - A new test checks that every shirt is one piece. It fails on a shirt built the old way (3 pieces) and passes on all 20 models.
+
+### Tests added
+
+- `cricket-motion.spec.ts`, "standing and running carry a professional athlete's posture":
+  - Over a full idle loop and a sprint on three bodies, it asserts trunk, neck, knee and elbow limits, the stance width and level hips.
+  - It fails on the old clips (trunk 8.1°, knees 27.4°, elbows 46.5°, sprint trunk 40.5°).
+- `cricket-realistic.spec.ts`, "a bending back curves through the spine, and the collarbones rise with the arms": the bend is shared between the two chest vertebrae, and the collarbones lift about 35° with the arms overhead.
+- `cricket-realistic.spec.ts`, "every hi/lo shirt is one piece of cloth".
+
+No test was removed or weakened, and no budget changed.
+
+### Results on the final code
+
+| Check | Result |
+|---|---|
+| Typecheck (all packages) | Passed |
+| Unit tests | 539 passed (shared 32, engines 446, realtime 61) |
+| Production build | Passed |
+| Every cricket browser spec (mesh, rig, hand and foot, motion, looks, visual, gameplay) | 107 passed, 0 failed, 10 skipped (the on-demand evidence recorders), in 12.7 min. These are the earlier 103 plus the 4 new tests |
+| Benchmarks, GPU and software, this build and `52ee6fb` rebuilt in the same session | All four completed |
+
+The suite rewrites the tracked Phase 6 images in `artifacts/cricket-2`; they were restored with `git restore`. The Cloudflare build was not rerun: only browser assets and browser code changed.
+
+**Benchmarks, `52ee6fb` → this build, same session:**
+
+| Preset | RTX 3050 fps | p95 interval (ms) | Draw CPU median (ms) | Triangles | Software fps |
+|---|---|---|---|---|---|
+| Low | 30 → 30 | 33.4 → 33.4 | 3.8 → 4.4 | 137,898 → 136,874 | 26 → 27 |
+| Medium | 60 → 60 | 16.7 → 16.7 | 3.7 → 4.1 | 164,724 → 164,048 | 9.8 → 10.4 |
+| High | 60 → 60 | 16.8 → 16.7 | 4.6 → 4.7 | 506,524 → 502,935 | 4.4 → 4.2 |
+| Ultra | 59.5 → 60 (hitches 1 → 0) | 16.7 → 16.7 | 4.6 → 5.1 | 619,925 → 615,860 | 3.8 → 3.6 |
+
+- Textures are unchanged (42 on Low and Medium, 54 on High and Ultra), and the GPU heap fell from 82 to 73 MB.
+- Athletes load in 2.8 s on the GPU, as before.
+- The draw-CPU median rose by 0.1 to 0.6 ms. The posture correction runs per player per frame, and some of the rise is run-to-run noise.
+- Software-rendering differences go both ways and are within that noise.
+- No budget changed.
+
+### Remaining limitations
+
+- A gentle rounded underside to the chest remains in the diving catch, with both arms reaching forward. It comes from linear skinning; corrective shapes would be needed.
+- From the side, the standing hands sit slightly forward with open fingers. They no longer cup in front of the thighs.
+- Batting, bowling and keeping poses are keyed and procedural, not motion captured. Their joint angles are now inside professional ranges, but subtle per-player style is limited to the existing batter styles.

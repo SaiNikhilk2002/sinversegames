@@ -27,6 +27,10 @@
     "asym-jaw-2-l": 0.25
   },
   "body": {
-    "torso-vshape-incr": 0.35
+    "torso-vshape-incr": 0.35,
+    "breast-point-decr": 0.6,
+    "breast-volume-vert-up": 0.6,
+    "measure-bust-circ-decr": 0.25,
+    "stomach-pregnant-decr": 0.6
   }
 }

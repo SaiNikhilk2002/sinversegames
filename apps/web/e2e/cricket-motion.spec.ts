@@ -121,6 +121,62 @@ test.describe("Cricket motion clips", () => {
     }
   });
 
+  test("standing and running carry a professional athlete's posture", async () => {
+    const lib = await motion,
+      deg = 180 / Math.PI;
+    for (const index of [0, 3, 9]) {
+      const [model] = prepareSquad([await parse(`../public/sinverse-cricket/athletes/${SQUAD[index]}.glb`)]);
+      const driver = buildAthlete("field", 3, 0, 1),
+        body = new RealisticBody(model!, driver, new KitMaterials(), 0),
+        player = new MotionPlayer(lib, leg, index);
+      driver.root.updateMatrixWorld(true);
+      const p = (name: string) => body.bone(name).getWorldPosition(new T.Vector3());
+      /** Forward lean (degrees) of the line from joint a up to joint b. */
+      const lean = (a: string, b: string) => {
+        const d = p(b).sub(p(a));
+        return Math.atan2(d.z, d.y) * deg;
+      };
+      const bend = (a: string, b: string, c: string) => p(b).sub(p(a)).angleTo(p(c).sub(p(b))) * deg;
+      const worst = { trunk: 0, neck: 0, knee: 0, elbow: 0, wide: 0, narrow: Infinity, hips: 0, run: 0, runNeck: 0 };
+      for (let i = 0; i < 120; i++) {
+        const frame = player.pose(player.locomotion(1 / 30, 0), null);
+        frame.lower = frame.upper = 1;
+        body.sync(frame);
+        worst.trunk = Math.max(worst.trunk, Math.abs(lean("Hips", "Neck")));
+        worst.neck = Math.max(worst.neck, lean("Neck", "Head"));
+        for (const s of ["Left", "Right"]) {
+          worst.knee = Math.max(worst.knee, bend(`${s}UpLeg`, `${s}Leg`, `${s}Foot`));
+          worst.elbow = Math.max(worst.elbow, bend(`${s}Arm`, `${s}ForeArm`, `${s}Hand`));
+        }
+        const width = Math.abs(p("LeftFoot").x - p("RightFoot").x);
+        worst.wide = Math.max(worst.wide, width);
+        worst.narrow = Math.min(worst.narrow, width);
+        worst.hips = Math.max(worst.hips, Math.abs(p("LeftUpLeg").y - p("RightUpLeg").y));
+      }
+      // A full sprint: leaning from the hips, eyes up, not curled over.
+      for (let i = 0; i < 120; i++) {
+        const frame = player.pose(player.locomotion(1 / 30, 8), null);
+        frame.lower = frame.upper = 1;
+        body.sync(frame);
+        if (i < 40) continue;
+        worst.run = Math.max(worst.run, lean("Hips", "Neck"));
+        worst.runNeck = Math.max(worst.runNeck, lean("Neck", "Head"));
+      }
+      console.log(`${SQUAD[index]} standing: trunk ${worst.trunk.toFixed(1)} deg, neck ${worst.neck.toFixed(1)}, knees ${worst.knee.toFixed(1)}, elbows ${worst.elbow.toFixed(1)}, feet ${(worst.narrow * 100).toFixed(0)}-${(worst.wide * 100).toFixed(0)} cm apart, hips level within ${(worst.hips * 100).toFixed(1)} cm; sprinting: trunk ${worst.run.toFixed(1)}, neck ${worst.runNeck.toFixed(1)}`);
+      // Tall and relaxed: no slump, no forward head, knees soft but not bent,
+      // hands hanging at the sides (not held in front of the thighs), feet under the hips.
+      expect(worst.trunk).toBeLessThan(5);
+      expect(worst.neck).toBeLessThan(16);
+      expect(worst.knee).toBeLessThan(14);
+      expect(worst.elbow).toBeLessThan(25);
+      expect(worst.narrow).toBeGreaterThan(0.15);
+      expect(worst.wide).toBeLessThan(0.36);
+      expect(worst.hips).toBeLessThan(0.03);
+      expect(worst.run).toBeLessThan(28);
+      expect(worst.runNeck).toBeLessThan(25);
+    }
+  });
+
   test("a clip-driven athlete stays on the ground, faces forward and keeps valid joints", async () => {
     const lib = await motion,
       [model] = prepareSquad([await parse(`../public/sinverse-cricket/athletes/${SQUAD[0]}-lo.glb`)]);

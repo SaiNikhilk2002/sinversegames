@@ -1,10 +1,10 @@
 {
   "id": "athlete-09",
   "note": "Fictional athlete built only from CC0 MakeHuman system assets. Not based on any real person.",
-  "age": 0.47,
+  "age": 0.53,
   "muscle": 0.64,
   "weight": 0.5,
-  "height": 0.5,
+  "height": 0.6,
   "proportions": 0.66,
   "race": {
     "african": 0.05,
@@ -26,5 +26,14 @@
     "forehead-nubian-incr": 0.2,
     "asym-jaw-3-r": 0.3,
     "asym-eye-4-l": 0.25
+  },
+  "body": {
+    "breast-point-decr": 0.36,
+    "breast-volume-vert-up": 0.36,
+    "measure-bust-circ-decr": 0.15,
+    "stomach-pregnant-decr": 0.6,
+    "head-scale-vert-decr": 0.25,
+    "head-scale-horiz-decr": 0.25,
+    "head-scale-depth-decr": 0.25
   }
 }

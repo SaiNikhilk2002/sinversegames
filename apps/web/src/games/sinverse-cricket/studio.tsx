@@ -44,6 +44,8 @@ export interface StudioShot {
   /** Named framing, or an explicit camera. */
   view?: "face-front" | "face-side" | "face-3q" | "body-front" | "body-side" | "body-rear" | "body-3q" | "hands" | "lineup" | "faces";
   camera?: { from: [number, number, number]; at: [number, number, number]; fov?: number };
+  /** Frames the first person's whole pose from this compass angle (degrees, 0 = from +Z) and height. */
+  fit?: { angle: number; elevation?: number; fov?: number; margin?: number };
   light?: "studio" | "day" | "night";
 }
 
@@ -153,6 +155,24 @@ export function CricketStudio() {
       const w = canvas.clientWidth,
         h = canvas.clientHeight;
       camera.aspect = w / h;
+      if (shot.fit) {
+        const box = new T.Box3();
+        cast[0]!.body.root.traverse((o) => {
+          if ((o as T.Bone).isBone) box.expandByPoint(o.getWorldPosition(new T.Vector3()));
+        });
+        box.expandByScalar(0.18);
+        const centre = box.getCenter(new T.Vector3()),
+          radius = box.getSize(new T.Vector3()).length() / 2,
+          fov = shot.fit.fov ?? 30,
+          a = (shot.fit.angle * Math.PI) / 180,
+          e = ((shot.fit.elevation ?? 8) * Math.PI) / 180,
+          dist = (radius * (shot.fit.margin ?? 1.05)) / Math.sin(((fov / 2) * Math.PI) / 180) / Math.min(1, w / h);
+        camera.fov = fov;
+        camera.position.set(centre.x + Math.sin(a) * Math.cos(e) * dist, centre.y + Math.sin(e) * dist, centre.z + Math.cos(a) * Math.cos(e) * dist);
+        camera.lookAt(centre);
+        camera.updateProjectionMatrix();
+        return;
+      }
       if (shot.camera) {
         camera.fov = shot.camera.fov ?? 30;
         camera.position.set(...shot.camera.from);
@@ -226,7 +246,18 @@ export function CricketStudio() {
       frameView(shot);
       renderer.render(scene, camera);
       const info = renderer.info.render;
-      return { looks: cast.map((c) => c.body.appearance), triangles: info.triangles, calls: info.calls, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, models: SQUAD.length };
+      // Joint positions of the first person in their own frame (metres, facing +Z), for posture checks.
+      const joints: Record<string, number[]> = {};
+      if (cast[0])
+        for (const name of ["Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "HeadTop_End", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "LeftForeArm", "RightForeArm", "LeftHand", "RightHand", "LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg", "LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase"]) {
+          try {
+            const v = cast[0].a.root.worldToLocal(cast[0].body.bone(name).getWorldPosition(new T.Vector3()));
+            joints[name] = [v.x, v.y, v.z].map((n) => Math.round(n * 1000) / 1000);
+          } catch {
+            /* a bone this model lacks */
+          }
+        }
+      return { joints, looks: cast.map((c) => c.body.appearance), triangles: info.triangles, calls: info.calls, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, models: SQUAD.length };
     };
 
     (window as unknown as { __studio: unknown }).__studio = { ready: true, show, squad: SQUAD, people: squadPeople };

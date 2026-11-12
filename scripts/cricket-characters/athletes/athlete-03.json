@@ -26,5 +26,11 @@
     "mouth-scale-horiz-decr": 0.15,
     "asym-cheek-1-l": 0.3,
     "asym-mouth-1-r": 0.25
+  },
+  "body": {
+    "breast-point-decr": 0.36,
+    "breast-volume-vert-up": 0.36,
+    "measure-bust-circ-decr": 0.15,
+    "stomach-pregnant-decr": 0.6
   }
 }

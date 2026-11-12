@@ -151,6 +151,59 @@ test.describe("Cricket realistic athletes", () => {
       expect(driver.mesh.layers.isEnabled(0), "the driver is never drawn").toBe(false);
     });
 
+  for (const detail of ["hi", "lo"] as const)
+    test(`every ${detail} shirt is one piece of cloth: no scraps left by the sleeve cuts`, async () => {
+      for (const name of SQUAD) {
+        const g = await parse(name, detail);
+        const shirt = g.scene.getObjectByName("kit-shirt") as T.Mesh | undefined;
+        expect(shirt, `${name} shirt`).toBeTruthy();
+        // Pieces of the surface, welding the vertices glTF splits along seams.
+        const pos = shirt!.geometry.getAttribute("position"),
+          index = shirt!.geometry.index!,
+          key = new Map<string, number>(),
+          weld: number[] = [];
+        for (let i = 0; i < pos.count; i++) {
+          const k = [pos.getX(i), pos.getY(i), pos.getZ(i)].map((v) => Math.round(v * 1e4)).join();
+          if (!key.has(k)) key.set(k, key.size);
+          weld.push(key.get(k)!);
+        }
+        const up = Array.from({ length: key.size }, (_, i) => i),
+          root = (i: number): number => (up[i] === i ? i : (up[i] = root(up[i]!)));
+        for (let t = 0; t < index.count; t += 3) {
+          const a = root(weld[index.getX(t)]!);
+          for (const v of [index.getX(t + 1), index.getX(t + 2)]) up[root(weld[v]!)] = a;
+        }
+        const pieces = new Set(weld.map((w) => root(w)));
+        expect(pieces.size, `${name} ${detail} shirt pieces`).toBe(1);
+      }
+    });
+
+  test("a bending back curves through the spine, and the collarbones rise with the arms", async () => {
+    const [g] = await squad("hi"),
+      a = buildAthlete("field", 1, 0, 1),
+      body = new RealisticBody(g!, a, new KitMaterials(), 0),
+      pose = makePose();
+    const local = () => Object.fromEntries(["Spine1", "Spine2", "LeftShoulder", "RightShoulder"].map((n) => [n, body.bone(n).quaternion.clone()]));
+    const posed = (clip: keyof typeof CLIPS, time: number) => {
+      sampleClip(CLIPS[clip], time, pose);
+      applyPose(a, pose);
+      a.root.updateMatrixWorld(true);
+      body.sync();
+      return local();
+    };
+    const rest = posed("idle", 0);
+    for (const [clip, time] of [["dive", 0.18], ["catchHigh", 0], ["appeal", 0.22], ["throw", 0.3]] as const) {
+      const now = posed(clip, time);
+      const lower = now.Spine1!.angleTo(rest.Spine1!),
+        upper = now.Spine2!.angleTo(rest.Spine2!),
+        collar = Math.max(now.LeftShoulder!.angleTo(rest.LeftShoulder!), now.RightShoulder!.angleTo(rest.RightShoulder!));
+      console.log(`${clip}: lower chest bends ${((lower * 180) / Math.PI).toFixed(1)} deg, upper ${((upper * 180) / Math.PI).toFixed(1)} deg, collarbone ${((collar * 180) / Math.PI).toFixed(1)} deg`);
+      // The bend is shared, not folded at a single vertebra.
+      if (lower + upper > 0.1) expect(lower / (lower + upper)).toBeGreaterThan(0.25);
+      if (clip === "catchHigh") expect(collar).toBeGreaterThan(0.05);
+    }
+  });
+
   test("the helmet is made to fit each head, and gloves are each athlete's own hands", async () => {
     for (const [k, g] of (await squad("hi")).entries()) {
       const driver = buildAthlete("bat", 1, 0, 1),

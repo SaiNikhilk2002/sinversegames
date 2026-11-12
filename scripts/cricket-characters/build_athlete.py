@@ -220,7 +220,7 @@ def near_arm(side):
 
     def test(co):
         t = (co - s0).dot(ax)
-        return t > -0.02 and ((co - s0) - ax * t).length < 0.11
+        return t > -0.02 and ((co - s0) - ax * t).length < 0.14
 
     return test
 
@@ -265,11 +265,14 @@ def loosen(obj, amount):
 
 
 def shirt_ease(co):
-    # Close over the shoulders and chest, a little looser over the belly and back.
+    # Close over the shoulders and chest, barely looser over the belly: an
+    # athlete's shirt falls straight from the chest to the waist. A loose belly
+    # pinched in by the tuck balloons into a rounded, barrel-like front.
     belly = max(0.0, min(1.0, (J["Spine1"].z - co.z) / 0.25))
-    # Snug where it tucks into the trousers, so it never shows through them.
-    tuck = max(0.0, min(1.0, (waist_z + 0.03 - co.z) / 0.04))
-    return (0.007 + 0.009 * belly) * (1 - tuck) + 0.003 * tuck
+    # Eased in over the lower belly to where it tucks into the trousers, snug
+    # enough there never to show through them.
+    tuck = max(0.0, min(1.0, (waist_z + 0.09 - co.z) / 0.1)) ** 1.5
+    return (0.007 + 0.004 * belly) * (1 - tuck) + 0.003 * tuck
 
 
 knee_z = J["LeftLeg"].z
@@ -427,6 +430,9 @@ if not LO:
     mod.use_collapse_triangulate = False
     with bpy.context.temp_override(object=shirt, active_object=shirt):
         bpy.ops.object.modifier_apply(modifier="budget")
+# A sleeve cut can leave a scrap of cloth joined to the sleeve by a thin strip,
+# which the smoothing and decimation then sever: keep only the shirt itself.
+cut(shirt, [], keep_main=True)
 
 # Skin weights: the cloth keeps the basemesh's bone groups (copied with the
 # helper); subdivision and the new hem rows interpolate them. Normalise to four.

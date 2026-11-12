@@ -382,7 +382,9 @@ export function batting(i: BattingInput, out: Pose): BattingFrame {
     const holdEnd = 0.32 + (spec?.hold ?? 0.6),
       relax = smooth((t - holdEnd) / 0.8);
     let hipX = between(0.5) + triggerX - 0.02 * load,
-      hipY = 0.875 - st.crouch - 0.015 * smooth((r + 0.6) / 0.5),
+      // A professional's guard: knees softly flexed (about 30 degrees, more for a
+      // low-crouching batter), weight on the balls of the feet, not a squat.
+      hipY = 0.912 - st.crouch * 0.7 - 0.015 * smooth((r + 0.6) / 0.5),
       pitch = 0.3,
       roll = 0,
       yaw = 0,

@@ -422,7 +422,12 @@ const tq = new T.Quaternion(),
   tv = new T.Vector3(),
   tv2 = new T.Vector3(),
   tv3 = new T.Vector3(),
-  tv4 = new T.Vector3();
+  tv4 = new T.Vector3(),
+  sq = new T.Quaternion(),
+  sq2 = new T.Quaternion(),
+  sv = new T.Vector3(),
+  sv2 = new T.Vector3(),
+  IDENTITY_Q = new T.Quaternion();
 
 interface Joint {
   bone: T.Bone;
@@ -965,6 +970,7 @@ export class RealisticBody {
       if (j.driver) j.world.copy(j.driver.getWorldQuaternion(tq).premultiply(tq2)).multiply(j.offset);
       else j.world.copy(j.parent ? j.parent.world : armatureQ).multiply(j.rest);
       const name = short(j.bone.name) as MotionJoint;
+      if (!j.driver) this.share(j, name, tq2);
       if (motion && (lower > 0 || upper > 0)) {
         const clip = motion.pose.get(name);
         const w = LOWER.has(name) ? lower : upper;
@@ -1008,6 +1014,34 @@ export class RealisticBody {
     else for (const lock of this.locks) (lock.on = false), (lock.weight = 0), (lock.low = Infinity);
     // Last, once the legs are final: twice, since clearing one thigh can nudge a hand towards the other.
     if (motion && upper >= 0.5) for (let pass = 0; pass < 2 && this.clearHands() > 0.001; pass++);
+  }
+
+  /**
+   * The driver bends the back at one joint (the chest) and lifts the arm at the
+   * shoulder alone. A real spine spreads the bend over its length, and the
+   * collarbones rise as an arm goes overhead: without that, the skin and shirt
+   * weighted between the two vertebrae fold into a shelf under the chest, and
+   * the chest is dragged up into the armpit. The lower chest vertebra takes
+   * half the chest's bend, and each collarbone a share of its arm's lift.
+   * The chest and arms keep the driver's exact rotations.
+   */
+  private share(j: Joint, name: string, rootInverse: T.Quaternion) {
+    if (name === "Spine1") {
+      const chest = this.byName.get("Spine2");
+      if (!chest?.driver) return;
+      // Where this vertebra would have to be for the chest to sit at its own rest on it.
+      const wanted = chest.driver.getWorldQuaternion(sq).premultiply(rootInverse).multiply(chest.offset).multiply(sq2.copy(chest.rest).invert());
+      j.world.slerp(wanted, 0.5);
+    } else if (name === "LeftShoulder" || name === "RightShoulder") {
+      const arm = this.byName.get(name === "LeftShoulder" ? "LeftArm" : "RightArm");
+      if (!arm?.driver) return;
+      const now = sv.set(0, 1, 0).applyQuaternion(arm.driver.getWorldQuaternion(sq).premultiply(rootInverse).multiply(arm.offset)),
+        rest = sv2.set(0, 1, 0).applyQuaternion(sq.copy(j.world).multiply(arm.rest));
+      // Lift above the hanging arm: none until the arm is out sideways, up to a quarter overhead.
+      const lift = Math.acos(Math.max(-1, Math.min(1, -now.y))),
+        k = 0.25 * T.MathUtils.smoothstep(lift, Math.PI * 0.35, Math.PI * 0.85);
+      if (k > 0) j.world.premultiply(sq2.setFromUnitVectors(rest, now).slerp(IDENTITY_Q, 1 - k));
+    }
   }
 
   /**

@@ -27,6 +27,10 @@
   },
   "body": {
     "torso-vshape-incr": 0.45,
-    "measure-shoulder-dist-incr": 0.3
+    "measure-shoulder-dist-incr": 0.3,
+    "breast-point-decr": 0.6,
+    "breast-volume-vert-up": 0.6,
+    "measure-bust-circ-decr": 0.25,
+    "stomach-pregnant-decr": 0.6
   }
 }
