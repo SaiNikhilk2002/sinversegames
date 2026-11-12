@@ -1880,9 +1880,9 @@ export function CricketGame({
               </i>
             </span>
             <span>
-              <small>BOWLING</small> {bowler?.name}{" "}
+              <small>BOWLING</small> {bowler?.name ?? (m.isDuel || m.phase !== "ready" ? "" : sideOf(1 - i.team).players[bowlerPick ?? bowlerSlot(m)]?.name)}{" "}
               <b>
-                {bowler?.wickets}/{bowler?.runs}
+                {bowler ? `${bowler.wickets}/${bowler.runs}` : m.isDuel ? "" : "0/0"}
               </b>
             </span>
           </div>
@@ -1939,7 +1939,7 @@ export function CricketGame({
               </>
             ) : (
               <>
-                {!m.isDuel && i && (
+                {!m.isDuel && i && m.phase === "ready" && (
                   m.current.overBowlers![Math.floor(i.balls / 6)] === undefined ? (
                     <label>
                       Bowler for this over
