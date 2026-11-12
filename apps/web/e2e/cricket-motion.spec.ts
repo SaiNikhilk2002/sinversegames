@@ -18,7 +18,8 @@ const read = (path: string) => {
 };
 const parse = (path: string): Promise<GLTF> => {
   const loader = new GLTFLoader();
-  loader.register(() => ({ name: "skip_textures", loadTexture: () => Promise.resolve(new T.Texture()) }) as never);
+  // Ahead of the loader's own texture plugins (the WebP one needs a browser to check support).
+  (loader as unknown as { pluginCallbacks: unknown[] }).pluginCallbacks.unshift(() => ({ name: "skip_textures", loadTexture: () => Promise.resolve(new T.Texture()) }));
   return new Promise((resolve, reject) => loader.parse(read(path), "", resolve, reject));
 };
 const motion = Promise.all([parse("../public/sinverse-cricket/motion/ual1.glb"), parse("../public/sinverse-cricket/motion/ual2.glb")]).then(([a, b]) => prepareMotion(a, b));
@@ -85,6 +86,39 @@ test.describe("Cricket motion clips", () => {
     // The engine throws 38 ticks (0.32 s) after pickup; the clip must have that much wind-up.
     expect(info.release).toBeGreaterThan(0.32);
     expect(info.release).toBeLessThan(info.duration - 0.2);
+  });
+
+  test("clip-driven hands stay out of the trouser legs, at every speed", async () => {
+    const lib = await motion;
+    for (const index of [0, 4, 9]) {
+      const [model] = prepareSquad([await parse(`../public/sinverse-cricket/athletes/${SQUAD[index]}.glb`)]);
+      const driver = buildAthlete("field", 3, 0, 1),
+        body = new RealisticBody(model!, driver, new KitMaterials(), 0),
+        player = new MotionPlayer(lib, leg);
+      driver.root.updateMatrixWorld(true);
+      const thigh = body.measures().thigh;
+      let deepest = 0,
+        worst = Infinity;
+      for (const speed of [0, 1.4, 3.5, 7])
+        for (let i = 0; i < 90; i++) {
+          const frame = player.pose(player.locomotion(1 / 60, speed), null);
+          frame.lower = frame.upper = 1;
+          body.sync(frame);
+          deepest = Math.max(deepest, body.clearHands());
+          for (const left of [true, false]) {
+            const palm = body.palm(left, new T.Vector3());
+            for (const side of ["Left", "Right"]) {
+              const line = new T.Line3(body.bone(side + "UpLeg").getWorldPosition(new T.Vector3()), body.bone(side + "Leg").getWorldPosition(new T.Vector3()));
+              worst = Math.min(worst, line.closestPointToPoint(palm, true, new T.Vector3()).distanceTo(palm) - thigh);
+            }
+          }
+        }
+      console.log(`${SQUAD[index]}: thigh radius ${(thigh * 100).toFixed(1)} cm; a second pass moved hands ${(deepest * 100).toFixed(2)} cm; closest palm ${(worst * 100).toFixed(1)} cm outside the skin`);
+      // sync() already cleared the hands, so a second pass has nothing left to do,
+      // and every palm is outside the thigh's skin by the trouser and hand allowance.
+      expect(deepest).toBeLessThan(0.003);
+      expect(worst).toBeGreaterThan(RealisticBody.HAND_CLEARANCE * body.root.getWorldScale(new T.Vector3()).x - 0.004);
+    }
   });
 
   test("a clip-driven athlete stays on the ground, faces forward and keeps valid joints", async () => {

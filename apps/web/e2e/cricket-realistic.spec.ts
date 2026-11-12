@@ -4,7 +4,8 @@ import * as T from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { CLIPS, makePose, sampleClip } from "../src/games/sinverse-cricket/animation";
 import { applyPose, buildAthlete } from "../src/games/sinverse-cricket/character";
-import { ARM_STRETCH_MAX, KitMaterials, RealisticBody, SQUAD, equipmentKit, modelFor, prepareSquad, type Detail } from "../src/games/sinverse-cricket/realistic";
+import { appearanceFor } from "../src/games/sinverse-cricket/athlete-look";
+import { ARM_STRETCH_MAX, FAR_EYES, KitMaterials, RealisticBody, SQUAD, equipmentKit, modelFor, prepareSquad, squadPeople, type Detail } from "../src/games/sinverse-cricket/realistic";
 
 /**
  * The realistic athletes (CC0 MakeHuman bodies, see scripts/cricket-characters)
@@ -17,7 +18,8 @@ async function parse(name: string, detail: Detail): Promise<GLTF> {
   const buf = readFileSync(file(name, detail));
   const loader = new GLTFLoader();
   // Texture images are irrelevant to joint positions, and need a browser to decode.
-  loader.register(() => ({ name: "skip_textures", loadTexture: () => Promise.resolve(new T.Texture()) }) as never);
+  // Ahead of the loader's own texture plugins (the WebP one needs a browser to check support).
+  (loader as unknown as { pluginCallbacks: unknown[] }).pluginCallbacks.unshift(() => ({ name: "skip_textures", loadTexture: () => Promise.resolve(new T.Texture()) }));
   return new Promise((resolve, reject) => loader.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), "", resolve, reject));
 }
 const squads = new Map<Detail, GLTF[]>();
@@ -35,7 +37,12 @@ const triangles = (root: T.Object3D) => {
   return n;
 };
 /** Budgets per athlete, so fourteen of them fit the renderer's per-preset limits. */
-const BUDGET = { hi: { bytes: 2.5 * 1024 * 1024, triangles: 33000 }, lo: { bytes: 0.6 * 1024 * 1024, triangles: 8500 } };
+/**
+ * Budgets per athlete. The detailed athletes (on High and Ultra, the nine people
+ * nearest the camera) carry a subdivided shirt with a collar, high-detail eyes and
+ * fitted gear; the light ones are everyone else and every player on Low and Medium.
+ */
+const BUDGET = { hi: { bytes: 2.5 * 1024 * 1024, triangles: 35000 }, lo: { bytes: 0.6 * 1024 * 1024, triangles: 8500 } };
 
 test.describe("Cricket realistic athletes", () => {
   for (const detail of ["hi", "lo"] as const)
@@ -95,43 +102,154 @@ test.describe("Cricket realistic athletes", () => {
       console.log(rows.filter((r) => /dive/.test(r)).join("\n"));
     });
 
-  test("the kit is one mesh whose shirt, trousers and shoes take team colours, with gear on the body", async () => {
-    const [g] = await squad("lo");
-    const kits = new KitMaterials();
-    const driver = buildAthlete("bat", 1, 0, 1);
-    const body = new RealisticBody(g!, driver, kits, 0);
-    equipmentKit().dress(body, "bat", 0, driver.bones.bat, false);
-    // Shirt above trousers above shoes, by the vertices each part owns.
-    const geometry = body.kit.geometry,
-      part = geometry.getAttribute("kitPart"),
-      pos = geometry.getAttribute("position"),
-      sum = [0, 0, 0],
-      count = [0, 0, 0];
-    for (let i = 0; i < part.count; i++) {
-      const p = part.getX(i);
-      sum[p]! += pos.getY(i);
-      count[p]!++;
+  for (const detail of ["hi", "lo"] as const)
+    test(`the ${detail} kit is one mesh: shirt, trousers and shoes in team colours, with a trimmed collar and cuffs`, async () => {
+      const [g] = await squad(detail);
+      const kits = new KitMaterials();
+      const driver = buildAthlete("bat", 1, 0, 1);
+      const body = new RealisticBody(g!, driver, kits, 0);
+      equipmentKit().dress(body, "bat", 0, driver.bones.bat, false);
+      // Shirt above trousers above shoes, by the vertices each part owns.
+      const geometry = body.kit.geometry,
+        info = geometry.getAttribute("kitInfo"),
+        pos = geometry.getAttribute("position"),
+        sum = [0, 0, 0],
+        count = [0, 0, 0];
+      let trimTop = -Infinity,
+        trimmed = 0;
+      for (let i = 0; i < info.count; i++) {
+        const p = info.getZ(i);
+        sum[p]! += pos.getY(i);
+        count[p]!++;
+        if (p === 1 && info.getX(i) > 0.5) (trimmed++, (trimTop = Math.max(trimTop, pos.getY(i))));
+        // Occlusion is baked into every cloth vertex, never fully black.
+        expect(info.getY(i)).toBeGreaterThan(0.2);
+      }
+      expect(count.every((c) => c > 0), "all three parts present").toBe(true);
+      const [trousers, shirt, shoes] = sum.map((s, i) => s / count[i]!);
+      expect(shirt!).toBeGreaterThan(trousers! + 0.2);
+      expect(trousers!).toBeGreaterThan(shoes!);
+      // The collar stand is shirt-coloured; the edge of its fold-over leaf is trim,
+      // just below the top of the stand (within 4 cm), and far above the cuffs.
+      expect(trimmed).toBeGreaterThan(20);
+      const shirtTop = Math.max(...Array.from({ length: info.count }, (_, i) => (info.getZ(i) === 1 ? pos.getY(i) : -Infinity)));
+      expect(shirtTop - trimTop).toBeGreaterThanOrEqual(0);
+      expect(shirtTop - trimTop).toBeLessThan(0.04);
+      // Team changes swap the whole kit's material.
+      expect(body.kit.material).toBe(kits.get(0));
+      body.setTeam(1);
+      expect(body.kit.material).toBe(kits.get(1));
+      // A batter adds four meshes: the bat on the driver's bat bone, the helmet and
+      // the pads rigidly on the head and shins, and gloves skinned to the hands.
+      expect(body.equipment).toHaveLength(4);
+      expect(driver.bones.bat.children).toHaveLength(1);
+      // Every mesh of an athlete, gear included, shares one skeleton (one bone texture on the GPU).
+      const skeletons = new Set(body.meshes.map((m) => (m as T.SkinnedMesh).skeleton).filter(Boolean));
+      expect(skeletons.size).toBe(1);
+      driver.root.updateMatrixWorld(true);
+      body.sync();
+      expect(driver.mesh.layers.isEnabled(0), "the driver is never drawn").toBe(false);
+    });
+
+  test("the helmet is made to fit each head, and gloves are each athlete's own hands", async () => {
+    for (const [k, g] of (await squad("hi")).entries()) {
+      const driver = buildAthlete("bat", 1, 0, 1),
+        body = new RealisticBody(g, driver, new KitMaterials(), 0);
+      equipmentKit().dress(body, "bat", 0, driver.bones.bat, false);
+      const m = body.measures(),
+        [, helmet, , gloves] = body.equipment as T.SkinnedMesh[];
+      // The head this helmet was made for is a real head size, measured from the skin.
+      expect(helmet!.geometry.getAttribute("position").count).toBeGreaterThan(1000);
+      const head = m.head,
+        width = head.max.x - head.min.x;
+      expect(width, `${SQUAD[k]} head width`).toBeGreaterThan(0.13);
+      expect(width, `${SQUAD[k]} head width`).toBeLessThan(0.24);
+      // Gloves use only hand, finger and wrist bones, so they can never come off the hands.
+      const names = gloves!.skeleton.bones.map((b) => b.name);
+      const si = gloves!.geometry.getAttribute("skinIndex"),
+        sw = gloves!.geometry.getAttribute("skinWeight");
+      for (let i = 0; i < si.count; i += 7)
+        for (let c = 0; c < 4; c++) if (sw.getComponent(i, c) > 0.05) expect(names[si.getComponent(i, c)], `${SQUAD[k]} glove bone`).toMatch(/Hand|ForeArm/);
     }
-    expect(count.every((c) => c > 0), "all three parts present").toBe(true);
-    const [trousers, shirt, shoes] = sum.map((s, i) => s / count[i]!);
-    expect(shirt!).toBeGreaterThan(trousers! + 0.2);
-    expect(trousers!).toBeGreaterThan(shoes!);
-    // Team changes swap the whole kit's material.
-    expect(body.kit.material).toBe(kits.get(0));
-    body.setTeam(1);
-    expect(body.kit.material).toBe(kits.get(1));
-    // A batter adds exactly two meshes: the bat on the driver's bat bone, and one
-    // rigid mesh for helmet, pads and gloves on the realistic skeleton.
-    expect(body.equipment).toHaveLength(2);
-    expect(driver.bones.bat.children).toHaveLength(1);
-    const gear = body.equipment.find((m) => (m as T.SkinnedMesh).isSkinnedMesh) as T.SkinnedMesh;
-    // Every mesh of an athlete, gear included, shares one skeleton (one bone texture on the GPU).
-    const skeletons = new Set(body.meshes.map((m) => (m as T.SkinnedMesh).skeleton).filter(Boolean));
-    expect(skeletons.size).toBe(1);
-    expect(skeletons.has(gear.skeleton)).toBe(true);
-    // Pads follow the shins: posing the driver moves them with the real knee.
-    driver.root.updateMatrixWorld(true);
-    body.sync();
-    expect(driver.mesh.layers.isEnabled(0), "the driver is never drawn").toBe(false);
+  });
+
+  test("the kit stays on the body in extreme poses: no cloth floats away from the skin", async () => {
+    const [g] = await squad("hi");
+    for (const [clip, time] of [["dive", 0.18], ["throw", 0.12], ["catchHigh", 0], ["stance", 0], ["celebrate", 0.6]] as const) {
+      const driver = buildAthlete("field", 3, 0, 1),
+        body = new RealisticBody(g!, driver, new KitMaterials(), 0);
+      const p = makePose();
+      sampleClip(CLIPS[clip], time, p);
+      applyPose(driver, p);
+      driver.root.updateMatrixWorld(true);
+      body.sync();
+      body.root.updateMatrixWorld(true);
+      // Bone segments of the posed skeleton: cloth must stay within a body's width of one.
+      const segments: [T.Vector3, T.Vector3][] = [];
+      body.root.traverse((o) => {
+        const bone = o as T.Bone;
+        if (bone.isBone && (bone.parent as T.Bone)?.isBone && !/Hand.|Toe|End|Head_|eye/i.test(bone.name)) segments.push([bone.parent!.getWorldPosition(new T.Vector3()), bone.getWorldPosition(new T.Vector3())]);
+      });
+      const kp = body.kit.geometry.getAttribute("position"),
+        part = body.kit.geometry.getAttribute("kitInfo"),
+        line = new T.Line3(),
+        q = new T.Vector3();
+      let worst = 0;
+      for (let i = 0; i < kp.count; i += 5) {
+        if (part.getZ(i) === 2) continue;
+        const v = body.kit.applyBoneTransform(i, new T.Vector3().fromBufferAttribute(kp, i)).applyMatrix4(body.kit.matrixWorld);
+        let near = Infinity;
+        for (const [a, c] of segments) near = Math.min(near, line.set(a, c).closestPointToPoint(v, true, q).distanceTo(v));
+        worst = Math.max(worst, near);
+      }
+      const scale = body.root.getWorldScale(new T.Vector3()).x;
+      console.log(`${clip}: furthest cloth from a bone ${(worst / scale * 100).toFixed(1)} cm over ${segments.length} bones`);
+      expect(worst / scale, `${clip}: cloth to bone`).toBeLessThan(0.24);
+    }
+  });
+
+  test("each player's look is deterministic, and two teams of 11 look like 22 different people", () => {
+    const roster = [0, 1].flatMap((team) => Array.from({ length: 11 }, (_, i) => ({ role: "field" as const, number: i + 1, team })));
+    const people = squadPeople(roster);
+    expect(squadPeople(roster)).toEqual(people);
+    expect(appearanceFor("field:4:1", 3)).toEqual(appearanceFor("field:4:1", 3));
+    for (const team of [0, 1]) {
+      const mine = people.filter((_, i) => roster[i]!.team === team);
+      // Every squad model is used before any repeats (the eleventh shares one)...
+      expect(new Set(mine.map((p) => p.model)).size).toBe(10);
+      // ...and the two players who share a model don't look like twins.
+      const looks = mine.map((p) => `${p.model}|${p.appearance.facialHair}|${p.appearance.haircut}`);
+      expect(new Set(looks).size).toBe(11);
+    }
+    for (const p of people)
+      for (const c of p.appearance.skinTint) {
+        expect(c).toBeGreaterThan(0.8);
+        expect(c).toBeLessThan(1.2);
+      }
+  });
+
+  test("far players skip their eyes, and get them back as the camera comes close", async () => {
+    const [g] = await squad("hi");
+    const body = new RealisticBody(g!, buildAthlete("field", 2, 0, 1), new KitMaterials(), 0);
+    const eyes = body.meshes.filter((m) => /high-poly|eyebrow|eyelash/.test((m.material as T.Material).name));
+    expect(eyes.length).toBeGreaterThanOrEqual(3);
+    body.setDistance(FAR_EYES + 10);
+    expect(eyes.every((m) => !m.visible)).toBe(true);
+    body.setDistance(8);
+    expect(eyes.every((m) => m.visible)).toBe(true);
+  });
+
+  test("the hi bodies carry facial hair and scalp masks for the skin shader", async () => {
+    for (const [k, g] of (await squad("hi")).entries()) {
+      const body = new RealisticBody(g, buildAthlete("field", 1, 0, 1), new KitMaterials(), 0);
+      const skin = body.meshes.find((m) => /body/.test((m.material as T.Material).name))!,
+        mask = skin.geometry.getAttribute("faceMask");
+      expect(mask, `${SQUAD[k]} mask`).toBeTruthy();
+      const max = [0, 0, 0, 0];
+      for (let i = 0; i < mask.count; i++) for (let c = 0; c < 4; c++) max[c] = Math.max(max[c]!, mask.getComponent(i, c));
+      expect(max[0], `${SQUAD[k]} beard`).toBeGreaterThan(0.9);
+      expect(max[1], `${SQUAD[k]} moustache`).toBeGreaterThan(0.5);
+      expect(max[2], `${SQUAD[k]} scalp`).toBeGreaterThan(0.9);
+    }
   });
 });

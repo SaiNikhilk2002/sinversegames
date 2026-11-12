@@ -1221,6 +1221,7 @@ export function CricketGame({
           element.dataset.footSlip = metrics.footSlip?.toFixed(3) ?? "";
           element.dataset.takeError = metrics.takeError?.toFixed(3) ?? "";
           element.dataset.athletes = String(!!metrics.athletes);
+          element.dataset.looks = metrics.looks ?? "";
           element.dataset.takeMove = metrics.takeMove ?? "";
           element.dataset.fielding = metrics.fielding ?? "";
           element.dataset.spacing = metrics.spacing !== undefined && Number.isFinite(metrics.spacing) ? metrics.spacing.toFixed(3) : "";

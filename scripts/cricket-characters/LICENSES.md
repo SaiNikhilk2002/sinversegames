@@ -11,23 +11,31 @@ The CC0 status doesn't extend to community assets downloaded separately from Mak
 
 The athletes are fictional. None is based on a real person or on a real cricketer's likeness.
 
-| Model | Skin | Hair | Eyebrows | Clothes |
-|---|---|---|---|---|
-| athlete-01 | young_asian_male | short02 | eyebrow002 | male_casualsuit06, shoes01 |
-| athlete-02 | young_african_male | short04 | eyebrow006 | male_casualsuit06, shoes01 |
-| athlete-03 | young_caucasian_male | short01 | eyebrow004 | male_casualsuit06, shoes01 |
-| athlete-04 | middleage_asian_male | short01 | eyebrow009 | male_casualsuit06, shoes01 |
-| athlete-05 | toigo_light_skin_male_bronze | afro01 | eyebrow001 | male_casualsuit06, shoes01 |
-| athlete-06 | middleage_african_male | none | eyebrow011 | male_casualsuit06, shoes01 |
+| Model | Skin | Hair | Eyebrows | Eye colour | Shape |
+|---|---|---|---|---|---|
+| athlete-01 | toigo_light_skin_male_bronze | short02 | eyebrow002 | brown | 9 face targets, 1 body |
+| athlete-02 | young_african_male | none (cropped in the shader) | eyebrow006 | brown | 8 face targets, 2 body |
+| athlete-03 | toigo_light_skin_male_freckles | short01 | eyebrow004 | bluegreen | 10 face targets |
+| athlete-04 | middleage_asian_male | short04 | eyebrow009 | brown | 10 face targets, 1 body |
+| athlete-05 | young_african_male | afro01 | eyebrow001 | brownlight | 9 face targets, 1 body |
+| athlete-06 | mindfront_skin_male_african_middleage | none (cropped in the shader) | eyebrow011 | brown | 10 face targets |
+| athlete-07 | middleage_caucasian_male | short02 | eyebrow008 | grey | 9 face targets |
+| athlete-08 | young_caucasian_male2 | short04 | eyebrow010 | brown | 10 face targets, 1 body |
+| athlete-09 | young_asian_male | short01 | eyebrow012 | brown | 10 face targets |
+| athlete-10 | middleage_african_male | none (cropped in the shader) | eyebrow005 | brown | 9 face targets, 2 body |
 
 Every model also uses:
 
 - Body proxy `male_muscle_13290` for the detailed models, or `male1591` for the `-lo` models
-- Eyes `low-poly`
-- Eyelashes `eyelashes02`
+- Eyes `high-poly` (detailed) or `low-poly` (light), with the eye colour from MakeHuman's eye materials
+- Eyelashes `eyelashes03` (detailed models only)
+- Shoes `shoes05`
 - MPFB's built-in `mixamo` rig, which is MPFB data
+- Face and body targets from MPFB's own target library (the "Shape" column), including its asymmetry targets
 
-The source shirt has a MakeHuman logo printed on it. The build replaces the shirt's texture with the suit's ambient-occlusion map, so the logo doesn't appear in the game.
+**The kit is not a library asset.** The build cuts it from the `helper-tights` geometry that is part of MakeHuman's CC0 basemesh, then reshapes it in code (collar, hems, ease, folds). No clothing texture is used; the game colours it per team in a shader. The facial hair and scalp masks are computed from the CC0 basemesh's own vertex groups and joint markers.
+
+**In-game materials and equipment are original code**: the skin, eye, hair and kit shaders in `apps/web/src/games/sinverse-cricket/athlete-look.ts`, and the helmet, pads, gloves and bat generated in `realistic.ts`. No texture, model or material is downloaded for them.
 
 ## Sources
 

@@ -1,6 +1,7 @@
 import * as T from "three";
 import { PEOPLE, closestPair, place, type Spot } from "./spacing";
-import { KitMaterials, RealisticBody, equipmentKit, loadSquad, modelFor } from "./realistic";
+import { KitMaterials, RealisticBody, equipmentKit, loadSquad, squadPeople } from "./realistic";
+import type { Appearance } from "./athlete-look";
 import { MotionPlayer, loadMotion, type MotionLibrary, type OneShot } from "./motion";
 import {
   RELEASE_TICK,
@@ -115,6 +116,8 @@ export interface SceneDriver {
     fielding?: string;
     /** The realistic athletes and their motion clips have loaded. */
     athletes?: boolean;
+    /** Who each slot looks like (squad model and appearance), for checking it never changes. */
+    looks?: string;
   };
 }
 const v3 = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
@@ -287,22 +290,36 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   const closeDetail = quality === "high" || quality === "ultra";
   let realisticReady = false;
   let motionLibrary: MotionLibrary | null = null;
-  Promise.all([loadSquad("lo"), closeDetail ? loadSquad("hi") : Promise.resolve(null), loadMotion().catch((error) => (console.warn("motion clips unavailable; using built-in motion", error), null))])
+  // Only the squad models this match shows are downloaded, at the detail each player needs.
+  const isClose = (n: number) => n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
+  // Each slot's person (squad model and appearance) is fixed now, from the slot's
+  // starting role, number and team. Numbers and teams change between innings
+  // (setKit) and the models can finish loading after that, so the bodies must be
+  // dressed from this record, never from the slot's current number.
+  const people = squadPeople([...actors.map((actor) => ({ role: actor.a.role, number: actor.number, team: actor.team })), ...captains.map((c, team) => ({ role: c.a.role, number: 1, team }))]),
+    slots = people.slice(0, actors.length),
+    captainSlots = people.slice(actors.length);
+  const hiNeed: number[] = [],
+    loNeed: number[] = [];
+  for (const [n, slot] of slots.entries()) (closeDetail && isClose(n) ? hiNeed : loNeed).push(slot.model);
+  for (const slot of captainSlots) (closeDetail ? hiNeed : loNeed).push(slot.model);
+  Promise.all([loadSquad("lo", loNeed), closeDetail ? loadSquad("hi", hiNeed) : Promise.resolve(null), loadMotion().catch((error) => (console.warn("motion clips unavailable; using built-in motion", error), null))])
     .then(([lo, hi, motion]) => {
       if (disposed) return;
       kits = new KitMaterials();
-      const wear = (a: Athlete, number: number, team: number, close: boolean, cast: boolean) => {
-        const squad = close && hi ? hi : lo,
-          body = new RealisticBody(squad[modelFor(a.role, number, team)]!, a, kits!, a.role === "umpire" ? -1 : team);
+      const wear = (a: Athlete, slot: { model: number; identity: string; appearance: Appearance }, team: number, close: boolean, cast: boolean) => {
+        const detail = close && hi ? "hi" : "lo",
+          squad = detail === "hi" ? hi! : lo,
+          source = squad[slot.model];
+        if (!source) throw new Error(`squad model ${slot.model} (${slot.identity}) was not loaded at ${detail} detail`);
+        // The same player looks the same in every match and replay.
+        const body = new RealisticBody(source, a, kits!, a.role === "umpire" ? -1 : team, { appearance: slot.appearance, antialias: !!q.antialias, detail });
         equipment.dress(body, a.role, team, a.bones.bat, cast);
         body.setShadows(cast);
         return body;
       };
-      for (const [n, actor] of actors.entries()) {
-        const close = n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
-        actor.body = wear(actor.a, actor.number, actor.team, close, actor.a.mesh.castShadow);
-      }
-      for (const [team, c] of captains.entries()) c.body = wear(c.a, 1, team, true, c.a.mesh.castShadow);
+      for (const [n, actor] of actors.entries()) actor.body = wear(actor.a, slots[n]!, actor.team, isClose(n), actor.a.mesh.castShadow);
+      for (const [team, c] of captains.entries()) c.body = wear(c.a, captainSlots[team]!, team, true, c.a.mesh.castShadow);
       if (motion) {
         motionLibrary = motion;
         for (const [n, actor] of actors.entries()) if (actor.body && actor.a.role !== "umpire") actor.motion = new MotionPlayer(motion, RIG.thigh + RIG.shin, n * 31 + actor.team);
@@ -1182,6 +1199,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
             motionFrame.lean = actor.plan.lean;
           }
           actor.body.sync(motionFrame);
+          actor.body.setDistance(camera.position.distanceTo(actor.a.root.position));
           // A clip-driven body still puts its hands on the ball.
           if ((actor.motionUpper ?? 0) >= 0.5)
             for (const [k, h] of actor.handGoals.entries()) if (h.w > 0.001) actor.body.reachHand(k === 0, goalTmp.set(h.x, h.y, h.z), h.w);
@@ -1407,6 +1425,12 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
       takeError,
       takeMove,
       athletes: realisticReady,
+      looks: realisticReady
+        ? actors
+            .flatMap((a, n) => (a.body ? [`${slots[n]!.identity}=${a.body.appearance.model}:${a.body.appearance.facialHair}:${a.body.appearance.haircut}:${a.body.appearance.skinTint.map((c) => c.toFixed(3)).join("/")}`] : []))
+            .sort()
+            .join("|")
+        : "",
       fielding: actors
         .slice(2, 13)
         .map((a) => a.field?.move ?? "idle")

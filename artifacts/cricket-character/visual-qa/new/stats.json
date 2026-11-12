@@ -1,0 +1,210 @@
+{
+ "pose-batting-stance": {
+  "looks": [
+   {
+    "model": 2,
+    "skinTint": [
+     0.9808641107287258,
+     0.9808641107287258,
+     0.9808641107287258
+    ],
+    "facialHair": "full-beard",
+    "facialDensity": 0.8732120101340115,
+    "haircut": "shaved",
+    "hairColour": [
+     0.04174165441188962,
+     0.02467320821620524,
+     0.019996613083966077
+    ],
+    "recolour": 0
+   }
+  ],
+  "triangles": 82173,
+  "calls": 17,
+  "textures": 9,
+  "geometries": 10,
+  "models": 10
+ },
+ "pose-drive": {
+  "looks": [
+   {
+    "model": 2,
+    "skinTint": [
+     0.9808641107287258,
+     0.9808641107287258,
+     0.9808641107287258
+    ],
+    "facialHair": "full-beard",
+    "facialDensity": 0.8732120101340115,
+    "haircut": "shaved",
+    "hairColour": [
+     0.04174165441188962,
+     0.02467320821620524,
+     0.019996613083966077
+    ],
+    "recolour": 0
+   }
+  ],
+  "triangles": 82173,
+  "calls": 17,
+  "textures": 12,
+  "geometries": 10,
+  "models": 10
+ },
+ "pose-pull": {
+  "looks": [
+   {
+    "model": 2,
+    "skinTint": [
+     0.9808641107287258,
+     0.9808641107287258,
+     0.9808641107287258
+    ],
+    "facialHair": "full-beard",
+    "facialDensity": 0.8732120101340115,
+    "haircut": "shaved",
+    "hairColour": [
+     0.04174165441188962,
+     0.02467320821620524,
+     0.019996613083966077
+    ],
+    "recolour": 0
+   }
+  ],
+  "triangles": 82173,
+  "calls": 17,
+  "textures": 15,
+  "geometries": 10,
+  "models": 10
+ },
+ "pose-loft": {
+  "looks": [
+   {
+    "model": 2,
+    "skinTint": [
+     0.9808641107287258,
+     0.9808641107287258,
+     0.9808641107287258
+    ],
+    "facialHair": "full-beard",
+    "facialDensity": 0.8732120101340115,
+    "haircut": "shaved",
+    "hairColour": [
+     0.04174165441188962,
+     0.02467320821620524,
+     0.019996613083966077
+    ],
+    "recolour": 0
+   }
+  ],
+  "triangles": 82173,
+  "calls": 17,
+  "textures": 18,
+  "geometries": 10,
+  "models": 10
+ },
+ "pose-sweep": {
+  "looks": [
+   {
+    "model": 2,
+    "skinTint": [
+     0.9808641107287258,
+     0.9808641107287258,
+     0.9808641107287258
+    ],
+    "facialHair": "full-beard",
+    "facialDensity": 0.8732120101340115,
+    "haircut": "shaved",
+    "hairColour": [
+     0.04174165441188962,
+     0.02467320821620524,
+     0.019996613083966077
+    ],
+    "recolour": 0
+   }
+  ],
+  "triangles": 82173,
+  "calls": 17,
+  "textures": 21,
+  "geometries": 10,
+  "models": 10
+ },
+ "pose-cut": {
+  "looks": [
+   {
+    "model": 2,
+    "skinTint": [
+     0.9808641107287258,
+     0.9808641107287258,
+     0.9808641107287258
+    ],
+    "facialHair": "full-beard",
+    "facialDensity": 0.8732120101340115,
+    "haircut": "shaved",
+    "hairColour": [
+     0.04174165441188962,
+     0.02467320821620524,
+     0.019996613083966077
+    ],
+    "recolour": 0
+   }
+  ],
+  "triangles": 82173,
+  "calls": 17,
+  "textures": 24,
+  "geometries": 10,
+  "models": 10
+ },
+ "pose-batting-hands": {
+  "looks": [
+   {
+    "model": 2,
+    "skinTint": [
+     0.9808641107287258,
+     0.9808641107287258,
+     0.9808641107287258
+    ],
+    "facialHair": "full-beard",
+    "facialDensity": 0.8732120101340115,
+    "haircut": "shaved",
+    "hairColour": [
+     0.04174165441188962,
+     0.02467320821620524,
+     0.019996613083966077
+    ],
+    "recolour": 0
+   }
+  ],
+  "triangles": 82173,
+  "calls": 17,
+  "textures": 27,
+  "geometries": 10,
+  "models": 10
+ },
+ "pose-keeper": {
+  "looks": [
+   {
+    "model": 5,
+    "skinTint": [
+     1.057444993238896,
+     1.057444993238896,
+     1.057444993238896
+    ],
+    "facialHair": "clean",
+    "facialDensity": 0.9243767699808814,
+    "haircut": "buzz",
+    "hairColour": [
+     0.09102597889649991,
+     0.08662191037372328,
+     0.0814325089428439
+    ],
+    "recolour": 0.2444713797653094
+   }
+  ],
+  "triangles": 74052,
+  "calls": 13,
+  "textures": 33,
+  "geometries": 17,
+  "models": 10
+ }
+}

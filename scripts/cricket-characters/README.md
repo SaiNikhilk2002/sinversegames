@@ -21,18 +21,26 @@ Unzip the asset packs into MPFB's user data folder. To find that folder, run Ble
 
 ## Building
 
+Rebuild every athlete, both levels of detail, with `build_all.sh` (about 2.5 minutes):
+
+```sh
+BLENDER=/path/to/blender scripts/cricket-characters/build_all.sh
+```
+
+Or one at a time:
+
 ```sh
 blender -b --python-exit-code 1 -P scripts/cricket-characters/build_athlete.py -- scripts/cricket-characters/athletes/athlete-01.json apps/web/public/sinverse-cricket/athletes/athlete-01.glb hi
 blender -b --python-exit-code 1 -P scripts/cricket-characters/build_athlete.py -- scripts/cricket-characters/athletes/athlete-01.json apps/web/public/sinverse-cricket/athletes/athlete-01-lo.glb lo
 blender -b -P scripts/cricket-characters/preview_athlete.py -- <athlete.glb> <output prefix>
 ```
 
-To add a player, add a JSON file to `athletes/` and its name to `SQUAD` in `realistic.ts`. The JSON file sets:
+To add a squad model, add a JSON file to `athletes/` and its name to `SQUAD` in `realistic.ts`, and a row to `TRAITS` in `athlete-look.ts`. The JSON file sets:
 
-- body shape: `age`, `muscle`, `weight`, `height`, `proportions`
+- body shape: `age`, `muscle`, `weight`, `height`, `proportions`, and optional `body` targets (for example `torso-vshape-incr`)
 - ancestry blend: `race`
-- skin, eyebrows and hair
-- clothes
+- the face: `face`, a map of MakeHuman target names to weights (nose, jaw, chin, cheeks, mouth, ears, head shape), including a couple of `asym-*` targets so no face is perfectly symmetric
+- skin, `eye` colour (a MakeHuman eye material: brown, brownlight, bluegreen, grey and so on), eyebrows and hair (empty for a close crop, drawn by the skin shader)
 
 `height` is steep: 0.5 is about 1.70 m, and 0.58 is about 1.88 m.
 
@@ -41,11 +49,20 @@ To add a player, add a JSON file to `athletes/` and its name to `SQUAD` in `real
 | Step | Why |
 |---|---|
 | `HumanService.refit` with detailed helpers on | Without the helpers, MPFB places the skeleton for the default body, so the joints don't match the athlete's shape |
-| Game-engine materials, alpha only on hair, brows and lashes | MakeHuman routes every texture's alpha into the shader. Without this, glTF exports skin and clothes as blended, and their back faces show through in patches |
-| Kit base swapped to the suit's ambient-occlusion map | It keeps the fabric folds but drops the MakeHuman logo printed on the source shirt. The game tints it per team |
-| Textures capped at 1024 px for skin and 512 px for the rest, saved as JPEG where opaque | Each model is about 1.3 to 2.0 MB, down from 13.8 MB |
+| Face and body targets per athlete | Ten distinct faces (nose, jaw, chin, cheekbones, lips, ears, head shape) with small asymmetries, rather than one face recoloured |
+| **Cricket kit cut from the `helper-tights` geometry** | The tights follow the athlete's exact shape and carry the rig's weights. They are cut into a shirt (short sleeves, neckline) and trousers (waist to ankle). The sleeve cuts only remove arm geometry, and stray scraps are dropped |
+| Ease, drape and folds | The shirt is eased off the body (looser over the belly), then smoothed and pushed back outside its own eased shape, so it bridges the hollows under the chest and down the spine instead of clinging. Openings are pinned so hems stay put. Trousers hang straight below the knee. Compression folds are added across the elbows, waist, knees and ankles |
+| Collar, cuffs, waistband | A two-row fold-over collar (higher at the back), turned hems on the sleeves and ankles, and a waistband. The collar and cuffs are marked as trim, which the game colours in the team's accent |
+| Shirt subdivision (detailed only) | The collar and shoulders are seen up close in every batting and bowling shot. Trousers stay at the tights' density |
+| Skin under the kit removed | About 2,300 body faces covered by the kit are deleted, so skin can never show through cloth when a limb bends |
+| Baked occlusion | Cycles bakes ambient occlusion into the kit's vertex colours (folds, armpits, under the collar) |
+| Kit vertex colours | `COLOR_0` = (trim, occlusion, part/2, 1); part is 0 for trousers and 1 for the shirt |
+| Facial hair and scalp masks | From the basemesh's lips, eyes, ears and scalp groups and a measured chin point: beard (jaw, cheeks, sideburns, under the chin), moustache, scalp (the artist-drawn hairline) and chin, copied to the body by nearest vertex as its `COLOR_0` |
+| High-detail eyes and natural lashes (detailed only) | MakeHuman's `high-poly` eyes, with a cut-out cornea, and the shorter `eyelashes03` |
+| Game-engine materials, alpha only on hair, brows, lashes and eyes | MakeHuman routes every texture's alpha into the shader. Without this, glTF exports skin and clothes as blended, and their back faces show through in patches |
+| WebP textures, capped at 1024 px for skin and hair, 512 px for the rest | About 1.9 to 2.3 MB per detailed model and 0.3 to 0.5 MB per light one |
 | Mixamo-compatible rig, 52 bones including fingers | The game maps the procedural rig onto these bone names |
-| `lo` level: `male1591` body, cloth and hair decimated, no brows or lashes, textures halved, no normal maps | About 6,100 to 7,800 triangles and 0.3 to 0.5 MB, against about 31,600 and 1.3 to 2.0 MB for `hi` |
+| `lo` level: `male1591` body, low-poly eyes, kit and hair decimated, no brows or lashes, textures halved, no normal maps | About 6,600 to 9,000 triangles, against about 36,000 to 40,000 for `hi` |
 
 ## Licences
 
@@ -58,16 +75,41 @@ To add a player, add a JSON file to `athletes/` and its name to `SQUAD` in `real
 - **Sizing and hips.** Each body is sized by leg length, and the pelvis is placed so the real hip joints sit on the driver's hip joints.
 - **Arm length.** Arms are lengthened at most 12% (`ARM_STRETCH_MAX`) to match the procedural rig's reach.
 - **Hands and feet.** A two-bone reach then pulls the real wrists and ankles onto the driver's, so the bat stays in the hands and planted feet don't slide.
-- **Bat.** The bat stays on the driver's bat bone, so contact is unchanged.
-- **Other equipment.** The helmet, pads and gloves attach to the realistic skeleton.
-- **Detail levels.** On Low and Medium everyone wears the light (`lo`) athlete. On High and Ultra, the batters, bowler, keeper, umpire and toss captains wear the detailed (`hi`) one.
+- **Fingers.** Each hand's curl axis is measured from its own knuckle line and thumb at rest, so fingers bend towards the palm. Fielders get a graded, relaxed curl; batters and keepers an even grip.
+- **Appearance per player** (`athlete-look.ts`). A player's identity picks, deterministically:
+  - facial hair: clean, stubble, short or full beard, moustache, goatee or chin strap
+  - haircut: the model's own, a buzz cut, or shaved
+  - hair colour and greying
+  - a small skin tone shift
+
+  The skin shader draws facial hair and buzz cuts from the masks. The same player looks the same in every match and replay.
+- **Materials.**
+  - Skin is wrap-lit, so light bleeds softly past the terminator, reddest first, with fine pores up close.
+  - Eyes are glossy with a clear coat.
+  - Hair is matte cut-out cards, with alpha-to-coverage where there is multisampling.
+  - The kit is a sheen fabric material with the baked occlusion.
+- **Equipment.**
+  - The bat stays on the driver's bat bone, so contact is unchanged.
+  - The helmet (shell, peak, steel grille) and pads (bolsters, knee rolls, straps) are generated to fit each model's measured head and shins. They are rigidly skinned to the head and shins.
+  - Gloves are each athlete's own hand skin, thickened and skinned to the same finger bones, so they bend with the fingers.
+- **Detail levels.**
+  - On Low and Medium everyone wears the light (`lo`) athlete.
+  - On High and Ultra, the batters, bowler, keeper, umpire and toss captains wear the detailed (`hi`) one.
+  - Past 45 m from the camera a player's eyes aren't drawn.
+  - Only the models a match uses are downloaded.
 - **Draw calls.**
   - Each athlete's meshes share one skeleton, which also means one bone texture on the GPU.
-  - The kit and shoes are one mesh. A `kitPart` vertex attribute selects the shirt, trouser or shoe colour in the shader.
-  - The helmet, pads and gloves are one rigidly skinned mesh, and the bat is one mesh.
+  - The shirt, trousers and shoes are one mesh. A `kitInfo` vertex attribute selects the colour in the shader.
+  - A batter adds four meshes (bat, helmet, pads, gloves).
 - **Fallback.** Models load in the background. Until they arrive, or if they can't be loaded, the procedural bodies are drawn as before.
 - **Textures.** Embedded textures are decoded through `<img>`, because the site's Content-Security-Policy blocks `fetch()` of `blob:` URLs.
-- **Tests.** `apps/web/e2e/cricket-realistic.spec.ts` checks the models, the kit and the reach accuracy.
+- **Tests.** `apps/web/e2e/cricket-realistic.spec.ts` covers:
+  - the models and their budgets
+  - the kit and the fit of the gear
+  - cloth staying on the body in extreme poses
+  - the masks and appearance variety
+  - the reach accuracy
+- **Review.** The development page `/dev/cricket-studio` draws athletes through the game's own code in studio, day or night light, for close-up review. It returns 404 in production unless `CRICKET_STUDIO=1` is set.
 
 ## Motion clips
 
