@@ -50,5 +50,7 @@ describe("Cricket v1 duel golden corpus", () => {
     const golden = JSON.parse(readFileSync(FILE, "utf8"));
     expect(now.length).toBe(96);
     expect(JSON.parse(JSON.stringify(now))).toEqual(golden);
-  });
+    // An explicit budget like the other match-replaying cricket tests: 96 duels take about 2.5 s
+    // alone, but more than vitest's 5 s default while the heavy format suites run alongside.
+  }, 60_000);
 });
