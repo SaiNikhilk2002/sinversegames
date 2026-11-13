@@ -164,7 +164,7 @@ for (const format of ["t20", "odi"] as const) {
     const a = (s * 7) % 20,
       b = (a + 1 + ((s * 11) % 19)) % 20,
       t = INTERNATIONAL_TEAMS[a]!,
-      config: FormatConfig = { version: 2, format, team: t.id, opponent: INTERNATIONAL_TEAMS[b]!.id, xi: [...t.xi], captain: t.captain, keeper: t.keeper, venue: s % 2 ? "tideglass" : "lantern", difficulty: (["club", "county", "elite"] as const)[s % 3] };
+      config: FormatConfig = { version: 2, format, team: t.id, opponent: INTERNATIONAL_TEAMS[b]!.id, xi: [...t.xi], captain: t.captain, keeper: t.keeper, venue: s % 2 ? "tideglass" : "lantern", difficulty: (["club", "county", "elite"] as const)[s % 3]! };
     const seed = 120_000 + s * 31,
       where = `${format} #${s} seed ${seed}`,
       own = [0, 0, 4, 2, 7][s % 5]!;

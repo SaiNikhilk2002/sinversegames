@@ -23,7 +23,8 @@
     "test": "vitest run",
     "bench:cricket": "vitest run --config bench/vitest.config.ts bench/verify.run.ts",
     "bench:balance": "vitest run --config bench/vitest.config.ts bench/balance.run.ts",
-    "stress:cricket": "vitest run --config bench/vitest.config.ts bench/stress.run.ts"
+    "stress:cricket": "vitest run --config bench/vitest.config.ts bench/stress.run.ts",
+    "bench:workerd:cases": "vitest run --config bench/vitest.config.ts bench/workerd-cases.run.ts"
   },
   "dependencies": {
     "@platform/shared": "workspace:*",
