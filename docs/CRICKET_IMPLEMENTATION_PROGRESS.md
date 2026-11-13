@@ -34,3 +34,19 @@ Work on `feature/unified-platform` starting from `0793ec8`, 2026-11-13. Design: 
 | *(this commit)* | Documentation |
 
 Nothing was pushed, merged or deployed, and no production data or infrastructure was touched.
+
+## Release-readiness milestone (2026-11-13, from `98dca74`)
+
+Local only: nothing pushed, merged or deployed. Details are in `CRICKET_RELEASE_READINESS_REPORT.md`.
+
+| Workstream | Status |
+|---|---|
+| Repository and lifecycle audit | Done: `CRICKET_RELEASE_READINESS_AUDIT.md` |
+| Rules audit (T20, ODI) | Done. Five rule fixes and one fairness refinement, each with a regression test: `CRICKET_RULES_VALIDATION.md` |
+| Fairness and anti-cheat | Server authority confirmed. Only legal balls count towards the 30/60-ball threshold. Impossible pace refused before the replay. 3,200 tampered logs rejected in the stress run |
+| Server CPU | Verification 40–55% cheaper, with outcomes identical: `CRICKET_PERFORMANCE_BENCHMARKS.md`. The Worker plan limit is still unknown |
+| Match presentation | International innings break (waits for the player, survives a refresh), result awards and "your part", full-scorecard button, team and XI comparison, XI summary before the start |
+| AI opposition | Plans and accuracy by difficulty; monotonic difficulty; death-over planning: `CRICKET_AI_OPPONENT_REPORT.md` |
+| Simulation and stress | 500 T20 + 500 ODI, 0 failures (`stress:cricket`); the 100 + 100 suites remain in `pnpm test` |
+| Browser | `cricket-release.spec.ts` (3 tests) added; full suite re-run |
+| Test cricket | Not exposed. Persistence proposal: `TEST_CRICKET_PERSISTENCE_PROPOSAL.md` |
