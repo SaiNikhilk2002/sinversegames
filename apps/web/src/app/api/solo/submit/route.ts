@@ -63,6 +63,13 @@ async function handlePOST(req: Request) {
   const config = game.configSchema.safeParse(run.config);
   const log = game.logSchema.safeParse(parsed.data.log);
   if (!config.success || !log.success) return NextResponse.json({ error: "Invalid game log" }, { status: 400 });
+  // A cricket match's game time is its last entry's time (verify checks the timeline is in order), so a log
+  // claiming more time than has passed is refused before the (comparatively costly) replay, not after it.
+  if ((run.gameId as string) === "sinverse-cricket") {
+    const last = (log.data as { t?: unknown }[]).at(-1)?.t;
+    if (typeof last === "number" && last > Date.now() - run.issuedAt + TIMING_SLACK_MS)
+      return NextResponse.json({ error: "That game finished faster than real time allows" }, { status: 422 });
+  }
 
   const verified = game.verify(run.seed, config.data, log.data);
   if (!verified.ok) return NextResponse.json({ error: verified.reason }, { status: 422 });

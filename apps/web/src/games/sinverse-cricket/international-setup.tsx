@@ -8,6 +8,8 @@ import {
   configSchema,
   internationalTeam,
   validateSelection,
+  xiProfile,
+  type XiProfile,
   type CricketPlayer,
   type CricketTeam,
   type FormatConfig,
@@ -24,6 +26,29 @@ import { TeamCrest } from "./crest";
 const ROLE: Record<CricketPlayer["role"], string> = { batter: "Batter", keeper: "Wicketkeeper", "all-rounder": "All-rounder", pace: "Pace bowler", spin: "Spin bowler" };
 const BOWLS: Record<NonNullable<CricketPlayer["bowls"]>, string> = { fast: "Right-arm fast", medium: "Right-arm medium", "off-spin": "Off-spin", "leg-spin": "Leg-spin", "left-arm-spin": "Left-arm spin" };
 type Step = "teams" | "xi" | "match";
+
+/** Side-by-side strength of the two elevens that will play (the player's chosen XI and the opposition's), from the catalogue attributes. */
+function Comparison({ mine, theirs, mineName, theirName }: { mine: XiProfile; theirs: XiProfile; mineName: string; theirName: string }) {
+  return (
+    <div className="cr-compare" role="group" aria-label="Strength of the two elevens" data-testid="team-comparison">
+      <div className="cr-compare-head" aria-hidden>
+        <span>{mineName} · your XI</span>
+        <span>{theirName}</span>
+      </div>
+      {(["batting", "bowling", "fielding"] as const).map((k) => (
+        <div key={k} className="cr-compare-row" role="img" aria-label={`${k}: ${mineName} ${mine[k]}, ${theirName} ${theirs[k]}`}>
+          <b className={mine[k] > theirs[k] ? "is-ahead" : undefined}>{mine[k]}</b>
+          <span className="cr-compare-bars">
+            <i style={{ width: `${mine[k]}%` }} />
+            <small>{k}</small>
+            <i style={{ width: `${theirs[k]}%` }} />
+          </span>
+          <b className={theirs[k] > mine[k] ? "is-ahead" : undefined}>{theirs[k]}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Ratings({ team }: { team: CricketTeam }) {
   return (
@@ -93,6 +118,8 @@ export function InternationalSetup({ format, onFormat, onStart, busy }: { format
     } else setOpponentId(id);
   };
   const problems = validateSelection(team, { xi, captain, keeper });
+  const mine = xiProfile(team, { xi, keeper }),
+    theirs = xiProfile(opponent, opponent);
   const config: FormatConfig = { version: 2, format, team: teamId, opponent: opponentId, xi, captain, keeper, venue, difficulty };
   const valid = !problems.length && configSchema.safeParse(config).success;
   const rules = FORMATS[format];
@@ -121,6 +148,7 @@ export function InternationalSetup({ format, onFormat, onStart, busy }: { format
         <div><TeamCrest team={opponent} /><span><small>THE OPPOSITION</small><strong data-testid="opposition-team">{opponent.name}</strong><small>{difficulty === "club" ? "Club" : difficulty === "county" ? "County" : "Elite"} challenge</small></span></div>
         <p>{VENUES[venue].name}<br /><b>{rules.short} · {rules.overs} overs a side</b></p>
       </div>
+      <Comparison mine={mine} theirs={theirs} mineName={team.name} theirName={opponent.name} />
 
       {step === "teams" && (
         <section className="cr-intl-section">
@@ -192,7 +220,13 @@ export function InternationalSetup({ format, onFormat, onStart, busy }: { format
             </div>
           </div>
           <div className={problems.length ? "cr-validation" : "cr-validation cr-valid"} role="status" aria-live="polite" data-testid="xi-status">
-            {problems.length ? problems.map((p) => <p key={p}>{p}</p>) : <p>Eleven picked, with {xi.filter((id) => byId.get(id)?.bowls).length} bowling options. Ready.</p>}
+            {problems.length ? (
+              problems.map((p) => <p key={p}>{p}</p>)
+            ) : (
+              <p>
+                Eleven picked: {mine.bowlers} bowling options besides the keeper ({mine.spinners} spin) · {mine.roles.batter} batters, {mine.roles["all-rounder"]} all-rounders, {mine.roles.pace} pace, {mine.roles.spin} spin, {mine.roles.keeper} specialist keeper{mine.roles.keeper === 1 ? "" : "s"}. Ready.
+              </p>
+            )}
           </div>
           <div className="cr-intl-nav">
             <button type="button" className="cr-button" onClick={() => setStep("teams")}>← Teams</button>
@@ -226,6 +260,16 @@ export function InternationalSetup({ format, onFormat, onStart, busy }: { format
                 <option value="elite">Elite · earn every run</option>
               </select>
             </label>
+          </div>
+          <div className="cr-your-xi" data-testid="your-xi-summary">
+            <h4>{team.name} will play this eleven</h4>
+            <ol>
+              {xi.map((id) => {
+                const p = byId.get(id)!;
+                return <li key={id}>{p.name}{captain === id ? " (c)" : ""}{keeper === id ? " †" : ""}</li>;
+              })}
+            </ol>
+            <button type="button" className="cr-small" onClick={() => setStep("xi")}>Change the XI</button>
           </div>
           <dl className="cr-rules" aria-label="Playing conditions">
             <div><dt>Overs</dt><dd>{rules.overs} per side, {rules.overs! * 6} legal balls</dd></div>

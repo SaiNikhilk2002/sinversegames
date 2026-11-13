@@ -106,13 +106,17 @@ test("a T20 between two chosen teams plays, simulates, verifies and saves with i
   const innings = (await root.getAttribute("data-innings"))!.split(" ");
   expect(innings).toHaveLength(2);
   for (const i of innings) expect(Number(i.split(":")[2])).toBeLessThanOrEqual(120);
+  // Legal balls count towards the player's record; a wide or no-ball in their two deliveries would be bowled again.
+  const legal = Number(await root.getAttribute("data-controlled-balls"));
+  expect(legal).toBeGreaterThanOrEqual(1);
+  expect(legal).toBeLessThanOrEqual(2);
   await save.click();
   await expect(page.getByTestId("score-verified")).toBeVisible({ timeout: 30000 });
   const results = page.getByTestId("solo-results");
   await expect(results).toContainText("T20 ·");
   await expect(results).toContainText("Sri Lanka");
   await expect(results).toContainText("Ireland");
-  await expect(results).toContainText("you played 2 balls");
+  await expect(results).toContainText(`you played ${legal} balls`);
   // The player's own opener walked out first.
   const name = INTERNATIONAL_TEAMS.find((t) => t.id === "sri-lanka")!.squad.find((p) => p.id === opener)!.name;
   const slTable = results.locator(".cr-scorecards section", { hasText: "Sri Lanka" }).first();

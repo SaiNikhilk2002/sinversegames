@@ -26,6 +26,7 @@ import {
   FIELD_NAMES_V2,
   VARIATIONS_FOR,
   fieldAllowed,
+  FORMATS,
   internationalTeam,
   outsideCircle,
   type FieldName,
@@ -35,6 +36,7 @@ import type { SoloGameProps, SoloSetupProps } from "../solo-types";
 import { InternationalSetup } from "./international-setup";
 import { TeamCrest } from "./crest";
 import { setSides } from "./sides";
+import { InningsBreak, MatchAwards } from "./match-summary";
 import {
   audioReady,
   createLoop,
@@ -1184,7 +1186,8 @@ export function CricketGame({
             };
           refresh();
         }
-        if (preferences.current.continuous && r.ceremony.stage === "done" && !r.replay && !r.replayAt && r.nextAt && r.elapsed >= r.nextAt && (m.phase === "interval" || (m.phase === "ready" && m.humanBatting && (!r.delivery || r.settled)))) {
+        // Continuous play rolls on between deliveries; an international innings break waits for the player (its summary is worth reading).
+        if (preferences.current.continuous && r.ceremony.stage === "done" && !r.replay && !r.replayAt && r.nextAt && r.elapsed >= r.nextAt && ((m.phase === "interval" && m.isDuel) || (m.phase === "ready" && m.humanBatting && (!r.delivery || r.settled)))) {
           r.nextAt = 0;
           actions.current.primary();
         }
@@ -1327,7 +1330,9 @@ export function CricketGame({
         element.dataset.format = m.isDuel ? "duel" : m.rules!.id;
         element.dataset.sides = `${m.sides[0].id}|${m.sides[1].id}`;
         element.dataset.innings = m.innings.map((x) => `${m.sides[x.team]!.short}:${x.runs}/${x.wickets}:${x.balls}`).join(" ");
-        element.dataset.controlled = String(m.controlled);
+        // Deliveries the player controlled (wides and no-balls included), and of those the legal balls that count towards a win.
+        element.dataset.controlled = String(m.controlled + m.controlledExtras);
+        element.dataset.controlledBalls = String(m.controlled);
         element.dataset.simulated = String(m.simulated);
         element.dataset.release = String(r.plan?.release ?? 0);
         element.dataset.ceremony = r.ceremony.stage;
@@ -1415,7 +1420,7 @@ export function CricketGame({
         actions.current.pause();
         return;
       }
-      const interactive = event.target instanceof HTMLElement && (!!event.target.closest("input,select,textarea,a,[contenteditable='true']") || event.code === "Space" && !!event.target.closest("button"));
+      const interactive = event.target instanceof HTMLElement && (!!event.target.closest("input,select,textarea,a,[contenteditable='true']") || (event.code === "Space" || event.code === "Enter" || event.code === "NumpadEnter") && !!event.target.closest("button"));
       if (!acceptsGameplayKey(event, interactive)) return;
       if (event.repeat && !event.code.startsWith("Arrow")) return;
       if (actions.current.key(event)) event.preventDefault();
@@ -1676,7 +1681,8 @@ export function CricketGame({
             {r.ceremony.stage !== "decision" && <button className="cr-small cr-skip" disabled={r.ceremony.stage === "flight" && !r.ceremony.call} onClick={() => { r.ceremony.skip(); unlockAudio(); refresh(); }}>Skip cinematic <kbd>{keyLabel(bindings.action)}</kbd></button>}
           </div>
         )}
-        {m.phase === "interval" && !r.replay && <div className="cr-transition"><p className="cr-eyebrow">INNINGS BREAK</p><h2>The chase begins.</h2><p>{sideOf(1 - m.firstBat).name} need {(m.innings[0]?.runs ?? 0) + 1} from {limit} balls{m.isDuel ? "" : ` · required rate ${((((m.innings[0]?.runs ?? 0) + 1) * 6) / limit).toFixed(2)}`}.</p>{m.innings[0] && <Standouts innings={m.innings[0]} />}<button className="cr-button" onClick={() => primary()}>Begin the chase</button></div>}
+        {m.phase === "interval" && !r.replay && !m.isDuel && m.innings[0] && <InningsBreak first={m.innings[0]} batting={sideOf(m.firstBat)} chasing={sideOf(1 - m.firstBat)} limit={limit} format={m.rules!.short} onBegin={() => primary()} />}
+        {m.phase === "interval" && !r.replay && m.isDuel && <div className="cr-transition"><p className="cr-eyebrow">INNINGS BREAK</p><h2>The chase begins.</h2><p>{sideOf(1 - m.firstBat).name} need {(m.innings[0]?.runs ?? 0) + 1} from {limit} balls{m.isDuel ? "" : ` · required rate ${((((m.innings[0]?.runs ?? 0) + 1) * 6) / limit).toFixed(2)}`}.</p>{m.innings[0] && <Standouts innings={m.innings[0]} />}<button className="cr-button" onClick={() => primary()}>Begin the chase</button></div>}
         <BroadcastGraphics
           cards={
             m.current
@@ -1708,14 +1714,22 @@ export function CricketGame({
           {batting && live && !r.delivery?.shot && r.delivery!.tick >= RELEASE_TICK && <div className="cr-flight-cue" aria-label="Delivery approaching the crease"><i style={{ width: `${Math.max(0, Math.min(100, (r.delivery!.pos.z + 8.5) / 17.3 * 100))}%` }} /></div>}
         </div>}
         {m.phase === "finished" && finishShown && !r.replay && (
-          <div className="cr-match-finish">
-            <p className="cr-eyebrow">MATCH COMPLETE</p>
+          <div className={m.isDuel ? "cr-match-finish" : "cr-match-finish cr-match-finish-v2"} data-testid="cricket-finish">
+            <p className="cr-eyebrow">{m.isDuel ? "MATCH COMPLETE" : `MATCH COMPLETE · ${m.rules!.short} · ${sideOf(0).short} v ${sideOf(1).short}`}</p>
             <h2>{m.result}</h2>
-            <div className="cr-finish-standouts">
-              {m.innings.map((inn) => (
-                <Standouts key={inn.team} innings={inn} team={sideOf(inn.team).short} />
-              ))}
-            </div>
+            {m.isDuel ? (
+              <div className="cr-finish-standouts">
+                {m.innings.map((inn) => (
+                  <Standouts key={inn.team} innings={inn} team={sideOf(inn.team).short} />
+                ))}
+              </div>
+            ) : (
+              <MatchAwards
+                innings={m.innings}
+                sideOf={sideOf}
+                own={{ controlled: m.controlled, needed: m.rules!.minControlledBalls, won: m.winner === m.human, counts: m.winner === m.human && m.controlled >= m.rules!.minControlledBalls, runs: m.controlledRuns, wickets: m.controlledWickets, simulated: m.simulated }}
+              />
+            )}
             <p>
               {m.innings
                 .map(
@@ -1728,6 +1742,11 @@ export function CricketGame({
               <button className="cr-button" onClick={replay}>
                 Last delivery replay
               </button>
+              {!m.isDuel && (
+                <button className="cr-button" data-testid="cricket-full-scorecard" onClick={() => setMenu("scorecard")}>
+                  Full scorecard
+                </button>
+              )}
               <button
                 className="cr-button cr-primary"
                 data-testid="cricket-save"
@@ -2470,11 +2489,26 @@ export function CricketResultDetails({
           ? `${details.runs} team runs · ${details.teamWickets} wickets taken · ${details.teamSixes} sixes · Result: ${details.result} · you played ${details.controlledBalls} balls (${details.controlledRuns} runs, ${details.wicketsTaken} wickets, ${details.sixes} sixes), ${details.simulatedBalls} simulated`
           : `${details.runs} batting runs · ${details.wicketsTaken} wickets taken · ${details.sixes} sixes · Result: ${details.result}`}
       </p>
+      {international && Array.isArray(innings) && innings.length === 2 && (
+        <MatchAwards
+          innings={innings}
+          sideOf={(t) => ({ name: names(t), short: sides?.[t]?.short ?? "" })}
+          own={{
+            controlled: Number(details.controlledBalls ?? 0),
+            needed: FORMATS[details.format === "odi" ? "odi" : "t20"].minControlledBalls,
+            won: details.result === "win",
+            counts: details.result === "win" && Number(details.uncounted ?? 0) !== 1,
+            runs: Number(details.controlledRuns ?? 0),
+            wickets: Number(details.wicketsTaken ?? 0),
+            simulated: Number(details.simulatedBalls ?? 0),
+          }}
+        />
+      )}
       <Scorecards innings={Array.isArray(innings) ? innings : []} names={names} />
       <p className="cr-note">
-        Points compare batting and wickets per scheduled over, plus a win bonus.
-        Replays stay in this open match; career and full-format cricket are
-        future phases.
+        {international
+          ? "Points count only the balls you played: runs you scored and wickets you took, plus a bonus for a win that counts. The server replayed every delivery to verify this scorebook."
+          : "Points compare batting and wickets per scheduled over, plus a win bonus. Replays stay in this open match; career and full-format cricket are future phases."}
       </p>
     </div>
   );
