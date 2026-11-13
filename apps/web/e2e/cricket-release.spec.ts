@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { internationalTeam, xiProfile } from "@platform/engines/sinverse-cricket";
+import { CricketMatch, internationalTeam, xiProfile, type CricketLog } from "@platform/engines/sinverse-cricket";
 
 /**
  * Release-candidate checks for international cricket, through the real UI and
@@ -156,4 +156,51 @@ test("international gameplay fits a phone screen: the live match, the innings br
   // The card scrolls within itself, so its save button can always be reached.
   await page.getByTestId("cricket-save").scrollIntoViewIfNeeded();
   await expect(page.getByTestId("cricket-save")).toBeInViewport();
+});
+
+test("the server replays an international run's log once: a rejected run stays rejected, a saved run is a duplicate", async ({ page }) => {
+  test.setTimeout(120_000);
+  await join(page, "Replay guard QA");
+  const india = internationalTeam("india")!;
+  const config = { version: 2, format: "t20", team: india.id, opponent: "oman", xi: india.xi, captain: india.captain, keeper: india.keeper, venue: "lantern", difficulty: "county" };
+  const headers = { origin: "http://localhost:3200" };
+  const start = async () => {
+    const res = await page.request.post("/api/solo/start", { data: { gameId: "sinverse-cricket", config }, headers });
+    expect(res.status()).toBe(200);
+    return (await res.json()) as { token: string; seed: number; config: never };
+  };
+  /** A whole T20 simulated, as "Simulate innings" does: the toss and one entry per innings. */
+  const simulated = (seed: number, cfg: never) => {
+    const m = new CricketMatch(seed, cfg);
+    m.toss({ k: "toss", call: m.tossFace, decision: "bat", t: 0 });
+    for (let t = 1000; m.phase !== "finished"; t += 1000) {
+      if (m.phase === "interval") m.nextInnings();
+      expect(m.simulate({ k: "sim", seq: m.seq, balls: 600, t })).not.toBeNull();
+    }
+    return m.inputLog as CricketLog;
+  };
+  const submit = (token: string, log: CricketLog) => page.request.post("/api/solo/submit", { data: { token, log }, headers });
+
+  // A log that fails verification (here, one innings short) is rejected, and the run can't be
+  // replayed again, even with a log that would have verified.
+  const rejected = await start();
+  const full = simulated(rejected.seed, rejected.config);
+  await page.waitForTimeout(3500);
+  const short = await submit(rejected.token, full.slice(0, -1));
+  expect(short.status()).toBe(422);
+  expect((await short.json()).error).toBe("Finish both innings before submitting");
+  const retry = await submit(rejected.token, full);
+  expect(retry.status()).toBe(422);
+  expect((await retry.json()).error).toBe("This game's log was already rejected");
+
+  // A verified, saved run answers its resubmission as a duplicate.
+  const saved = await start();
+  const log = simulated(saved.seed, saved.config);
+  await page.waitForTimeout(3500);
+  const first = await submit(saved.token, log);
+  expect(first.status()).toBe(200);
+  expect((await first.json()).saved).toBe(true);
+  const again = await submit(saved.token, log);
+  expect(again.status()).toBe(409);
+  expect((await again.json()).error).toBe("This game was already submitted");
 });
