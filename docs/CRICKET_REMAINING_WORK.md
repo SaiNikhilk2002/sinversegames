@@ -9,7 +9,9 @@ What is not done after the release-readiness milestone, and why.
 | Item | Why it's blocked | What it needs |
 |---|---|---|
 | **Release of T20 and ODI** | Nothing here is pushed or deployed | Your review of the local commits, then an authorized push and deployment. **No migration is needed.** The release changes how version-2 matches play (rules fixes, AI). No version-2 match has been released, so no stored records are affected |
-| **Cloudflare Worker CPU for ODI verification** | Local Node takes up to about 0.3 s of CPU to verify a whole ODI when run directly, or about 0.55 s under vitest (after a 45–50% reduction). The Workers plan's limit isn't visible from the repository (`wrangler.jsonc` sets no `limits.cpu_ms`) | Confirm the plan. Workers Paid allows 30 s of CPU per request by default; the Free plan allows 10 ms, which a T20 or ODI verification would exceed locally (about 60–330 ms). If it's tight, verify long matches on the Railway realtime service (see the options in `CRICKET_PERFORMANCE_BENCHMARKS.md`) |
+| **Cloudflare Worker CPU for ODI verification** | The production audit (`CRICKET_CLOUDFLARE_COMPATIBILITY.md`) measured verification inside the Workers runtime, run locally (workerd): the worst real ODI takes about 0.4–0.5 s, a T20 up to about 0.2 s. The account's plan still isn't verifiable from here | **Confirm Workers Paid** (30 s default CPU, about 60× headroom). On Free (10 ms), every T20/ODI submission would fail with error 1102. Then read real CPU in Observability after a Preview (Mode A) or the release |
+| **Preview isolation** | The repository's `previews` block sets no database. A Preview's `DATABASE_URL` and `AUTH_SECRET` come from dashboard secrets that aren't visible here | Confirm Previews Base has no production connection string and a different `AUTH_SECRET` (`CRICKET_PREVIEW_VALIDATION_PLAN.md`) |
+| **Crafted-log CPU cost** (security S2) | A modified client can send a log of deliberate no-balls up to the body limit, which costs several times a real ODI to replay before it is rejected. Bounded by real-time pacing, once per run per isolate, and rate limits | Watch Observability after release. If abused: a WAF rate-limit rule, a cap on extras per innings (a rules decision), or verification on Railway |
 | **Playable Test cricket** | A five-day match exceeds the 6-hour token, the 512 KB body and one sitting | `TEST_CRICKET_PERSISTENCE_PROPOSAL.md`: one additive migration, segment verification and resume. About 7–10 days. Approval of the migration and four policy questions |
 
 ## Not yet built
@@ -24,6 +26,8 @@ What is not done after the release-readiness milestone, and why.
 | Tournaments, series, career, per-format statistics | Per-format stat lines would need a migration |
 | Highlights of simulated passages | Simulated deliveries are summarised and scored, not replayed in 3D |
 | Cross-device resume of a T20 or ODI | Recovery is per browser tab. The Test proposal's saved matches would generalise to limited overs if wanted |
+| A version-2 golden corpus | Freeze recorded T20/ODI matches, as the duel's 96 are, before the next change to v2 physics, rules or AI. Any such change invalidates in-progress v2 matches at deploy time |
+| Leaderboards by format and difficulty | Duel and international scores, at any difficulty, share one Sinverse Cricket board (`CRICKET_SECURITY_RELEASE_REVIEW.md`). Separate boards would need per-format statistics (a migration) |
 | Player names on 3D shirts | Kits wear colours and numbers; names appear in the HUD, cards and scorecards |
 
 ## Known limitations

@@ -1,5 +1,7 @@
 # Sinverse Cricket: T20 and ODI release-candidate report
 
+> **Superseded for the release decision by `CRICKET_RELEASE_DECISION.md`** (production release audit, 2026-11-13). That audit re-ran every check, measured verification inside the Workers runtime, and fixed security finding S1. This report remains the record of the Mission 2 work.
+
 **Release candidate status:** local only. Branch `feature/unified-platform`, from `98dca74`.
 - **Nothing was pushed, merged or deployed.** No Preview was published.
 - **Production was not changed:** no production database, migration, secret, DNS, Cloudflare, Railway, Neon or Resend setting.

@@ -80,7 +80,11 @@ Profiling showed that about 80% of verification time is the ball-flight physics.
 - the authoritative full replay;
 - the database reads (one transaction, as before).
 
-A duplicate submission is still detected by the unique run id after verification. A pre-check would add a database read to every submission, to save CPU only on rare duplicates, which are also rate-limited.
+**Production readiness audit (2026-11-13): replay guards.** A duplicate submission used to be detected only by the unique run id, after the full replay. A run whose log failed verification could also be resubmitted, and replayed, until its token expired. For cricket, `/api/solo/submit` now:
+- answers a run that's already saved with `409` before replaying it (one primary-key read: database waiting isn't Workers CPU);
+- doesn't replay again a run whose log failed `verify` in that isolate.
+
+Details are in `CRICKET_SECURITY_RELEASE_REVIEW.md`, finding S1. Measurements inside the Workers runtime (local workerd), including a crafted worst-case log, are in `CRICKET_CLOUDFLARE_COMPATIBILITY.md`.
 
 ## Cloudflare: what is and isn't known
 
