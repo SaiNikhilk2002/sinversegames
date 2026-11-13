@@ -18,8 +18,10 @@ export function scoreDelivery(i: Innings, o: Outcome) {
   i.partnership += o.total;
   for (const extra of ["wides", "noBalls", "byes", "legByes"] as const)
     i.extras[extra] += o[extra];
+  const international = !!i.overBowlers;
   striker.runs += o.bat;
-  if (!o.wides && !o.noBalls) striker.balls++;
+  // A no-ball counts as a ball faced (a wide doesn't). The duel's record keeps its original count.
+  if (!o.wides && (international || !o.noBalls)) striker.balls++;
   if (o.boundary === 4 && o.bat) striker.fours++;
   if (o.boundary === 6 && o.bat) striker.sixes++;
   bowler.runs += o.total - o.byes - o.legByes;
@@ -48,6 +50,9 @@ export function scoreDelivery(i: Innings, o: Outcome) {
     if (i.nextBatter < 11) {
       if (i.striker === dismissedId) i.striker = i.nextBatter++;
       else i.nonStriker = i.nextBatter++;
+      // International: the throw breaks the striker's-end wicket, so after a run-out the
+      // new batter comes in at that end, on strike; the not-out batter is at the other end.
+      if (international && o.wicket === "run-out" && i.nonStriker === i.nextBatter - 1) [i.striker, i.nonStriker] = [i.nonStriker, i.striker];
       i.partnerships?.push({ a: i.striker, b: i.nonStriker, runs: 0, balls: 0 });
     }
   }

@@ -126,6 +126,10 @@ export function overPlanFeasible(left: number[], overs: number, last: number) {
   return room >= overs;
 }
 
+/** The AI batter calls the first run this many ticks after contact, and each further run this many after the last. */
+const RUN_CALL_DELAY = 18,
+  RUN_CALL_GAP = 150;
+
 export class CricketMatch {
   readonly config: CricketConfig;
   /** Format rules; null for the duel. */
@@ -153,8 +157,10 @@ export class CricketMatch {
   inputLog: CricketLogEntry[] = [];
   recentVariations: string[] = [];
   recentDirections: number[] = [];
-  /** International matches: deliveries the player controlled, and simulated ones. */
+  /** International matches: legal balls the player controlled, and legal balls simulated. */
   controlled = 0;
+  /** Wides and no-balls in deliveries the player controlled (bowled again, so not balls). */
+  controlledExtras = 0;
   simulated = 0;
   /** Runs the player scored and wickets the player took on deliveries they controlled. */
   controlledRuns = 0;
@@ -219,9 +225,10 @@ export class CricketMatch {
   get powerplay() {
     return this.rules && this.innings.length ? powerplayFor(this.rules, Math.floor(this.current.balls / 6)) : null;
   }
-  /** Test cricket: the day and session of the coming ball. */
+  /** Test cricket: the day and session of the coming ball (or the last ball, once the match is over). */
   get dayAndSession() {
-    return this.rules?.days ? dayAndSession(this.rules, Math.floor(this.matchBalls / 6)) : null;
+    // Once every over of the match is bowled there is no coming ball: report the last one (day 5, not "day 6").
+    return this.rules?.days ? dayAndSession(this.rules, Math.min(Math.floor(this.matchBalls / 6), matchOvers(this.rules)! - 1)) : null;
   }
   toss(input: unknown) {
     const parsed = tossSchema.safeParse(input);
@@ -374,11 +381,23 @@ export class CricketMatch {
       over = Math.floor(i.balls / 6),
       quota = this.rules!.bowlerOvers ?? 30,
       overs = this.rules!.overs ?? 90,
-      middle = over >= Math.round(overs * 0.3) && over < Math.round(overs * 0.8);
+      middle = over >= Math.round(overs * 0.3) && over < Math.round(overs * 0.8),
+      level = this.skillFor(1 - i.team);
+    // County and elite captains keep overs from their two best seamers for the death.
+    const deathFrom = this.rules!.overs === null ? Infinity : overs - (overs <= 20 ? 4 : 10),
+      reserve = overs <= 20 ? 2 : 3,
+      seamers = side.players
+        .map((p, slot) => ({ p, slot }))
+        .filter(({ p, slot }) => p.bowls && !p.bowls.includes("spin") && slot !== side.keeper)
+        .sort((a, b) => b.p.bowling - a.p.bowling || a.slot - b.slot)
+        .slice(0, 2)
+        .map(({ slot }) => slot);
     const score = (slot: number) => {
       const p = side.players[slot]!,
-        spinner = !!p.bowls && p.bowls.includes("spin");
-      return p.bowling + (middle === spinner ? 6 : 0) - (this.oversBowledBy(i, slot) / quota) * 14 + (slot % 7) * 0.01;
+        spinner = !!p.bowls && p.bowls.includes("spin"),
+        left = quota - this.oversBowledBy(i, slot),
+        saving = level !== "club" && over < deathFrom && seamers.includes(slot) && left <= reserve;
+      return p.bowling + (middle === spinner ? 6 : 0) - (this.oversBowledBy(i, slot) / quota) * 14 - (saving ? 30 : 0) + (slot % 7) * 0.01;
     };
     if (!options.length) {
       // Unreachable with a valid XI (five bowlers cover any quota); never let the match stall.
@@ -429,37 +448,31 @@ export class CricketMatch {
         : this.current.wickets > 1
           ? "attack"
           : "balanced";
+    // The fielding captain's plan (docs/CRICKET_AI_OPPONENT_REPORT.md). Every level
+    // protects the rope at the death; a county captain also spreads the field when
+    // a chase needs boundaries and attacks the tail; an elite one also attacks a new
+    // batter. The first legal choice wins, so fielding restrictions always hold.
     const i = this.current,
       over = Math.floor(i.balls / 6),
-      overs = this.rules!.overs;
-    const wanted: FieldName = overs !== null && over >= overs - 4 ? "deep" : i.wickets >= 7 || (overs === null && i.balls < 60) ? "attack" : "balanced";
+      overs = this.rules!.overs,
+      level = this.skillFor(1 - i.team),
+      newBatter = (i.partnerships?.at(-1)?.balls ?? 99) < 6 && i.wickets > 0;
+    const required = this.target && overs !== null ? ((this.target - i.runs) * 6) / Math.max(1, overs * 6 - i.balls) : 0,
+      par = overs !== null && overs <= 20 ? 8 : 5.5;
+    let wanted: FieldName;
+    if (overs === null) wanted = i.balls < 60 || i.wickets >= 7 ? "attack" : "balanced";
+    else if (over >= overs - 4) wanted = "deep";
+    else if (level !== "club" && i.wickets >= 7) wanted = "attack";
+    else if (level === "elite" && newBatter) wanted = "attack";
+    else if (level !== "club" && required > par + 2.5) wanted = "deep";
+    else wanted = "balanced";
     for (const f of [wanted, "balanced", "attack"] as FieldName[]) if (fieldAllowed(this.rules!, over, f)) return f;
     return "attack";
   }
   /** The AI's delivery: a pure function of the seed, the sequence and (international) the bowler. */
   bowlingForAI(bowlerSlot?: number): BowlingInput {
     const rng = seededRng(this.seed ^ Math.imul(this.seq + 1, 374761393));
-    if (!this.isDuel) {
-      const i = this.current,
-        slot = bowlerSlot ?? this.bowlerForBall(undefined, false) ?? 0,
-        p = this.sides[1 - i.team]!.players[slot]!,
-        types = VARIATIONS_FOR[p.bowls ?? "medium"],
-        variation = types[rng.int(types.length)]!,
-        spinner = variation === "offbreak" || variation === "legbreak" || variation === "googly" || variation === "topspin";
-      const level = this.skillFor(1 - i.team),
-        base = level === "club" ? 0.2 : level === "county" ? 0.55 : 0.9;
-      // Now and then a bowler oversteps (a no-ball) or strays down the leg side (a wide): less often the better he is.
-      const slip = (100 - p.bowling) / 100,
-        overstep = rng.int(1000) < 12 * slip,
-        stray = rng.int(1000) < 40 * slip;
-      return {
-        variation,
-        length: spinner ? 3.4 + rng.int(9) / 10 : 1.6 + rng.int(52) / 10,
-        line: stray ? (rng.int(2) ? 1.25 : -1.25) : (rng.int(7) - 3) / 10,
-        speed: Math.max(0, Math.min(1, base + (p.bowling - 65) / 120)),
-        release: overstep ? 0.95 : (rng.int(21) - 10) / 100,
-      };
-    }
+    if (!this.isDuel) return this.formatBowlingForAI(rng, bowlerSlot);
     const variant =
       this.seq === 0
         ? "seam"
@@ -491,6 +504,77 @@ export class CricketMatch {
       release: (rng.int(21) - 10) / 100,
     };
   }
+  /** The phase of a limited-overs innings for the coming ball. Test cricket is always "middle". */
+  private phaseOfPlay(): "powerplay" | "middle" | "death" {
+    const overs = this.rules?.overs;
+    if (!overs) return "middle";
+    const over = Math.floor(this.current.balls / 6);
+    if (over < (overs <= 20 ? 6 : 10)) return "powerplay";
+    return over >= overs - (overs <= 20 ? 4 : 10) ? "death" : "middle";
+  }
+  /**
+   * The international bowler's AI (see docs/CRICKET_AI_OPPONENT_REPORT.md). A
+   * bowler picks a length from a plan for the phase (yorkers and slower balls at
+   * the death, swing up front, spin through the middle), then misses it by an
+   * error that shrinks with his bowling attribute and the difficulty. Pace comes
+   * from the bowler's type and attribute, not the difficulty: in this physics a
+   * quicker ball is easier to score from, so difficulty is accuracy and plans.
+   * Now and then a bowler oversteps or strays down the leg side, less often the
+   * better he and the level are. It never sees the batter's coming shot.
+   */
+  private formatBowlingForAI(rng: ReturnType<typeof seededRng>, bowlerSlot?: number): BowlingInput {
+    const i = this.current,
+      slot = bowlerSlot ?? this.bowlerForBall(undefined, false) ?? 0,
+      p = this.sides[1 - i.team]!.players[slot]!,
+      type = p.bowls ?? "medium",
+      level = this.skillFor(1 - i.team),
+      phase = this.phaseOfPlay(),
+      skill = p.bowling / 100;
+    const pick = <T>(options: [T, number][]) => {
+      let roll = (rng.int(1000) / 1000) * options.reduce((n, o) => n + o[1], 0);
+      for (const [value, weight] of options) if ((roll -= weight) < 0) return value;
+      return options.at(-1)![0];
+    };
+    const spinner = type.includes("spin");
+    // Lengths (metres short of the stumps) the plan aims at.
+    const band = spinner
+      ? pick<[number, number]>([[[2.4, 3.0], 0.45], [[3.0, 3.6], 0.35], [[1.6, 2.3], 0.1], [[3.8, 4.8], level === "elite" ? 0.1 : level === "county" ? 0.15 : 0.25]])
+      : pick<[number, number]>(
+          (phase === "death"
+            ? [[[0.9, 1.5], 0.3], [[1.6, 2.4], 0.2], [[2.5, 3.6], 0.2], [[4.0, 5.2], 0.15], [[6.0, 7.2], 0.15]]
+            : phase === "powerplay"
+              ? [[[1.6, 2.4], 0.25], [[2.5, 3.6], 0.4], [[0.9, 1.5], 0.05], [[4.0, 5.2], 0.2], [[6.0, 7.2], 0.1]]
+              : [[[2.5, 3.6], 0.45], [[1.6, 2.4], 0.15], [[0.9, 1.5], 0.05], [[4.0, 5.2], 0.25], [[6.0, 7.2], 0.1]]) as [[number, number], number][],
+        );
+    const variation = spinner
+      ? (() => {
+          const own = VARIATIONS_FOR[type];
+          // Mostly the stock ball; the variations a third of the time.
+          return rng.int(3) ? own[0]! : own[rng.int(own.length)]!;
+        })()
+      : phase === "death"
+        ? pick<Variation>([["slower", 0.3], ["seam", 0.5], ["inswing", 0.1], ["outswing", 0.1]])
+        : phase === "powerplay"
+          ? pick<Variation>([["outswing", 0.35], ["inswing", 0.25], ["seam", 0.35], ["slower", 0.05]])
+          : pick<Variation>([["seam", 0.55], ["outswing", 0.15], ["inswing", 0.15], ["slower", 0.15]]);
+    // Execution: how far the ball lands from the plan, by level and the bowler's skill.
+    const spread = (level === "elite" ? 0.45 : level === "county" ? 0.8 : 1.25) * (1.25 - skill),
+      error = ((rng.int(2001) - 1000) / 1000) * spread;
+    // A club side's plan is looser too: some balls simply drop short.
+    const loose = level === "club" && !spinner && rng.int(100) < 18;
+    const length = Math.max(0.6, Math.min(8.5, loose ? 5.2 + rng.int(20) / 10 : band[0] + (rng.int(101) / 100) * (band[1] - band[0]) + error));
+    const slip = ((100 - p.bowling) / 100) * (level === "elite" ? 0.7 : level === "county" ? 1 : 1.4),
+      overstep = rng.int(1000) < 12 * slip,
+      stray = rng.int(1000) < 40 * slip;
+    const lineSpread = (level === "elite" ? 0.18 : level === "county" ? 0.26 : 0.34) * (1.2 - skill);
+    return {
+      variation,
+      length,
+      line: stray ? (rng.int(2) ? 1.25 : -1.25) : Math.max(-0.5, Math.min(0.5, ((rng.int(2001) - 1000) / 1000) * (0.2 + lineSpread))),
+      speed: Math.max(0, Math.min(1, (type === "fast" ? 0.62 : spinner ? 0.45 : 0.45) + (p.bowling - 65) / 150 - (variation === "slower" ? 0.1 : 0))),
+      release: overstep ? 0.95 : (rng.int(21) - 10) / 100,
+    };
+  }
   /** How hard the AI batter goes for runs, 0 (survive) to 1 (all out attack). */
   private aggression() {
     const i = this.current,
@@ -511,6 +595,8 @@ export class CricketMatch {
         required = (need * 6) / Math.max(1, left),
         par = overs <= 20 ? 8 : 5.5;
       a = Math.max(a, Math.min(1, 0.35 + (required - par) / 6));
+      // Well ahead of the rate: protect wickets and knock it off.
+      if (required < par - 1.5 && left > 12) a = Math.min(a, 0.4);
     }
     return Math.max(0.05, Math.min(1, a));
   }
@@ -648,7 +734,7 @@ export class CricketMatch {
     const level = this.skillFor(i.team);
     const direction = ranked[level === "elite" || rng.int(2) ? 0 : Math.min(1, ranked.length - 1)]!;
     const skill = batter.batting / 100,
-      noise = Math.round((level === "club" ? 7 : level === "county" ? 5 : 3.5) * (1.45 - skill)),
+      noise = Math.round((level === "club" ? 7 : level === "county" ? 5 : 4) * (1.45 - skill)),
       lateral = (rng.int(21) - 10) / 100 * (1.2 - skill);
     const shot: ShotInput = {
       kind,
@@ -661,8 +747,8 @@ export class CricketMatch {
     // Running: look where the ball goes, take the runs that are there, and now and then one more.
     const struck = probe(shot, []);
     if (!struck.hit || struck.outcome?.wicket || struck.outcome?.boundary) return { shot, runAt: [] };
-    const start = struck.contactTick + 18,
-      plans = [[start], [start, start + 150], [start, start + 150, start + 300]];
+    const start = struck.contactTick + RUN_CALL_DELAY,
+      plans = [[start], [start, start + RUN_CALL_GAP], [start, start + RUN_CALL_GAP, start + 2 * RUN_CALL_GAP]];
     let safe: number[] = [];
     for (const plan of plans) {
       if (plan.at(-1)! >= struck.tick) break;
@@ -672,7 +758,9 @@ export class CricketMatch {
     }
     const greedy = plans[safe.length];
     // A risky extra run: it may end in a run-out, but it must be a run the batters can actually call.
-    if (greedy && rng.int(1000) < aggression * 160 && greedy.at(-1)! < struck.tick && !probe(shot, greedy).invalidInput) return { shot, runAt: greedy };
+    // Better sides take fewer of these chances (club 1.3x, county 1x, elite 0.45x), and none with the tail in.
+    const risk = (level === "club" ? 1.3 : level === "county" ? 1 : 0.45) * (i.wickets >= 8 ? 0 : 1);
+    if (greedy && rng.int(1000) < aggression * 90 * risk && greedy.at(-1)! < struck.tick && !probe(shot, greedy).invalidInput) return { shot, runAt: greedy };
     return { shot, runAt: safe };
   }
 
@@ -727,13 +815,40 @@ export class CricketMatch {
     const seed = (this.seed ^ Math.imul(this.seq + 1, 2654435761)) >>> 0,
       fatigue = Math.max(0.82, 1 - this.oversBowledBy(i, slot) * 6 * 0.003);
     const humanBats = !simulated && this.humanBatting;
-    const delivery = new Delivery(seed, bowling, input.field, this.config, i.freeHit, humanBats ? input.shot : null, humanBats ? input.runAt : [], capture, fatigue, this.fieldingSkills(slot));
+    const skills = this.fieldingSkills(slot);
+    const delivery = new Delivery(seed, bowling, input.field, this.config, i.freeHit, humanBats ? input.shot : null, humanBats ? input.runAt : [], capture, fatigue, skills);
     if (!humanBats) {
+      // The batter's running is judged by replaying the struck ball. Each distinct
+      // plan is simulated once (the shot is the same object for every probe of one
+      // delivery), and without capture the probe of the chosen plan *is* the
+      // delivery: the same seed, inputs and steps, so the same outcome and digest.
+      // Every plan the AI weighs extends the previous one by one call, so a plan's
+      // probe also keeps a checkpoint (a fork) at the tick the next plan's extra
+      // call falls; that plan then continues from the checkpoint, not from release.
+      const probes = new Map<string, Delivery>(),
+        checkpoints = new Map<string, Delivery>();
+      let probedShot: ShotInput | null = null;
       const plan = this.formatBattingForAI(bowling, delivery, input.field, (shot, runAt) => {
-        const probe = new Delivery(seed, bowling!, input.field, this.config, i.freeHit, shot, runAt, false, fatigue, this.fieldingSkills(slot));
-        probe.complete();
+        if (shot !== probedShot) {
+          probes.clear();
+          checkpoints.clear();
+          probedShot = shot;
+        }
+        const key = runAt.join(",");
+        let probe = probes.get(key);
+        if (probe) return probe;
+        const from = runAt.length ? checkpoints.get(runAt.slice(0, -1).join(",")) : undefined;
+        probe = from && from.tick <= runAt.at(-1)! ? from.fork(runAt) : new Delivery(seed, bowling!, input.field, this.config, i.freeHit, shot, runAt, false, fatigue, skills);
+        while (!probe.outcome) {
+          probe.step();
+          const next = runAt.length ? runAt.at(-1)! + RUN_CALL_GAP : probe.hit ? probe.contactTick + RUN_CALL_DELAY : -1;
+          if (probe.tick === next && !probe.outcome && runAt.length < 3) checkpoints.set(key, probe.fork(runAt));
+        }
+        probes.set(key, probe);
         return probe;
       });
+      const done = !capture && plan.shot && plan.shot === probedShot ? probes.get(plan.runAt.join(",")) : undefined;
+      if (done) return Object.assign(done, { bowlerSlot: slot });
       delivery.shot = plan.shot;
       delivery.runAt = plan.runAt;
     }
@@ -800,7 +915,10 @@ export class CricketMatch {
     this.lastDelivery = observed?.digest === delivery.digest ? observed : delivery;
     const batting = this.humanBatting;
     this.applyFormat(outcome, delivery, delivery.bowlerSlot!);
-    this.controlled++;
+    // Balls, as cricket counts them: a wide or no-ball the player bowls is bowled again and
+    // doesn't count towards the balls that make a win theirs (so deliberate extras can't).
+    if (outcome.legal) this.controlled++;
+    else this.controlledExtras++;
     if (batting) {
       this.controlledRuns += outcome.bat;
       if (outcome.bat && outcome.boundary === 4) this.controlledFours++;
@@ -825,7 +943,7 @@ export class CricketMatch {
       const outcome = delivery.complete();
       if (delivery.invalidInput) throw Error("Simulated delivery made an invalid call");
       this.applyFormat(outcome, delivery, delivery.bowlerSlot!);
-      this.simulated++;
+      if (outcome.legal) this.simulated++;
       this.seq++;
       if (outcome.legal) legal++;
       played.push(delivery);
@@ -1052,6 +1170,7 @@ export class CricketMatch {
         balls,
         overs: oversText(balls),
         controlledBalls: this.controlled,
+        controlledExtras: this.controlledExtras,
         simulatedBalls: this.simulated,
         // A win the player didn't play enough of: recorded, but neither a win nor a loss.
         uncounted: won && !earned ? 1 : 0,

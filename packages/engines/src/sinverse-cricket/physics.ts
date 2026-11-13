@@ -1,4 +1,3 @@
-import { seededRng } from "../core/seeded";
 import { fieldPositions, VENUES } from "./content";
 import {
   adjudicate,
@@ -23,6 +22,25 @@ import {
 } from "./domain";
 
 const q = (n: number) => Math.round(n * 1e6) / 1e6;
+/** Scratch for the ball position before a step (steps never overlap, so one is enough). */
+const PREV = vec();
+/** The same mulberry32 sequence as `seededRng`, with its state exposed so a delivery can be forked. */
+class DeliveryRng {
+  constructor(private a: number) {
+    this.a = a >>> 0;
+  }
+  int(maxExclusive: number) {
+    if (maxExclusive <= 1) return 0;
+    this.a = (this.a + 0x6d2b79f5) >>> 0;
+    let t = this.a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return Math.floor((((t ^ (t >>> 14)) >>> 0) / 4294967296) * maxExclusive);
+  }
+  clone() {
+    return new DeliveryRng(this.a);
+  }
+}
 export function boundaryCrossed(p: Vec, venue: CricketConfig["venue"]) {
   const v = VENUES[venue];
   return (p.x / v.radiusX) ** 2 + (p.z / v.radiusZ) ** 2 >= 1;
@@ -230,7 +248,7 @@ export class Delivery {
     /** International matches: each fielding slot's catching and throwing skill (0-1). The duel's are fixed. */
     readonly fielding?: readonly number[],
   ) {
-    this.rng = seededRng(seed);
+    this.rng = new DeliveryRng(seed);
     this.shot = shot;
     this.runAt = [...runAt];
     const precision = this.config.difficulty === "elite" ? 0.035 : 0.075;
@@ -284,6 +302,10 @@ export class Delivery {
     }));
     this.snapshot();
   }
+  /** International (version 2) deliveries carry per-slot fielding skills; the duel's never do. A few Laws apply only to them. */
+  get international() {
+    return this.fielding !== undefined;
+  }
   get digest() {
     return (this.digestNumber >>> 0).toString(16).padStart(8, "0");
   }
@@ -334,7 +356,8 @@ export class Delivery {
         bat,
         wides: this.wide && !this.noBall ? 1 + credited : 0,
         noBalls: this.noBall ? 1 : 0,
-        byes: !this.hit && !this.pad && !this.wide ? credited : 0,
+        // A ball both wide and a no-ball is a no-ball (Law 21.14); runs the batters take off it are byes. The duel kept its original record.
+        byes: !this.hit && !this.pad && (!this.wide || (this.international && this.noBall)) ? credited : 0,
         legByes: this.pad && !!this.shot ? credited : 0,
         wicket,
         dismissed,
@@ -498,7 +521,10 @@ export class Delivery {
         (this.tick - (activeShot?.tick ?? this.tick) - 30) * STEP * 2.8,
       );
       this.batterGroundZ = CREASE_Z - Math.max(0, advance - recovery);
-      const prev = copy(this.pos);
+      const prev = PREV;
+      prev.x = this.pos.x;
+      prev.y = this.pos.y;
+      prev.z = this.pos.z;
       if (!this.collected || this.mode === "throw") {
         const bounced = integrateBall(
           this.pos,
@@ -551,13 +577,16 @@ export class Delivery {
         this.runs + (this.running ? this.runProgress / RUN_DISTANCE : 0);
       if (this.mode === "throw") {
         if (this.tick >= this.throwEnd) {
+          // The throw breaks the striker's-end wicket. The batter running towards it is the non-striker after an even number of runs.
           const nonStrikerAtEnd = Math.floor(this.runner) % 2 === 0;
-          const distanceFromGround = RUN_DISTANCE - this.runProgress;
+          // International (Laws 29 and 38): before the batters cross, the one nearer that wicket is the one who left it.
+          const crossed = !this.international || this.runProgress >= RUN_DISTANCE / 2;
+          const distanceFromGround = crossed ? RUN_DISTANCE - this.runProgress : this.runProgress;
           if (this.throwDirect && this.running && distanceFromGround > 0.5)
             this.finish(
               "run-out",
               0,
-              nonStrikerAtEnd ? "non-striker" : "striker",
+              nonStrikerAtEnd === crossed ? "non-striker" : "striker",
             );
           else if (this.tick >= this.throwEnd + (this.throwDirect ? 0 : 55))
             this.finish();
@@ -644,21 +673,45 @@ export class Delivery {
         if (!this.outcome) this.fieldBall();
       }
     }
-    for (const value of [
-      this.tick,
-      this.pos.x * 1000,
-      this.pos.y * 1000,
-      this.pos.z * 1000,
-      this.runs,
-      this.hit ? 1 : 0,
-    ])
-      this.digestNumber =
-        Math.imul(this.digestNumber ^ Math.round(value), 16777619) >>> 0;
-    if (this.tick % 3 === 0) this.snapshot();
+    // FNV-style digest of this tick, in a fixed order (no array per tick: this runs millions of times on the server).
+    let h = this.digestNumber;
+    h = Math.imul(h ^ Math.round(this.tick), 16777619) >>> 0;
+    h = Math.imul(h ^ Math.round(this.pos.x * 1000), 16777619) >>> 0;
+    h = Math.imul(h ^ Math.round(this.pos.y * 1000), 16777619) >>> 0;
+    h = Math.imul(h ^ Math.round(this.pos.z * 1000), 16777619) >>> 0;
+    h = Math.imul(h ^ Math.round(this.runs), 16777619) >>> 0;
+    this.digestNumber = Math.imul(h ^ (this.hit ? 1 : 0), 16777619) >>> 0;
+    if (this.capture && this.tick % 3 === 0) this.snapshot();
     if (this.tick >= 1680 && !this.outcome) this.finish();
   }
   complete() {
     while (!this.outcome) this.step();
     return this.outcome!;
+  }
+  /**
+   * An exact copy of this unfinished, uncaptured delivery that continues with a
+   * different running plan. Valid when every run call the copy shares with this
+   * delivery's processed calls is the same and the rest fall at or after the
+   * current tick; then stepping the copy gives exactly what a fresh delivery
+   * with `runAt` would (same state, same random sequence, same digest). The
+   * server's batting AI uses it to judge runs without re-simulating the flight.
+   */
+  fork(runAt: number[]): Delivery {
+    if (this.outcome || this.capture || runAt.slice(0, this.requestIndex).some((t, n) => t !== this.runAt[n]) || runAt.slice(this.requestIndex).some((t) => t < this.tick))
+      throw Error("This delivery can't be forked here");
+    // Built by the constructor, then overwritten, so the copy keeps the class's
+    // object shape (a differently shaped copy would slow every delivery's step).
+    const d = new Delivery(this.seed, this.bowling, this.field, this.config, this.freeHit, this.shot, runAt, false, this.fatigue, this.fielding);
+    Object.assign(d, this);
+    const self = d as unknown as Record<string, unknown>;
+    self.rng = this.rng.clone();
+    self.pos = copy(this.pos);
+    self.velocity = copy(this.velocity);
+    self.throwTarget = copy(this.throwTarget);
+    self.contactPoint = this.contactPoint && copy(this.contactPoint);
+    self.fielders = this.fielders.map((f) => ({ ...f, pos: copy(f.pos), start: copy(f.start) }));
+    self.frames = [];
+    d.runAt = [...runAt];
+    return d;
   }
 }

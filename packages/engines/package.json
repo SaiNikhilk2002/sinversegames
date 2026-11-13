@@ -20,7 +20,10 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench:cricket": "vitest run --config bench/vitest.config.ts bench/verify.run.ts",
+    "bench:balance": "vitest run --config bench/vitest.config.ts bench/balance.run.ts",
+    "stress:cricket": "vitest run --config bench/vitest.config.ts bench/stress.run.ts"
   },
   "dependencies": {
     "@platform/shared": "workspace:*",
