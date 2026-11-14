@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:db": "vitest run --config vitest.db.config.ts",
-    "bench:compression": "node --import tsx bench/compression.ts"
+    "bench:compression": "node --import tsx bench/compression.ts",
+    "bench:verify": "node --import tsx bench/cricket-verify-latency.ts"
   },
   "dependencies": {
     "@platform/db": "workspace:*",

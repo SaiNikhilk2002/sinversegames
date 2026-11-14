@@ -29,6 +29,7 @@ import { RoomManager } from "./rooms/room-manager";
 import { avatarHandler } from "./avatars";
 import { getDb, resolveAccountSession } from "@platform/db";
 import { createAccountGuard, type AccountStatus } from "./account-guard";
+import { cricketVerifyHandler, type CricketVerifierOptions } from "./cricket-verifier";
 
 export interface RealtimeServerOptions {
   config: RealtimeConfig;
@@ -38,6 +39,8 @@ export interface RealtimeServerOptions {
   now?: () => number;
   /** WebSocket per-message compression; defaults to {@link WS_COMPRESSION}. `false` turns it off (benchmarks, tests). */
   perMessageDeflate?: false | WsCompression;
+  /** Cricket verification limits (tests); see src/cricket-verifier.ts. */
+  cricketVerifier?: CricketVerifierOptions;
 }
 
 export interface WsCompression {
@@ -122,6 +125,7 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
     return !!config.ADMIN_TOKEN && header.startsWith("Bearer ") && secureEquals(header.slice(7), config.ADMIN_TOKEN);
   };
   const handleAvatar = avatarHandler(config.AUTH_SECRET);
+  const verifyCricket = cricketVerifyHandler(config.AUTH_SECRET, { logger, now, ...opts.cricketVerifier });
   const accountStatus = async (playerId: string, sid?: string): Promise<AccountStatus> => {
     const db = persistence.enabled ? getDb() : null;
     if (!db) return sid ? "invalid" : "valid";
@@ -139,6 +143,7 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
     const url = new URL(req.url ?? "/", "http://localhost");
     try {
       if (req.method === "POST" && url.pathname === "/internal/avatar") return await handleAvatar(req, res);
+      if (req.method === "POST" && url.pathname === "/internal/cricket/verify") return await verifyCricket(req, res);
       if (req.method === "GET" && (url.pathname === "/health" || url.pathname === "/")) {
         return json(res, 200, { status: "ok", uptimeSeconds: Math.round((Date.now() - startedAt) / 1000) });
       }
@@ -156,6 +161,7 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
             database: persistence.enabled ? ((await persistence.healthy()) ? "ok" : "down") : "disabled",
             memoryMb: Math.round(process.memoryUsage().rss / 1048576),
             queues: matchmaker.metrics(),
+            cricketVerification: verifyCricket.metrics(),
             ...manager.metrics(),
           });
         }
@@ -347,6 +353,7 @@ export function createRealtimeServer(opts: RealtimeServerOptions): RealtimeServe
     async close() {
       matchmaker.stop();
       manager.shutdown();
+      await verifyCricket.close();
       await new Promise<void>((resolve) => io.close(() => resolve()));
     },
   };

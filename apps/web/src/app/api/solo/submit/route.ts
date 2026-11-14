@@ -7,6 +7,7 @@ import { activeBan, achievementByKey, getCuisineReceipt, getDb, getPersonalBest,
 import { jsonRoute } from "@/lib/server/api-route";
 import { authSecret, getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { cricketVerifierUrl, verifyCricketRemotely } from "@/lib/server/cricket-verifier";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ const MAX_BODY_BYTES = 512 * 1024;
 const TIMING_SLACK_MS = 10_000;
 
 const body = z.object({ token: z.string().min(20).max(4096), log: z.unknown() });
+const UNAVAILABLE = "Cricket results can't be verified right now. Please try again shortly.";
 
 /**
  * Cricket runs whose log failed verification in this isolate. Verification is deterministic, so
@@ -92,7 +94,21 @@ async function handlePOST(req: Request) {
       return NextResponse.json({ error: "This game was already submitted" }, { status: 409 });
   }
 
-  const verified = game.verify(run.seed, config.data, log.data);
+  // Cricket replays on the realtime service when CRICKET_VERIFIER_URL is set (Workers Free can't
+  // afford a T20/ODI replay); everything around the replay, and all persistence, stays here.
+  let remote: URL | null = null;
+  try {
+    remote = cricket ? cricketVerifierUrl() : null;
+  } catch (e) {
+    console.error((e as Error).message);
+    return NextResponse.json({ error: UNAVAILABLE }, { status: 503 });
+  }
+  let verified;
+  if (remote) {
+    const answer = await verifyCricketRemotely(remote, { sub: player.id, jti: run.jti }, parsed.data.token, log.data, authSecret());
+    if (!answer.ok && "unavailable" in answer) return NextResponse.json({ error: UNAVAILABLE }, { status: 503 });
+    verified = answer as Exclude<typeof answer, { unavailable: true }>;
+  } else verified = game.verify(run.seed, config.data, log.data);
   if (!verified.ok) {
     if (cricket) rememberRejected(run.jti);
     return NextResponse.json({ error: verified.reason }, { status: 422 });

@@ -4,7 +4,8 @@ import { defineConfig } from "tsup";
 // and JavaScript dependencies into ESM. Sharp stays external because libvips
 // needs its platform-specific native module in production node_modules.
 export default defineConfig({
-  entry: ["src/index.ts"],
+  // The cricket verifier runs replays in a worker thread, loaded from dist/cricket-verify-worker.js.
+  entry: ["src/index.ts", "src/cricket-verify-worker.ts"],
   format: ["esm"],
   platform: "node",
   target: "node22",

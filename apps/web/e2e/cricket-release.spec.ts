@@ -204,3 +204,34 @@ test("the server replays an international run's log once: a rejected run stays r
   expect(again.status()).toBe(409);
   expect((await again.json()).error).toBe("This game was already submitted");
 });
+
+test("a run belongs to the player who started it: another player can't submit it", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const owner = await browser.newPage();
+  await join(owner, "Run owner QA");
+  const intruderContext = await browser.newContext();
+  const intruder = await intruderContext.newPage();
+  await join(intruder, "Run intruder QA");
+  const india = internationalTeam("india")!;
+  const config = { version: 2, format: "t20", team: india.id, opponent: "oman", xi: india.xi, captain: india.captain, keeper: india.keeper, venue: "lantern", difficulty: "county" };
+  const headers = { origin: "http://localhost:3200" };
+  const started = await owner.request.post("/api/solo/start", { data: { gameId: "sinverse-cricket", config }, headers });
+  expect(started.status()).toBe(200);
+  const run = (await started.json()) as { token: string; seed: number; config: never };
+  const m = new CricketMatch(run.seed, run.config);
+  m.toss({ k: "toss", call: m.tossFace, decision: "bat", t: 0 });
+  for (let t = 1000; m.phase !== "finished"; t += 1000) {
+    if (m.phase === "interval") m.nextInnings();
+    m.simulate({ k: "sim", seq: m.seq, balls: 600, t });
+  }
+  await owner.waitForTimeout(3500);
+  // The intruder has their own session; the owner's run token names the owner.
+  const stolen = await intruder.request.post("/api/solo/submit", { data: { token: run.token, log: m.inputLog }, headers });
+  expect(stolen.status()).toBe(403);
+  expect((await stolen.json()).error).toBe("This game belongs to another player");
+  // The owner can still submit it: the intruder's attempt didn't spend the run.
+  const mine = await owner.request.post("/api/solo/submit", { data: { token: run.token, log: m.inputLog }, headers });
+  expect(mine.status()).toBe(200);
+  await owner.context().close();
+  await intruderContext.close();
+});
