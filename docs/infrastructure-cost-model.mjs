@@ -1,30 +1,36 @@
 // Infrastructure cost model (docs/INFRASTRUCTURE_COST_BREAKDOWN.md). Run: node docs/infrastructure-cost-model.mjs
 // Prices: official pages read 2026-11-14. Assumptions A1..A10 are labelled inline and explained in the document. Edit them with real usage.
+// Updated 2026-11-14 (INFRASTRUCTURE_OPTIMIZATION_FINAL_REPORT.md): "ratio", A6 and A7 are now MEASURED with the real server
+// (apps/realtime bench:compression, 248 clients, permessage-deflate with context takeover, as shipped in WS_COMPRESSION).
 const H = 730; // hours per month
 // Per-game model (A1: equal share of rooms across the six multiplayer games).
 const games = {
-  "bumper-blitz":      { players: 6, inMsgPerS: 60,  outKBs: 228, turnBased: false }, // out: measured; in: A2 10 inputs/s/player
-  "kitchen-rush-coop": { players: 3, inMsgPerS: 9,   outKBs: 74,  turnBased: false }, // out: measured 12 KB/s base + A3 actions
-  "chef-rivals":       { players: 2, inMsgPerS: 6,   outKBs: 42,  turnBased: false },
-  "color-clash":       { players: 4, inMsgPerS: 1.2, outKBs: 3,   turnBased: true  },
-  "token-trail":       { players: 4, inMsgPerS: 1.2, outKBs: 2,   turnBased: true  },
-  "doodle-duel":       { players: 6, inMsgPerS: 16,  outKBs: 23,  turnBased: false }, // A4 drawer 15 strokes/s x 300 B x 5 viewers
+  // ratio: MEASURED wire bytes per message, uncompressed / compressed (bench:compression, contextTakeover, x4 run).
+  "bumper-blitz":      { players: 6, inMsgPerS: 60,  outKBs: 228, ratio: 13.1, turnBased: false }, // out: measured; in: A2 10 inputs/s/player
+  "kitchen-rush-coop": { players: 3, inMsgPerS: 9,   outKBs: 74,  ratio: 19.9, turnBased: false }, // out: measured 12 KB/s base + A3 actions
+  "chef-rivals":       { players: 2, inMsgPerS: 6,   outKBs: 42,  ratio: 29.6, turnBased: false },
+  "color-clash":       { players: 4, inMsgPerS: 1.2, outKBs: 3,   ratio: 10.3, turnBased: true  },
+  "token-trail":       { players: 4, inMsgPerS: 1.2, outKBs: 2,   ratio: 9.7,  turnBased: true  },
+  "doodle-duel":       { players: 6, inMsgPerS: 16,  outKBs: 23,  ratio: 3.5,  turnBased: false }, // A4 drawer 15 strokes/s x 300 B x 5 viewers
 };
 const g = Object.values(games);
 const avg = (f) => g.reduce((n, x) => n + f(x), 0) / g.length;
 const playersPerRoom = avg((x) => x.players);
 const inPerS = avg((x) => x.inMsgPerS);
 const gbPerRoomHour = (avg((x) => x.outKBs) * 1024 * 3600) / 1e9;
+const gbPerRoomHourCompressed = (avg((x) => x.outKBs / x.ratio) * 1024 * 3600) / 1e9;
 const turnShare = avg((x) => (x.turnBased ? 1 : 0));
 const DUTY = 0.3; // A5: average concurrency over a month = 30% of the stated peak
 const MB128 = 0.125;
 const fmt = (n) => (n < 10 ? n.toFixed(2) : n.toFixed(0));
-console.log(`players/room ${playersPerRoom.toFixed(2)}, inbound msgs/s/room ${inPerS.toFixed(1)}, egress GB/room-hour ${gbPerRoomHour.toFixed(3)}, turn-based share ${turnShare.toFixed(2)}`);
+console.log(`players/room ${playersPerRoom.toFixed(2)}, inbound msgs/s/room ${inPerS.toFixed(1)}, egress GB/room-hour ${gbPerRoomHour.toFixed(3)} (compressed ${gbPerRoomHourCompressed.toFixed(4)}), turn-based share ${turnShare.toFixed(2)}`);
 
 function railway({ avgRooms, avgPlayers, deflate }) {
-  const egressGB = (avgRooms * H * gbPerRoomHour) / (deflate ? 3.16 : 1); // deflate ratio measured on Bumper Blitz views
-  const vcpu = 0.02 + avgRooms * 0.0025 * (deflate ? 1.5 : 1); // A6 idle 0.02 vCPU; 0.25% of a core per active room
-  const memGB = 0.18 + avgPlayers * 0.0001; // A7 180 MB base, 100 KB per connected player
+  const egressGB = avgRooms * H * (deflate ? gbPerRoomHourCompressed : gbPerRoomHour); // per-game measured ratios
+  // A6 MEASURED: 248 clients in 56 active rooms used 0.235 vCPU uncompressed, 0.498 compressed (incl. Socket.IO, JSON, zlib).
+  const vcpu = 0.02 + avgRooms * (deflate ? 0.0089 : 0.0042);
+  // A7 MEASURED: about 140 MB base; about 75 KB per connected player uncompressed, about 550 KB with compression context.
+  const memGB = 0.14 + avgPlayers * (deflate ? 0.00055 : 0.000075);
   const usage = vcpu * 20 + memGB * 10 + egressGB * 0.05;
   return { usage, bill: 5 + Math.max(0, usage - 5), egressGB, vcpu, memGB };
 }

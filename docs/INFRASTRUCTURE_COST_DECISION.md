@@ -1,5 +1,11 @@
 # Infrastructure cost decision
 
+> **Update (2026-11-14, `INFRASTRUCTURE_OPTIMIZATION_FINAL_REPORT.md`):**
+> - The recommended phase-0 changes are now implemented locally.
+> - Measured WebSocket compression is about 11.6× (13.1× for Bumper Blitz), not the 3.16× estimated below, so Railway costs at scale are lower than this document's tables.
+> - Cricket verification can run on Railway (`CRICKET_VERIFIER_URL`).
+> - The decision is unchanged: keep Railway.
+
 **Recommendation:**
 - **Keep the current architecture** (Cloudflare Workers + Railway + Neon).
 - **Turn on WebSocket compression,** and fix the two cheap issues found.
