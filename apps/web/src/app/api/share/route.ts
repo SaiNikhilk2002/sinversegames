@@ -35,7 +35,10 @@ async function handlePOST(req: Request) {
     endedAt: match.endedAt.getTime(),
     reason: "completed",
     entries: [...match.participants]
-      .sort((a, b) => a.placement - b.placement || b.score - a.score)
+      // Names break ties: cooperative games share one placement and score, and the database's row
+      // order isn't stable, so without this the same match could list "Ben & Asha" one time and
+      // "Asha & Ben" the next.
+      .sort((a, b) => a.placement - b.placement || b.score - a.score || a.displayName.localeCompare(b.displayName) || a.playerId.localeCompare(b.playerId))
       .map((p) => ({ playerId: p.playerId, name: p.displayName, color: "#ffffff", placement: p.placement, score: p.score, isWinner: p.isWinner, details: (p.details ?? {}) as Record<string, number | string> })),
   };
   const token = await signShareToken(sharePayloadFor(results, { seed: match.id, includeNames: parsed.data.names }), authSecret());

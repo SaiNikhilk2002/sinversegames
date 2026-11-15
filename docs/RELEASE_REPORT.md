@@ -1,163 +1,155 @@
 # Release report: product expansion (Same Wavelength, discovery, Couples)
 
 **Date:** 2026-11-15
-**Status:** **pushed, not merged, not deployed.** The release stopped before the merge, because the pull request the brief names is already closed (see "Blocker").
+**Status:** **deployed to production and verified**, with one cosmetic share-card bug found and fixed on the branch. That fix isn't deployed yet (see section 7).
 
-## Summary
+## Status at a glance
 
-| Stage | Status |
+| Item | Status |
 |---|---|
-| Pre-release audit | Done |
-| Release gate | Passed |
-| Push `feature/unified-platform` | **Done**: fast-forward `0793ec8..7407142`, no force |
-| Update PR #5 | **Not possible**: PR #5 was already merged on 2026-11-12 |
-| Merge to `main` | **Not done**: needs a new pull request (user action) |
-| Cloudflare deployment | **Not deployed** |
-| Railway deployment | **Not deployed** |
-| Production smoke tests | **Not run** for the new release. A read-only baseline is below |
-| Cricket verifier secret | **Requires user configuration** (after deployment) |
+| Cloudflare website, `sinversegames.com` and `www` | **Deployed and verified** |
+| Railway realtime, `rt.sinversegames.com` | **Deployed and verified** |
+| Discovery, category and Couples pages | **Deployed and verified** |
+| Same Wavelength: full Couples game, insights and sharing | **Deployed and verified** |
+| Existing games: rooms or play pages | **Deployed and verified** (smoke level) |
+| Guest sign-in, account and profile pages | **Deployed and verified** |
+| Email and Google sign-in | **Deployed, not verified.** Exercising them needs a real inbox or Google account |
+| Share-card name-order fix (`apps/web/src/app/api/share/route.ts`) | **Not deployed.** Pushed on the branch; needs a merge |
+| Railway cricket verifier | **Requires user configuration:** the Worker secret `CRICKET_VERIFIER_URL` |
+| CPU and memory dashboards | **Not inspected.** I don't have dashboard access (section 9) |
 
-## 1. What's being released
+## 1. What was released
 
-- **Range:** `0793ec8..7407142` on `feature/unified-platform`, 23 commits, the same commits listed in `git log 0793ec8..7407142`.
-- **Size:** 168 files, +13,391 / −256.
-- **Contents:**
-  - the T20/ODI cricket work (international teams, engine v2, rules fixes, verification cost, release audit);
-  - the infrastructure optimizations:
-    - WebSocket compression;
-    - optional cricket verification on Railway;
-    - one database client per request on Workers;
-    - the `/health/live` liveness route;
-    - the Bumper Blitz bandwidth budget;
-  - the product expansion:
-    - Same Wavelength;
-    - multi-category discovery;
-    - the Couples page;
-    - Fun Insights;
-    - share cards.
-  - Documentation for all of the above.
+- **Range:** `0793ec8..ce0cba1`, 24 commits:
+  - the T20/ODI cricket work;
+  - the infrastructure optimizations;
+  - the product expansion;
+  - the documentation, and the first version of this report.
+- **Size:** 168 files, +13,391 / −256 before the report.
+- **Not included:** database migrations, schema changes, dependency or lockfile changes, Wrangler or Railway configuration changes.
 
-**Where things stand:**
-- **Base:** PR #5 merged the branch up to `0793ec8` (merge commit `92e4fde`, 2026-11-12).
-- **Tree:** `origin/main`'s tree is identical to `0793ec8`'s, so merging this range can't conflict.
-- **History:** nothing in it is published history that would need rewriting.
+## 2. Pull request and merge
 
-## 2. Pre-release audit
+- **PR #5:** already merged on 2026-11-12, at `0793ec8`, as merge commit `92e4fde`. It couldn't be updated.
+- **PR #6:** `feature/unified-platform` → `main`, opened and **merged by the owner** at **2026-11-15 08:01:20 UTC**.
+  - **Merge commit:** `f8e17e2e823dac13467b5930a08bdede54c8e766`.
+  - **Contents:** the merge's tree is identical to `ce0cba1`.
+- **No force-push and no rewritten history.** Both pushes were fast-forwards: `0793ec8..7407142`, then `7407142..ce0cba1`.
 
-- **Working tree:** clean.
-- **Branch state:** 23 ahead of and 0 behind `origin/feature/unified-platform` before the push. Against `origin/main`, 23 ahead and 1 "behind", which is PR #5's merge commit and changes no files.
-- **Excluded files:** no `.env`, key, generated client, `.next`, `.open-next`, `.data` or log files in the diff.
-- **Secrets:** a pattern scan of every added line (connection strings with passwords, provider keys, private keys, OAuth secrets) found only local test placeholders: `localhost:5433/..._test` and `127.0.0.1:1/never_used_test`.
-- **Database:** no migrations and no `schema.prisma` change.
-- **Infrastructure:** no changes to the lockfile or Wrangler, Docker or Railway configuration. The `package.json` changes are only new bench scripts and the `./same-wavelength` engine export.
-- **Attribution:** commit authors are the repository owner, and no commit has attribution trailers.
+## 3. Deployments
 
-## 3. Release gate
+| Service | Identifier | Finished (UTC) | Result |
+|---|---|---|---|
+| Cloudflare Workers Builds, Worker `sinversegames` | Build `a65393ca-b33f-4be8-bb6a-f95b7390483b`, version `089a2239-0cf7-4ce3-9085-077aa2f6fd7a` | 08:04:01 (started 08:01:29) | Success |
+| Railway `@platform/realtime` (project "luminous-recreation") | GitHub status "Success - rt.sinversegames.com" | 08:02:53 | Success. `/health` uptime reset at about 08:02:47 |
 
-| Check | Result | When |
-|---|---|---|
-| `pnpm typecheck` | Pass | Re-run 2026-11-15 |
-| `pnpm test` (Node 24.14.0) | **647 passed** (54 + 503 + 90) | Re-run 2026-11-15 |
-| `pnpm test:db` | 69 passed | Implementation run |
-| `pnpm build` | Pass | Implementation run |
-| Full browser suite, fresh `_test` database | 205 passed, 0 failed, 10 skipped (on-demand recorders) | Implementation run |
-| Linux Cloudflare/OpenNext build | Pass, lockfile unchanged | Implementation run |
-| Same Wavelength load (50 rooms / 140 players) | About 10% of one core, about +94 MB RSS | Implementation run |
+**Database:** no migration was needed; production already has all four migrations.
 
-**Implementation-run results stand:** the code hasn't changed since they were recorded. Only `7407142`, a documentation commit, came after them.
+**Active rooms:** the Railway restart ended any multiplayer rooms that were live at about 08:02 UTC, as expected.
 
-**Node 20 note.** A first re-run by mistake used the machine's default Node 20.20.2. There, `apps/realtime/test/cricket-verify.test.ts` failed 8 of its 13 tests. Under the supported Node 24.14.0 all 90 realtime tests pass, so the failures came from the unsupported Node version and aren't a code defect. Production builds use Node 24.14.0 (see the `.node-version` files).
+## 4. Production smoke tests (2026-11-15, 08:05–08:10 UTC)
 
-## 4. Security and privacy review
+### Routes
 
-From the code and its tests (`SAME_WAVELENGTH_DESIGN.md`, `FUN_INSIGHTS_SYSTEM.md`):
+| Route | Result |
+|---|---|
+| `/`, `/games`, `/couples` | 200 |
+| `/categories/` multiplayer, single-player, friends, family, party, competitive and casual | 200 |
+| `/categories/nope` | 404 |
+| `/categories/couples` | 308 to `/couples` |
+| `/games?q=draw` | 200 |
+| `/sitemap.xml` | 200 |
+| `www.sinversegames.com/` and `www.sinversegames.com/couples` | 200 |
+| `/games/<slug>` and `/play/<slug>` for all 12 games | 200 (24 of 24) |
+| `/leaderboard`, `/account`, `/profile` | 200 |
+| `/api/health/live` | 200 `{"status":"ok","web":"ok"}` |
+| `/api/health` | 200: web, database and realtime all `ok` |
+| `rt.sinversegames.com/health` | 200 `{"status":"ok"}` |
 
-- **Hidden answers:** `viewFor` exposes only your own answer and whether others have answered. The socket test checks every message sent before the reveal.
-- **Ownership, duplicates and deadlines:**
-  - Answers are keyed by the socket's authenticated player id.
-  - A non-member gets `NOT_IN_ROOM`; a second answer `INVALID_MOVE`; a stale round `STALE_STATE`.
-  - Late answers are refused, and scoring and round progression happen only on the server.
-- **Reconnection:** you rejoin with your own answer only.
-- **Share cards:**
-  - Cards are created only for a signed-in participant of a recorded, completed multiplayer match. Anyone else gets the same 404 as an unknown id.
-  - The token is HS256-signed. An edited, foreign or expired token is a 404.
-  - Names appear only when opted in. There are never emails, player ids, room codes, match ids or answers.
-- **Typed answers:**
-  - Rendered as React text, so they're escaped.
-  - 40 characters at most, with control characters stripped.
-  - Off in public quick match; the existing report button remains.
-  - There's no word filter (a known limitation).
-- **Existing data:** no migration. Game ids are unchanged, and existing records are untouched. Same Wavelength only adds normal neutral match rows and two new achievement keys.
+### Realtime
 
-## 5. Blocker: PR #5 is already merged
+- **Socket.IO polling handshake:**
+  - from `https://sinversegames.com`: 200, with the exact origin echoed back and a `websocket` upgrade offered;
+  - from `https://www.sinversegames.com`: the same;
+  - from an unrelated origin: **403**.
+- **Rooms:** a real browser connected and created a private room in **all 7 multiplayer games** (Doodle Duel, Color Clash, Token Trail, Bumper Blitz, Chef Rivals, Kitchen Rush Co-op, Same Wavelength). That's the room layer only: no match was played in those games.
+- **Solo games:** Kitchen Rush, Cascade Solitaire, Mahjong Garden, Sinverse Cricket and Cuisine Quest loaded with **zero page errors**. No solo run was submitted.
 
-The brief asks to update PR #5 and merge it.
+### Same Wavelength and discovery (existing browser tests, pointed at production)
 
-- **What happened to it:** PR #5 (`feature/unified-platform` → `main`) was **merged on 2026-11-12**, at `0793ec8`, as merge commit `92e4fde`.
-- **No other PR:** no pull request is open.
-- **Why the release stopped:** the brief says to stop rather than create a different PR when the named PR is closed.
-- **No way to open one here either:** there's no GitHub CLI, and reading the stored Git credential to call the API would mean handling a credential.
+6 of 7 tests passed.
 
-**To finish the release (user action):**
-1. Open a new pull request from `feature/unified-platform` into `main` (on GitHub, "Compare & pull request"). It'll show exactly these 23 commits with no conflicts.
-2. Merge it with the repository's usual merge commit strategy.
-3. Merging deploys:
-   - **Cloudflare:** Workers Builds builds and deploys `main` with `pnpm cloudflare:deploy`.
-   - **Railway:** redeploys the realtime service, which **ends any active multiplayer rooms**. Choose a quiet time.
-4. **No database migration is needed.** Production already has all four migrations, and this release adds none.
-5. Then run the production checks in "After the merge".
-
-## 6. Production baseline (read-only, before any deployment)
-
-Probed 2026-11-15:
-
-| URL | Status | Meaning |
-|---|---|---|
-| `https://sinversegames.com/` | 200 | |
-| `https://www.sinversegames.com/` | 200 | |
-| `/couples` | 404 | Expected: not deployed |
-| `/games/same-wavelength` | 404 | Expected: not deployed |
-| `https://rt.sinversegames.com/health` | 200 | `{"status":"ok"}`, up about 64 hours |
-
-**Production is healthy and still serving the previous release.** No production data was read or written.
-
-## 7. Cricket verifier
-
-Unchanged by this release:
-- Railway cricket verification stays disabled until the **Worker secret** `CRICKET_VERIFIER_URL` is set. That's a pending user action, after Railway is confirmed healthy.
-- The secret wasn't read, invented or changed.
-- Until it's set, existing Worker verification applies.
-
-## 8. After the merge (checklist)
-
-- **Cloudflare:**
-  - the Workers Build succeeds;
-  - `sinversegames.com` and `www` return 200;
-  - `/couples`, `/categories/friends`, `/categories/single-player` and `/games/same-wavelength` return 200;
-  - `/categories/nope` returns 404;
-  - existing `/games/<slug>` and `/play/<slug>` pages return 200.
-- **Railway:**
-  - the deployment is healthy;
-  - `/health` and `/health/live` return 200;
-  - a Socket.IO connection over WebSocket works from both the apex and `www`.
+- **Discovery, 5 of 5:**
+  - the Couples page's content, metadata and canonical;
+  - one game in every category it suits;
+  - category metadata, filters, the redirect and the 404;
+  - `/games` search and the player filter;
+  - phone width.
 - **Same Wavelength:**
-  - a private Couples room in two browser contexts;
-  - answers hidden, then revealed;
-  - the summary and insights;
-  - a share link with and without names, and a tampered link giving 404.
-  - Note: this creates a real production match and achievement rows for whichever players are used.
-- **Existing games:** open each game page and start a solo run or room, plus guest sign-in and the profile page.
-- **Monitoring:**
+  - **What worked:** a complete 5-round Couples game between two separate guest browser contexts:
+    - a preset link and an invitation;
+    - answers hidden until both had answered;
+    - the reveal and the verdict;
+    - the summary (70%) with its "not how compatible" note;
+    - Fun Insights;
+    - "Played together" (never "Defeat");
+    - a share card without names;
+    - the play link;
+    - a **tampered token giving 404**;
+    - a share card with names on opt-in.
+  - **The one failure:** the last assertion expected "Asha & Ben", and production rendered "**Ben & Asha**". That's a real bug, cosmetic and not a privacy issue: see section 7.
+
+## 5. Authentication and persistence
+
+- **Guest sign-in:** works. Every smoke run created a guest and played or opened rooms with it.
+- **Account and profile pages:** load.
+- **Same Wavelength match persistence:** works. The match was recorded as completed, otherwise the share endpoint (which requires a recorded, completed match in which the caller played) would have refused it.
+- **Email and Google sign-in:** not exercised. That needs a real inbox or Google account, and both use unchanged code from earlier releases.
+- **Wallets, achievements and history:** existing data is untouched; no migration and no data change.
+
+**Records my tests created in production:**
+- the guest players "Asha", "Ben" and "Smoke";
+- one completed Same Wavelength match, with its neutral result and base rewards;
+- empty private rooms, which expire on their own.
+
+These aren't deleted: the reward ledger is append-only, and deleting production rows isn't authorized.
+
+## 6. Cricket verifier
+
+- **Status:** **requires user configuration.** Railway cricket verification stays off until the Worker secret `CRICKET_VERIFIER_URL` is set.
+- **Untouched:** I didn't read, invent or change the secret.
+- **Until it's set:** cricket runs are verified in the Worker as before. No cricket run was submitted during the smoke tests.
+
+## 7. Bug found: share-card name order (fixed on the branch, not deployed)
+
+- **The bug:** for a cooperative result, every participant has placement 1 and the same score. `POST /api/share` sorted by placement and score only, so names came out in the database's row order, which Neon doesn't keep stable. The same match could be shared as "Ben & Asha" one time and "Asha & Ben" the next. Local PostgreSQL returned insertion order, which is why local tests passed.
+- **The fix:** a final tie-break by display name, then player id. The existing browser test, unchanged, pins it.
+- **Release:** committed and pushed to `feature/unified-platform`.
+  - It needs a merge to deploy. The change is web-only.
+  - If Railway rebuilds on every `main` push, merging restarts the realtime service and ends live rooms again, so merge at a quiet time.
+  - There's no rush: no data is exposed.
+
+## 8. Errors and limitations observed
+
+- **Production errors:** none observed. No page errors in any smoke run, and readiness was healthy throughout.
+- **Smoke depth:** smoke tests prove routes, sign-in, room creation, and one full Same Wavelength game with sharing. They don't play full matches of the other multiplayer games or submit solo runs.
+- **Still untested:** real phones, Safari and assistive technology.
+
+## 9. Monitoring
+
+- **Dashboards:** I have no access to the Cloudflare, Railway or Neon dashboards from this session, so their CPU, memory, error and compute figures **weren't inspected**. None are invented here.
+- **What I could observe:**
+  - realtime uptime ran continuously from the deploy (468 s at 08:10:35 UTC), so there was no crash loop;
+  - the `/api/health` readiness check showed the database and realtime as `ok`.
+- **For the owner to watch over the next few days:**
+  - Railway memory with WebSocket compression under real traffic; the local +94 MB for 140 players isn't a production capacity figure;
   - Worker errors and CPU;
-  - Railway memory after compression, under real traffic;
-  - Neon compute;
-  - `/api/share` errors.
-  - The local load test's +94 MB for 140 players isn't a production capacity figure.
+  - Neon compute hours;
+  - `/api/share` 4xx and 5xx rates.
 
-## 9. Git state
+## 10. Pending user actions
 
-- **Branch:** `feature/unified-platform` at `7407142`, equal to `origin/feature/unified-platform`.
-- **`main`:** `origin/main` at `92e4fde`.
-- **This report:** committed locally afterwards, not pushed, so it doesn't enter the release range unasked.
-
-**Nothing was merged or deployed.** No Railway restart, no production migration, no secret, DNS or infrastructure change.
+1. **Merge the share-card fix** (a new PR from `feature/unified-platform`) at a quiet time.
+2. **Set the Worker secret `CRICKET_VERIFIER_URL`** if you want Railway cricket verification. Railway is healthy.
+3. **Optionally, check email and Google sign-in** with a real account.
+4. **Check the Cloudflare, Railway and Neon dashboards** for the items in section 9.
