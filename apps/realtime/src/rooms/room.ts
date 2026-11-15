@@ -100,6 +100,11 @@ export class Room {
     return getGame(this.gameId);
   }
 
+  /** Seats in this room: the engine's maximum, or fewer when the settings say so (e.g. a two-player mode). */
+  get maxPlayers() {
+    return this.engine.maxPlayersFor?.(this.config) ?? this.engine.maxPlayers;
+  }
+
   get connectedCount() {
     let n = 0;
     for (const m of this.members.values()) if (m.socket) n++;
@@ -156,7 +161,7 @@ export class Room {
         disconnectedUntil: m.disconnectedAt === null ? null : m.disconnectedAt + this.deps.reconnectGraceMs,
       })),
       minPlayers: this.engine.minPlayers,
-      maxPlayers: this.engine.maxPlayers,
+      maxPlayers: this.maxPlayers,
       config: this.config,
       matchNumber: this.matchNumber,
       matchId: this.matchId,
@@ -197,7 +202,7 @@ export class Room {
       return OK;
     }
     if (this.status === "playing") return err("ROOM_IN_PROGRESS", "A game is already in progress in this room");
-    if (this.members.size >= this.engine.maxPlayers) return err("ROOM_FULL", "This room is full");
+    if (this.members.size >= this.maxPlayers) return err("ROOM_FULL", "This room is full");
 
     const m: Member = {
       ...player,
@@ -319,6 +324,8 @@ export class Room {
     if (this.status === "playing") return err("ROOM_IN_PROGRESS", "Settings can't change during a game");
     const parsed = this.engine.configSchema.safeParse({ ...this.config, ...patch });
     if (!parsed.success) return err("INVALID_PAYLOAD", "Invalid game settings");
+    const seats = this.engine.maxPlayersFor?.(parsed.data) ?? this.engine.maxPlayers;
+    if (this.members.size > seats) return err("ROOM_FULL", `Those settings are for up to ${seats} players`);
     this.config = parsed.data as Record<string, unknown>;
     // Changing settings resets readiness so nobody is surprised by new rules.
     for (const m of this.members.values()) if (m.id !== this.hostId) m.ready = false;

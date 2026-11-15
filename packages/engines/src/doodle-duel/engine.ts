@@ -49,6 +49,8 @@ export interface DDPlayer extends PlayerRef {
   connected: boolean;
   disconnectedAt: number | null;
   left: boolean;
+  /** Recorded statistics for results and Fun Insights (docs/FUN_INSIGHTS_SYSTEM.md). They don't affect scoring. */
+  stats?: { guessed: number; fastestGuessMs: number | null; fewestHints: number | null; drew: number; drawingsGuessed: number };
 }
 
 interface CorrectGuess {
@@ -232,6 +234,10 @@ export function createDoodleEngine(options: DoodleEngineOptions = {}): GameEngin
     drawer.score += dPoints;
     for (const g of t.guesses) t.turnPoints[g.playerId] = g.points;
     t.turnPoints[drawer.id] = dPoints;
+    if (drawer.stats && reason !== "drawer-left") {
+      drawer.stats.drew++;
+      if (t.guesses.length > 0) drawer.stats.drawingsGuessed++;
+    }
     s.phase = "reveal";
     s.phaseEndsAt = ctx.now + REVEAL_MS;
     return [
@@ -320,7 +326,7 @@ export function createDoodleEngine(options: DoodleEngineOptions = {}): GameEngin
       if (players.length < 2 || players.length > 8) throw new Error("Doodle Duel needs 2–8 players");
       const s: DDState = {
         config,
-        players: players.map((p) => ({ ...p, score: 0, connected: true, disconnectedAt: null, left: false })),
+        players: players.map((p) => ({ ...p, score: 0, connected: true, disconnectedAt: null, left: false, stats: { guessed: 0, fastestGuessMs: null, fewestHints: null, drew: 0, drawingsGuessed: 0 } })),
         order: shuffle(players.map((p) => p.id), ctx.rng),
         orderIndex: 0,
         phase: "choosing",
@@ -423,6 +429,13 @@ export function createDoodleEngine(options: DoodleEngineOptions = {}): GameEngin
             const points = guesserPoints(remaining, first, scoring);
             t.guesses.push({ playerId, at: ctx.now, points });
             player.score += points;
+            if (player.stats) {
+              player.stats.guessed++;
+              const took = t.drawStartedAt === null ? null : ctx.now - t.drawStartedAt;
+              if (took !== null && (player.stats.fastestGuessMs === null || took < player.stats.fastestGuessMs)) player.stats.fastestGuessMs = took;
+              const hints = t.revealed.length + (t.textHintShown ? 1 : 0);
+              if (player.stats.fewestHints === null || hints < player.stats.fewestHints) player.stats.fewestHints = hints;
+            }
             const messages: OutboundMessage[] = [
               { to: toAll, event: "doodle:guess", payload: { kind: "correct", id: nextChatId(s), playerId, name: player.name, points, first } satisfies DoodleChatMessage },
             ];
@@ -574,7 +587,16 @@ export function createDoodleEngine(options: DoodleEngineOptions = {}): GameEngin
             placement,
             score: p.score,
             isWinner: placement === 1 && !p.left && p.score > 0,
-            details: {},
+            // Recorded facts only (no words or guesses): what Fun Insights can say about this match.
+            details: p.stats
+              ? {
+                  correctGuesses: p.stats.guessed,
+                  drawings: p.stats.drew,
+                  drawingsGuessed: p.stats.drawingsGuessed,
+                  ...(p.stats.fastestGuessMs !== null ? { fastestGuessMs: p.stats.fastestGuessMs } : {}),
+                  ...(p.stats.fewestHints !== null ? { fewestHints: p.stats.fewestHints } : {}),
+                }
+              : {},
           };
         }),
       };

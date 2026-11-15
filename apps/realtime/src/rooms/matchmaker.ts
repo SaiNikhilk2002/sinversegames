@@ -13,7 +13,7 @@ interface QueueEntry {
 }
 
 /** Preferred match sizes; matches start smaller if players have waited long enough. */
-const TARGET_SIZE: Record<MultiplayerGameId, number> = { "chef-rivals": 2, "kitchen-rush-coop": 3, "color-clash": 4, "doodle-duel": 6, "token-trail": 4, "bumper-blitz": 6 };
+const TARGET_SIZE: Record<MultiplayerGameId, number> = { "chef-rivals": 2, "kitchen-rush-coop": 3, "color-clash": 4, "doodle-duel": 6, "token-trail": 4, "bumper-blitz": 6, "same-wavelength": 2 };
 
 /**
  * Public matchmaking. A searching player is first placed into an open public
@@ -91,7 +91,7 @@ export class Matchmaker {
   tryMatch(gameId: MultiplayerGameId) {
     const q = this.queues.get(gameId)!;
     const engine = getEngine(gameId);
-    const target = Math.min(TARGET_SIZE[gameId], engine.maxPlayers);
+    const target = Math.min(TARGET_SIZE[gameId], engine.maxPlayersFor?.(engine.defaultConfig()) ?? engine.maxPlayers);
     while (q.length >= engine.minPlayers) {
       const waitedLongEnough = this.now() - q[0]!.since >= this.waitMs;
       if (q.length < target && !waitedLongEnough) return;

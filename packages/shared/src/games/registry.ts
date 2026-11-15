@@ -16,11 +16,12 @@ export const GAME_IDS = [
   "sinverse-cricket",
   "chef-rivals",
   "kitchen-rush-coop",
+  "same-wavelength",
 ] as const;
 export type GameId = (typeof GAME_IDS)[number];
 
 /** Games played in realtime rooms (engines in packages/engines, rooms on the realtime server). */
-export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail", "bumper-blitz", "chef-rivals", "kitchen-rush-coop"] as const;
+export const MULTIPLAYER_GAME_IDS = ["color-clash", "doodle-duel", "token-trail", "bumper-blitz", "chef-rivals", "kitchen-rush-coop", "same-wavelength"] as const;
 export type MultiplayerGameId = (typeof MULTIPLAYER_GAME_IDS)[number];
 
 /** Single-player games: played in the browser, scores verified by replaying the move log on the server. */
@@ -79,6 +80,36 @@ export interface GameMeta {
 }
 
 export const GAMES: readonly GameMeta[] = [
+  {
+    id: "same-wavelength",
+    slug: "same-wavelength",
+    kind: "multiplayer",
+    name: "Same Wavelength",
+    tagline: "Same question. Separate answers. One big reveal.",
+    description:
+      "A think-alike party game for 2–6 players. Everyone answers the same prompt in secret, then the answers are revealed together. Match to score as a team and find out where your wavelengths meet.",
+    longDescription: [
+      "Each round shows everyone the same prompt: pick a destination, name a snack, choose who is more likely to fall asleep during a movie. Answer on your own screen. Nobody sees anyone else's answer until everyone has locked in, or the timer runs out.",
+      "Then comes the reveal. Matching answers score together, answers the prompt counts as close earn partial points, and every disagreement gets its moment. Couples mode is made for two, Friends mode for up to four, and Group mode for up to six.",
+      "At the end you get your shared wavelength: how often you matched, your best round, the answers you agreed on and the funniest disagreements, ready to share. It's a game, not a compatibility test.",
+    ],
+    categories: ["party", "word", "casual"],
+    minPlayers: 2,
+    maxPlayers: 6,
+    avgDurationMinutes: [4, 10],
+    modes: ["private-room", "public-match", "two-player", "group"],
+    featured: true,
+    popular: true,
+    addedAt: "2026-11-15",
+    theme: { from: "#ff7a9c", to: "#7b6cff", ink: "#fff8f4" },
+    howToPlay: [
+      { title: "Pick a mode", body: "Couples for two, Friends for up to four, Group for up to six. The host can also set the number of rounds and the answer timer." },
+      { title: "Answer in secret", body: "Everyone gets the same prompt. Choose an option, an emoji, a player or type a short answer. Once locked in, it can't be changed." },
+      { title: "Reveal together", body: "When everyone has answered, all answers appear at once. Exact matches score 2 points per pair, answers the prompt counts as close score 1." },
+      { title: "See your wavelength", body: "After the last round, see your match percentage, best round, shared picks and funniest disagreements, and share the result card." },
+    ],
+    keywords: ["games for couples", "think alike game", "couple quiz game online", "how well do you know each other", "party game with friends", "same answer game"],
+  },
   {
     id: "cuisine-quest", slug: "cuisine-quest", kind: "solo", name: "Cuisine Quest",
     tagline: "Travel the world. Master the kitchen.",

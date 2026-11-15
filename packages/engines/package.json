@@ -12,6 +12,7 @@
     "./doodle-duel/client": "./src/doodle-duel/client.ts",
     "./token-trail": "./src/token-trail/engine.ts",
     "./bumper-blitz": "./src/bumper-blitz/engine.ts",
+    "./same-wavelength": "./src/same-wavelength/index.ts",
     "./kitchen-rush": "./src/kitchen-rush/index.ts",
     "./cuisine-quest": "./src/cuisine-quest/index.ts",
     "./sinverse-cricket": "./src/sinverse-cricket/index.ts",

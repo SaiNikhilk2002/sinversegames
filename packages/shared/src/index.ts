@@ -7,3 +7,6 @@ export * from "./identity/names";
 export * from "./identity/profile";
 export * from "./identity/email";
 export * from "./identity/email-templates";
+export * from "./games/discovery";
+export * from "./insights";
+export * from "./share-card";
