@@ -80,6 +80,8 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
   const me = results.entries.find((e) => e.playerId === selfId);
   const winners = results.entries.filter((e) => e.isWinner);
   const iWon = !!me?.isWinner;
+  // Cooperative games (Same Wavelength) record a shared result: nobody wins or loses.
+  const shared = results.entries.length > 0 && results.entries.every((e) => e.details?.result === "shared");
   const sorted = [...results.entries].sort((a, b) => a.placement - b.placement);
   const podium = sorted.slice(0, 3);
   const played = useRef(false);
@@ -88,12 +90,12 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
   useEffect(() => {
     if (played.current) return;
     played.current = true;
-    const id = setTimeout(() => (iWon ? sfx.fanfare() : me ? sfx.defeat() : sfx.win()), 250);
+    const id = setTimeout(() => (iWon ? sfx.fanfare() : me && !shared ? sfx.defeat() : sfx.win()), 250);
     return () => clearTimeout(id);
-  }, [iWon, me]);
+  }, [iWon, me, shared]);
 
-  const headline = iWon ? (winners.length > 1 ? "Shared victory!" : "Victory!") : me ? (me.placement <= 3 && results.entries.length > 2 ? `${ORDINAL[me.placement]} place` : "Defeat") : `${winners.map((w) => w.name).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!`;
-  const sub = iWon ? "You win! 🎉" : winners.length ? `${winners.map((w) => (w.playerId === selfId ? "You" : w.name)).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!` : REASON_COPY[results.reason];
+  const headline = shared ? "Played together" : iWon ? (winners.length > 1 ? "Shared victory!" : "Victory!") : me ? (me.placement <= 3 && results.entries.length > 2 ? `${ORDINAL[me.placement]} place` : "Defeat") : `${winners.map((w) => w.name).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!`;
+  const sub = shared ? "A shared result: nobody wins or loses." : iWon ? "You win! 🎉" : winners.length ? `${winners.map((w) => (w.playerId === selfId ? "You" : w.name)).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!` : REASON_COPY[results.reason];
 
   // Rematch: guests ready up; the host starts once everyone is ready.
   const isHost = room?.hostId === selfId;
@@ -125,7 +127,7 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
         <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 0.85, y: 0 }} transition={{ delay: 0.35 }} className="mt-1 font-display text-xl font-bold">
           {sub}
         </motion.p>
-        {me && !iWon && (
+        {me && !iWon && !shared && (
           <p className="mt-1 text-sm opacity-70">
             You finished {ORDINAL[me.placement]} of {results.entries.length}
           </p>

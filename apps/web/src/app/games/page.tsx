@@ -128,7 +128,7 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
         {query ? ` matching “${q.trim()}”` : ""}
       </p>
       {results.length ? (
-        <div className="sg-stagger mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="sg-stagger mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" data-testid="games-grid">
           {results.map((g) => (
             <GameCard key={g.id} game={g} />
           ))}
