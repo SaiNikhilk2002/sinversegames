@@ -50,6 +50,7 @@ import { crowdEnergy, direct, ropeRatio, type CameraName } from "./director";
 import { STUMPING_HIT, fielderPlan, keeperPlan, newMemo, reaction, type BallKin, type FieldMemo, type FieldPlan, type Reaction, type ReactionRole } from "./fielding";
 import { LIGHTS, QUALITY, buildStadium, lightingFor, type Lighting, type QualityName } from "./stadium";
 import { coinPose, type CeremonyFeed } from "./ceremony";
+import { humanSide } from "./sides";
 import { buildCoin, ceremonyCamera } from "./ceremony-scene";
 
 /** Seconds after a diving catch until the diver is back on his feet: the dive, then the `recover` clip. */
@@ -264,7 +265,7 @@ export function createCricketScene(canvas: HTMLCanvasElement, config: CricketCon
   for (let n = 0; n < ACTORS; n++) {
     const role: Role = n <= NON_STRIKER ? "bat" : n === BOWLER ? "bowl" : n === KEEPER ? "keeper" : n === UMPIRE ? "umpire" : "field";
     const close = n <= NON_STRIKER || n === BOWLER || n === KEEPER || n === UMPIRE;
-    const team = n <= NON_STRIKER ? config.team : 1 - config.team;
+    const team = n <= NON_STRIKER ? humanSide(config) : 1 - humanSide(config);
     let material: T.Material, kit: T.Texture | null = null, kitCanvas: HTMLCanvasElement | null = null;
     if (close) {
       kitCanvas = canvasOf(256);

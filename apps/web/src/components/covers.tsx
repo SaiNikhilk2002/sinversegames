@@ -311,8 +311,48 @@ function ColorClashCover({ className }: CoverProps) {
   );
 }
 
+/** Same Wavelength: two answer waves, one pink and one violet, meeting in the middle with a spark. */
+function SameWavelengthCover({ className }: CoverProps) {
+  const wave = (phase: number, amp: number) => {
+    let d = "";
+    for (let x = 0; x <= W; x += 8) {
+      // The waves start apart and meet in the centre, where they briefly run in step.
+      const meet = Math.exp(-(((x - W / 2) / 70) ** 2));
+      const y = 92 + Math.sin(x / 22 + phase * (1 - meet)) * amp * (1 - 0.65 * meet);
+      d += `${x === 0 ? "M" : "L"}${x} ${y.toFixed(1)}`;
+    }
+    return d;
+  };
+  return (
+    <Frame label="Same Wavelength cover: a pink and a violet wave meet in the middle with a spark" className={className} bg="#231640">
+      <circle cx={W / 2} cy={92} r={74} fill="#7b6cff" opacity=".16" />
+      <circle cx={W / 2} cy={92} r={42} fill="#ff7a9c" opacity=".18" />
+      <path d={wave(0, 30)} fill="none" stroke="#ff7a9c" strokeWidth="7" strokeLinecap="round" />
+      <path d={wave(Math.PI, 30)} fill="none" stroke="#9d8cff" strokeWidth="7" strokeLinecap="round" opacity=".95" />
+      <g transform={`translate(${W / 2} 92)`}>
+        <path d="M0 -20 L5 -5 L20 0 L5 5 L0 20 L-5 5 L-20 0 L-5 -5Z" fill="#ffe08a" />
+        <circle r="4" fill="#fff8f4" />
+      </g>
+      {[[44, 40, "#ff7a9c", "A"], [W - 44, 40, "#9d8cff", "B"]].map(([x, y, fill, label]) => (
+        <g key={String(label)} transform={`translate(${x} ${y})`}>
+          <rect x="-22" y="-16" width="44" height="30" rx="10" fill={String(fill)} />
+          <path d="M-6 14 L0 22 L6 14Z" fill={String(fill)} />
+          <text y="5" textAnchor="middle" fontFamily={display} fontWeight="900" fontSize="16" fill="#231640">
+            {label}
+          </text>
+        </g>
+      ))}
+      <text x={W / 2} y="176" textAnchor="middle" fontFamily={display} fontWeight="900" fontSize="27" fill="#fff8f4" letterSpacing="1">
+        SAME WAVELENGTH
+      </text>
+    </Frame>
+  );
+}
+
 export function GameCover({ gameId, className }: { gameId: GameId; className?: string }) {
   switch (gameId) {
+    case "same-wavelength":
+      return <SameWavelengthCover className={className} />;
     case "sinverse-cricket":
       return <Frame label="Sinverse Cricket: floodlights above an original oval and a rising cricket ball" className={className} bg="#102d3a"><image href="/sinverse-cricket/cover.svg" width="320" height="200" /></Frame>;
     case "cuisine-quest":

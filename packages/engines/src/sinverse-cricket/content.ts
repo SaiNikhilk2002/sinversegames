@@ -94,6 +94,18 @@ const positions: Record<FieldName, [number, number][]> = {
     [-4, -33],
     [32, 32],
   ],
+  // International formats: five out, for the death overs (4 inside the circle).
+  deep: [
+    [-8, 10],
+    [15, 3],
+    [9, -19],
+    [-10, -20],
+    [-31, 31],
+    [39, 23],
+    [-44, -4],
+    [44, -13],
+    [-24, -45],
+  ],
   boundary: [
     [-8, 10],
     [15, 3],

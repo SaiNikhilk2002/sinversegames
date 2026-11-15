@@ -61,6 +61,8 @@ export interface GameEngine<S, C, A extends { type: string }, V = unknown> {
   readonly id: GameId;
   readonly minPlayers: number;
   readonly maxPlayers: number;
+  /** The most players a room with these settings can seat, when settings limit it (e.g. a two-player mode). Defaults to maxPlayers. */
+  maxPlayersFor?(config: C): number;
   /** Lobby-configurable settings. Partial input is merged with defaults. */
   readonly configSchema: z.ZodType<C>;
   defaultConfig(): C;

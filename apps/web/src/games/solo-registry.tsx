@@ -17,6 +17,9 @@ export const SOLO_CLIENTS: Record<SoloGameId, SoloClient> = {
     Setup: dynamic(() => import("./sinverse-cricket/cricket-game").then(m => m.CricketSetup), { ssr: false, loading }),
     Game: dynamic(() => import("./sinverse-cricket/cricket-game").then(m => m.CricketGame), { ssr: false, loading }),
     ResultDetails: dynamic(() => import("./sinverse-cricket/cricket-game").then(m => m.CricketResultDetails), { ssr: false }),
+    // International matches (T20, ODI) last long enough to need refresh recovery; the duel keeps none.
+    recoverable: (config) => config.version === 2,
+    recovery: { checking: "Checking for an unfinished match", banner: "Your unfinished international match is saved in this tab.", resume: "Resume match", discard: "Abandon match" },
     fullWidthSetup: true,
   },
   "cuisine-quest": {

@@ -204,5 +204,9 @@ export function validateSelection(team: CricketTeam, pick: Selection, minBowlers
   if (!pick.xi.includes(pick.keeper)) problems.push("The wicketkeeper must be in the eleven.");
   const bowlers = pick.xi.filter((id) => byId.get(id)?.bowls).length;
   if (bowlers < minBowlers) problems.push(`The eleven needs at least ${minBowlers} bowling options.`);
+  // The wicketkeeper can't bowl. With fewer than five other bowlers a side can't
+  // bowl its overs within the quota (T20 5 × 4, ODI 5 × 10).
+  else if (byId.get(pick.keeper)?.bowls && bowlers - 1 < minBowlers)
+    problems.push(`The wicketkeeper can't bowl, which leaves ${bowlers - 1} bowling options: pick another bowler or another keeper.`);
   return problems;
 }

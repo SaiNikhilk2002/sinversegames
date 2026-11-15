@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Gamepad2, Link2, Play, Trophy, UserPlus } from "lucide-react";
+import { ArrowRight, Gamepad2, Heart, Link2, Play, Trophy, UserPlus } from "lucide-react";
+import { CategoryTiles } from "@/components/games/category-nav";
 import { brand, GAME_CATEGORIES, GAMES, type GameCategory } from "@platform/shared";
 import { GameArt } from "@/components/brand";
 import { GAME_THEME } from "@/components/game-theme";
@@ -73,6 +74,28 @@ export default function HomePage() {
             {featured.map((g, i) => (
               <GameCard key={g.id} game={g} size={i === 0 ? "lg" : "md"} fill={i === 0} className={i === 0 ? "sm:col-span-2 lg:col-span-1 lg:row-span-2" : undefined} />
             ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="play-your-way">
+          <SectionHeading id="play-your-way" eyebrow="Discover" title="Play your way" subtitle="Find games by who you're playing with. The same game can be in several of these." />
+          <CategoryTiles />
+        </section>
+
+        <section aria-labelledby="couples-band" className="relative overflow-hidden rounded-3xl border border-white/10 p-6 sm:p-8" style={{ background: "linear-gradient(135deg, #3d1830, #2a1748 60%, #1d2350)", color: "#fff8f4" }}>
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <p className="flex items-center gap-2 text-xs font-bold tracking-[0.18em] uppercase" style={{ color: "#ffb3c6" }}>
+                <Heart className="size-4 fill-current" aria-hidden /> New · Games for two
+              </p>
+              <h2 id="couples-band" className="mt-2 font-display text-3xl font-semibold">
+                Play together. Laugh together.
+              </h2>
+              <p className="mt-2 max-w-xl opacity-85">Same Wavelength, Doodle Duel and more, ready for date night or a long-distance call. One link, no sign-up.</p>
+            </div>
+            <ButtonLink href="/couples" size="lg">
+              Explore couples games
+            </ButtonLink>
           </div>
         </section>
 

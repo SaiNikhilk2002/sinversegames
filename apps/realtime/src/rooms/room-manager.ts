@@ -96,7 +96,7 @@ export class RoomManager {
     const current = this.roomOf(player.id);
     if (current && current !== room) {
       const expired = room.finishedAt !== null && this.deps.now() >= room.finishedAt + this.deps.config.FINISHED_ROOM_TTL_MS;
-      if (room.closed || expired || (!room.has(player.id) && (room.status === "playing" || room.members.size >= room.engine.maxPlayers))) {
+      if (room.closed || expired || (!room.has(player.id) && (room.status === "playing" || room.members.size >= room.maxPlayers))) {
         // Check before leaving so a failed join doesn't cost the player their current seat.
         return room.join(player, socket);
       }
@@ -133,7 +133,7 @@ export class RoomManager {
   /** Public lobbies with space, oldest first — used by matchmaking. */
   openPublicRooms(gameId: MultiplayerGameId): Room[] {
     return [...this.rooms.values()]
-      .filter((r) => r.gameId === gameId && r.visibility === "public" && !r.closed && r.status !== "playing" && r.members.size < r.engine.maxPlayers && r.connectedCount > 0)
+      .filter((r) => r.gameId === gameId && r.visibility === "public" && !r.closed && r.status !== "playing" && r.members.size < r.maxPlayers && r.connectedCount > 0)
       .sort((a, b) => a.createdAt - b.createdAt);
   }
 

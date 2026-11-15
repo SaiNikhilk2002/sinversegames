@@ -74,6 +74,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   { key: "trail-boss", title: "Trail boss", description: "Win 3 games of Token Trail.", unlocked: (s) => (forGame(s, "token-trail")?.wins ?? 0) >= 3 },
   {
+    key: "same-brain",
+    title: "Same brain energy",
+    description: "Match 80% or more across a Same Wavelength game of 5+ rounds.",
+    unlocked: (_s, m) => m.gameId === "same-wavelength" && Number(m.details.matchPct) >= 80 && Number(m.details.rounds) >= 5,
+  },
+  { key: "tuned-in", title: "Tuned in", description: "Play 5 games of Same Wavelength.", unlocked: (s) => (forGame(s, "same-wavelength")?.gamesPlayed ?? 0) >= 5 },
+  {
     key: "demolition-derby",
     title: "Demolition derby",
     description: "Knock out 5 rivals in a single Bumper Blitz match.",

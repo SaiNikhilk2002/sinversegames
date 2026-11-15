@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowDown, Check, Crown, RotateCcw } from "lucide-react";
-import type { Ack, MatchResults, RoomSnapshot } from "@platform/shared";
+import { ArrowDown, Check, Crown, RotateCcw, Sparkles } from "lucide-react";
+import { insightsForResults, type Ack, type MatchResults, type RoomSnapshot } from "@platform/shared";
 import { sfx } from "@/lib/sound";
 import { GAME_THEME } from "../game-theme";
 import { Avatar, cn } from "../ui/primitives";
+import { ShareResult } from "./share-result";
 
 /**
  * The end-of-match sequence for multiplayer games. Everything shown comes
@@ -74,9 +75,13 @@ function Confetti({ colors }: { colors: string[] }) {
 
 export function ResultsPanel({ results, selfId, room, send }: { results: MatchResults; selfId: string; room?: RoomSnapshot; send?: (event: string, payload?: unknown) => Promise<Ack> }) {
   const theme = GAME_THEME[results.gameId];
+  // Deterministic, rules-based lines from the recorded results (packages/shared/src/insights.ts).
+  const insights = useMemo(() => insightsForResults(results, room?.matchId ?? String(results.endedAt)), [results, room?.matchId]);
   const me = results.entries.find((e) => e.playerId === selfId);
   const winners = results.entries.filter((e) => e.isWinner);
   const iWon = !!me?.isWinner;
+  // Cooperative games (Same Wavelength) record a shared result: nobody wins or loses.
+  const shared = results.entries.length > 0 && results.entries.every((e) => e.details?.result === "shared");
   const sorted = [...results.entries].sort((a, b) => a.placement - b.placement);
   const podium = sorted.slice(0, 3);
   const played = useRef(false);
@@ -85,12 +90,12 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
   useEffect(() => {
     if (played.current) return;
     played.current = true;
-    const id = setTimeout(() => (iWon ? sfx.fanfare() : me ? sfx.defeat() : sfx.win()), 250);
+    const id = setTimeout(() => (iWon ? sfx.fanfare() : me && !shared ? sfx.defeat() : sfx.win()), 250);
     return () => clearTimeout(id);
-  }, [iWon, me]);
+  }, [iWon, me, shared]);
 
-  const headline = iWon ? (winners.length > 1 ? "Shared victory!" : "Victory!") : me ? (me.placement <= 3 && results.entries.length > 2 ? `${ORDINAL[me.placement]} place` : "Defeat") : `${winners.map((w) => w.name).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!`;
-  const sub = iWon ? "You win! 🎉" : winners.length ? `${winners.map((w) => (w.playerId === selfId ? "You" : w.name)).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!` : REASON_COPY[results.reason];
+  const headline = shared ? "Played together" : iWon ? (winners.length > 1 ? "Shared victory!" : "Victory!") : me ? (me.placement <= 3 && results.entries.length > 2 ? `${ORDINAL[me.placement]} place` : "Defeat") : `${winners.map((w) => w.name).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!`;
+  const sub = shared ? "A shared result: nobody wins or loses." : iWon ? "You win! 🎉" : winners.length ? `${winners.map((w) => (w.playerId === selfId ? "You" : w.name)).join(" & ")} ${winners.length > 1 ? "win" : "wins"}!` : REASON_COPY[results.reason];
 
   // Rematch: guests ready up; the host starts once everyone is ready.
   const isHost = room?.hostId === selfId;
@@ -122,7 +127,7 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
         <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 0.85, y: 0 }} transition={{ delay: 0.35 }} className="mt-1 font-display text-xl font-bold">
           {sub}
         </motion.p>
-        {me && !iWon && (
+        {me && !iWon && !shared && (
           <p className="mt-1 text-sm opacity-70">
             You finished {ORDINAL[me.placement]} of {results.entries.length}
           </p>
@@ -184,6 +189,21 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
           </motion.li>
         ))}
       </ol>
+
+      {insights.length > 0 && (
+        <ul className="relative space-y-2 border-t-2 border-white/10 px-4 py-4 sm:px-6" data-testid="fun-insights" aria-label="Fun insights">
+          {insights.map((i, k) => (
+            <motion.li key={i.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 + k * 0.15 }} className="flex items-start gap-2 rounded-xl bg-white/8 px-3 py-2 text-sm font-semibold">
+              <Sparkles className="mt-0.5 size-4 shrink-0" style={{ color: theme.accent }} aria-hidden /> {i.text}
+            </motion.li>
+          ))}
+        </ul>
+      )}
+      {room?.matchId && results.reason === "completed" && (
+        <div className="relative flex justify-center border-t-2 border-white/10 px-4 py-4">
+          <ShareResult matchId={room.matchId} gameId={results.gameId} />
+        </div>
+      )}
 
       {room && send && (
         <div className="relative flex flex-wrap items-center justify-center gap-3 border-t-2 border-white/10 px-4 py-4">

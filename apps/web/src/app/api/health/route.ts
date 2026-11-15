@@ -3,7 +3,12 @@ import { getDb } from "@platform/db";
 
 export const dynamic = "force-dynamic";
 
-/** Public health check: reports only up/down per dependency, never internals. */
+/**
+ * Public readiness check: reports only up/down per dependency, never internals. It runs a database
+ * query and calls the realtime service, so poll it no more than every 5 minutes or so: a frequent
+ * poller keeps Neon awake around the clock. Uptime monitors should use /api/health/live, or the
+ * realtime service's /health (docs/REALTIME_HEALTH_MONITORING.md).
+ */
 export async function GET() {
   const db = getDb();
   const [database, realtime] = await Promise.all([

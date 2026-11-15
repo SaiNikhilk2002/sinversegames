@@ -12,6 +12,7 @@
     "./doodle-duel/client": "./src/doodle-duel/client.ts",
     "./token-trail": "./src/token-trail/engine.ts",
     "./bumper-blitz": "./src/bumper-blitz/engine.ts",
+    "./same-wavelength": "./src/same-wavelength/index.ts",
     "./kitchen-rush": "./src/kitchen-rush/index.ts",
     "./cuisine-quest": "./src/cuisine-quest/index.ts",
     "./sinverse-cricket": "./src/sinverse-cricket/index.ts",
@@ -20,7 +21,11 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench:cricket": "vitest run --config bench/vitest.config.ts bench/verify.run.ts",
+    "bench:balance": "vitest run --config bench/vitest.config.ts bench/balance.run.ts",
+    "stress:cricket": "vitest run --config bench/vitest.config.ts bench/stress.run.ts",
+    "bench:workerd:cases": "vitest run --config bench/vitest.config.ts bench/workerd-cases.run.ts"
   },
   "dependencies": {
     "@platform/shared": "workspace:*",

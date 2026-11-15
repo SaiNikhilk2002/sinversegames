@@ -13,6 +13,7 @@ import {
   sinverseCricket,
 } from "@platform/engines/sinverse-cricket";
 import { playMatch } from "../../../packages/engines/test/cricket-fixtures";
+import { cfg, play } from "../../../packages/engines/test/cricket-format-helpers";
 
 const database =
   process.env.ECONOMY_TEST_DATABASE_URL ??
@@ -196,4 +197,42 @@ describe("Cricket verified results in the existing platform ledger", () => {
       );
     }
   });
+  it("saves an international T20 with its format, teams and scorebook, and never counts a simulated win", async () => {
+    const id = await player();
+    // Find a seed where the player's side wins a fully simulated T20.
+    let seed = 300,
+      match = play(seed, cfg("t20", 0, 18));
+    while (match.winner !== 0 && seed < 340) match = play(++seed, cfg("t20", 0, 18));
+    expect(match.winner).toBe(0);
+    const config = cfg("t20", 0, 18);
+    const verified = sinverseCricket.verify(seed, config, match.inputLog);
+    if (!verified.ok) throw Error(verified.reason);
+    const result = verified.result,
+      matchId = randomUUID();
+    matches.push(matchId);
+    expect(result.details).toMatchObject({ format: "t20", engine: 2, team: "india", opponent: "oman", result: "win", uncounted: 1 });
+    expect(result.completed).toBe(false);
+    const before = await walletBalance(db, id);
+    const saved = await recordMatch(db, {
+      id: matchId,
+      solo: true,
+      roomCode: "SOLO",
+      visibility: "solo",
+      config,
+      startedAt: Date.now() - result.durationMs - 60_000,
+      players: [{ id, name: "Cricket QA", color: "#68d9be" }],
+      results: { gameId: "sinverse-cricket", reason: "completed", endedAt: Date.now(), entries: [{ playerId: id, name: "Cricket QA", color: "#68d9be", placement: 2, score: result.score, isWinner: result.completed, details: result.details }] },
+    });
+    expect(saved).toBeTruthy();
+    const stats = await db.playerGameStats.findUniqueOrThrow({ where: { playerId_gameId: { playerId: id, gameId: "sinverse-cricket" } } });
+    expect(stats).toMatchObject({ gamesPlayed: 1, wins: 0, losses: 0 });
+    expect(await walletBalance(db, id)).toBe(before);
+    const row = await db.match.findUniqueOrThrow({ where: { id: matchId }, include: { participants: true } });
+    expect(row.config).toMatchObject({ version: 2, format: "t20", team: "india", opponent: "oman" });
+    const details = row.participants[0]!.details as Record<string, unknown>;
+    expect(JSON.parse(String(details.scorecard)).length).toBe(2);
+    const achievements = await db.playerAchievement.findMany({ where: { playerId: id } });
+    expect(achievements.map((a) => a.achievementKey)).not.toContain("cricket-first-six");
+    expect(achievements.map((a) => a.achievementKey)).not.toContain("cricket-breakthrough");
+  }, 120_000);
 });

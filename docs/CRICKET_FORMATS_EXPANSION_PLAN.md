@@ -115,6 +115,15 @@
   - selection rules and determinism
   - the existing duel teams being untouched
 
-**Not wired in yet.** The match engine, the setup screen and the renderer still use the two duel teams, and no match can be played with these teams until F3 and F5. The catalogue changes no existing match, digest, replay or stored record.
+**Update (2026-11-13): wired in.** The catalogue now plays. Details: `docs/CRICKET_FORMATS_IMPLEMENTATION.md`; status: `docs/CRICKET_IMPLEMENTATION_PROGRESS.md`.
 
-Everything else in this plan (F2 to F8) is planned, not implemented.
+| Phase | Status |
+|---|---|
+| **F1** Team catalogue | Done. All 20 teams play, with the player's own XI |
+| **F2** Format rules | Done for T20, ODI and Test as data (`formats.ts`). T10, The Hundred and custom formats are not built |
+| **F3** Engine v2 | Done for limited overs (T20, ODI): versioned config, bowler rotation and limits, field restrictions, the player's bowling choices. The v1 golden corpus is unchanged. Test cricket rules (declarations, follow-on, innings wins, draws) are in the engine but not playable. Super Over not built |
+| **F4** Server sessions | Not built. T20 and ODI fit one signed run with tab recovery; Test cricket needs this phase and a migration |
+| **F5** Setup flow | Done: format, both teams, XI, captain and keeper, ground, difficulty, summary |
+| **F6** Format presentation | Partly done: powerplays, required rates, bowler figures, scorecards with partnerships. No format-specific broadcast identities |
+| **F7** Statistics | Not built (needs a migration). Results are stored in the existing match records with `format` and `engine` |
+| **F8** Extra formats and modes | Not built |

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Search, SearchX } from "lucide-react";
-import { GAME_CATEGORIES, GAMES, type GameCategory } from "@platform/shared";
+import { GAME_CATEGORIES, PLAYER_COUNT_FILTERS, searchGames, type GameCategory, type PlayerCountFilter } from "@platform/shared";
+import { CategoryNav } from "@/components/games/category-nav";
 import { GameCard } from "@/components/games/game-card";
 import { RecentlyPlayed } from "@/components/games/recently-played";
 import { Button, ButtonLink, EmptyState, cn } from "@/components/ui/primitives";
@@ -12,25 +13,22 @@ export const metadata: Metadata = {
   alternates: { canonical: "/games" },
 };
 
-type SearchParams = Promise<{ q?: string; category?: string; sort?: string; type?: string }>;
+type SearchParams = Promise<{ q?: string; category?: string; sort?: string; type?: string; players?: string }>;
 
 // "popular" sorts by the editorial flags in the registry, so it is labelled as a pick, not a measure.
 const SORTS = { popular: "Featured", new: "Newest", name: "A–Z" } as const;
 const TYPES = { all: "All", multiplayer: "Multiplayer", solo: "Single player" } as const;
 
 export default async function GamesPage({ searchParams }: { searchParams: SearchParams }) {
-  const { q = "", category = "", sort = "popular", type = "all" } = await searchParams;
+  const { q = "", category = "", sort = "popular", type = "all", players = "" } = await searchParams;
+  const count = (players in PLAYER_COUNT_FILTERS ? players : null) as PlayerCountFilter | null;
   const sortKey = (sort in SORTS ? sort : "popular") as keyof typeof SORTS;
   const typeKey = (type in TYPES ? type : "all") as keyof typeof TYPES;
   const query = q.trim().toLowerCase().slice(0, 60);
   const cat = category in GAME_CATEGORIES ? (category as GameCategory) : null;
 
-  const results = GAMES.filter((g) => {
-    if (cat && !g.categories.includes(cat)) return false;
-    if (typeKey !== "all" && g.kind !== typeKey) return false;
-    if (!query) return true;
-    return [g.name, g.tagline, g.description, ...g.keywords].join(" ").toLowerCase().includes(query);
-  }).sort((a, b) =>
+  // Search, genre and player count come from the shared discovery model (docs/GAME_CATEGORY_DISCOVERY.md).
+  const results = searchGames({ q: query, genre: cat, players: count }).filter((g) => typeKey === "all" || g.kind === typeKey).sort((a, b) =>
     sortKey === "name"
       ? a.name.localeCompare(b.name)
       : sortKey === "new"
@@ -40,7 +38,7 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
 
   const href = (patch: Record<string, string | null>) => {
     const params = new URLSearchParams();
-    const merged = { q: query || null, category: cat, sort: sortKey === "popular" ? null : sortKey, type: typeKey === "all" ? null : typeKey, ...patch };
+    const merged = { q: query || null, category: cat, sort: sortKey === "popular" ? null : sortKey, type: typeKey === "all" ? null : typeKey, players: count, ...patch };
     for (const [k, v] of Object.entries(merged)) if (v) params.set(k, v);
     return `/games${params.size ? `?${params}` : ""}`;
   };
@@ -78,6 +76,9 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
         <p className="type-eyebrow mb-3">Catalogue</p>
         <h1 className="type-title">All games</h1>
         <p className="type-lead mt-2">Every game is free and runs in your browser, with no downloads and no sign-up.</p>
+        <div className="mt-5">
+          <CategoryNav active="all" />
+        </div>
       </header>
       <div className="mt-8">
         <RecentlyPlayed title="Recently played" />
@@ -88,6 +89,7 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
           {cat && <input type="hidden" name="category" value={cat} />}
           {sortKey !== "popular" && <input type="hidden" name="sort" value={sortKey} />}
           {typeKey !== "all" && <input type="hidden" name="type" value={typeKey} />}
+          {count && <input type="hidden" name="players" value={count} />}
           <label className="relative flex-1">
             <span className="sr-only">Search games</span>
             <Search className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-ink-faint" aria-hidden />
@@ -104,6 +106,10 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <nav aria-label="Play type" className="flex items-center gap-0.5 rounded-xl border border-line bg-surface p-1">
             {Object.entries(TYPES).map(([k, label]) => pill(k, label, k === typeKey, href({ type: k === "all" ? null : k })))}
+          </nav>
+          <nav aria-label="Players" className="flex items-center gap-0.5 rounded-xl border border-line bg-surface p-1" data-testid="players-filter">
+            {pill("any", "Any size", count === null, href({ players: null }))}
+            {(Object.entries(PLAYER_COUNT_FILTERS) as [PlayerCountFilter, string][]).map(([k, label]) => pill(k, label, k === count, href({ players: k })))}
           </nav>
           <nav aria-label="Sort" className="flex items-center gap-0.5 rounded-xl border border-line bg-surface p-1">
             {Object.entries(SORTS).map(([k, label]) => pill(k, label, k === sortKey, href({ sort: k === "popular" ? null : k })))}
@@ -122,7 +128,7 @@ export default async function GamesPage({ searchParams }: { searchParams: Search
         {query ? ` matching “${q.trim()}”` : ""}
       </p>
       {results.length ? (
-        <div className="sg-stagger mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="sg-stagger mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" data-testid="games-grid">
           {results.map((g) => (
             <GameCard key={g.id} game={g} />
           ))}

@@ -207,6 +207,8 @@ export const GAME_ACTION_EVENTS = [
   "arena:input",
   "kitchen:act",
   "kitchen:tap",
+  "wave:answer",
+  "wave:next",
 ] as const;
 export type GameActionEvent = (typeof GAME_ACTION_EVENTS)[number];
 

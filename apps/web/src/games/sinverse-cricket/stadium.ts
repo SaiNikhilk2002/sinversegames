@@ -1,6 +1,7 @@
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { CREASE_Z, STUMPS_Z, TEAMS, VENUES, type CricketConfig } from "@platform/engines/sinverse-cricket";
+import { CREASE_Z, STUMPS_Z, VENUES, type CricketConfig } from "@platform/engines/sinverse-cricket";
+import { side } from "./sides";
 
 /**
  * The ground: outfield, pitch, stands, roofs, floodlights, screens and crowd.
@@ -383,7 +384,7 @@ export function buildStadium(config: CricketConfig, quality: QualityName, lighti
       const r = noise(tideglass ? 23 : 5);
       c.fillStyle = tideglass ? "#a4b9c4" : "#2a3a58";
       c.fillRect(0, 0, 256, 256);
-      const fans = ["#d9c8ab", TEAMS[0]!.color, TEAMS[1]!.color, "#b5c0d0", "#39465e", "#efece0", "#a8454a", "#e0b24a"];
+      const fans = ["#d9c8ab", side(0).color, side(1).color, "#b5c0d0", "#39465e", "#efece0", "#a8454a", "#e0b24a"];
       for (let y = 0; y < 256; y += 13) {
         c.fillStyle = "rgba(0,0,0,.34)";
         c.fillRect(0, y + 8, 256, 5);
@@ -493,7 +494,7 @@ export function buildStadium(config: CricketConfig, quality: QualityName, lighti
   const crowd = new T.InstancedMesh(figure, crowdMat, count);
   const r = noise(tideglass ? 73 : 31),
     dummy = new T.Object3D(),
-    tones = ["#d9c8ab", TEAMS[0]!.color, TEAMS[1]!.color, "#b5c0d0", "#39465e", "#efece0", "#a8454a", "#e0b24a"];
+    tones = ["#d9c8ab", side(0).color, side(1).color, "#b5c0d0", "#39465e", "#efece0", "#a8454a", "#e0b24a"];
   const color = new T.Color(),
     seatTone = new T.Color(tideglass ? "#a9b6bb" : "#4a5468");
   for (let n = 0; n < count; n++) {

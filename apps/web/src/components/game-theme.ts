@@ -13,4 +13,5 @@ export const GAME_THEME: Record<GameId, { accent: string; deep: string; ink: str
   "mahjong-garden": { accent: "#f6a5c0", deep: "#2a1d3f", ink: "#fff6ea" },
   "doodle-duel": { accent: "#2fd6a8", deep: "#3b2618", ink: "#fffdf8" },
   "color-clash": { accent: "#3d8bff", deep: "#0c2a24", ink: "#ffffff" },
+  "same-wavelength": { accent: "#ff7a9c", deep: "#231640", ink: "#fff8f4" },
 };

@@ -7,6 +7,7 @@ import { activeBan, achievementByKey, getCuisineReceipt, getDb, getPersonalBest,
 import { jsonRoute } from "@/lib/server/api-route";
 import { authSecret, getSession, isSameOrigin } from "@/lib/server/session";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { cricketVerifierUrl, verifyCricketRemotely } from "@/lib/server/cricket-verifier";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,20 @@ const MAX_BODY_BYTES = 512 * 1024;
 const TIMING_SLACK_MS = 10_000;
 
 const body = z.object({ token: z.string().min(20).max(4096), log: z.unknown() });
+const UNAVAILABLE = "Cricket results can't be verified right now. Please try again shortly.";
+
+/**
+ * Cricket runs whose log failed verification in this isolate. Verification is deterministic, so
+ * the same log can never pass, and another log under the same run is a tampering attempt. An
+ * international match's replay costs real CPU, so neither is replayed again. Best-effort: each
+ * isolate keeps its own set, like the request rate limits.
+ */
+const rejectedCricketRuns = new Set<string>();
+const MAX_REJECTED_RUNS = 10_000;
+function rememberRejected(runId: string) {
+  if (rejectedCricketRuns.size >= MAX_REJECTED_RUNS) rejectedCricketRuns.delete(rejectedCricketRuns.values().next().value!);
+  rejectedCricketRuns.add(runId);
+}
 
 /**
  * Verifies and records a finished single-player run. The client sends only
@@ -63,9 +78,41 @@ async function handlePOST(req: Request) {
   const config = game.configSchema.safeParse(run.config);
   const log = game.logSchema.safeParse(parsed.data.log);
   if (!config.success || !log.success) return NextResponse.json({ error: "Invalid game log" }, { status: 400 });
+  // A cricket match's game time is its last entry's time (verify checks the timeline is in order), so a log
+  // claiming more time than has passed is refused before the (comparatively costly) replay, not after it.
+  const cricket = (run.gameId as string) === "sinverse-cricket";
+  // One client for the whole request: on Workers each getDb() call opens its own connection.
+  const db = getDb();
+  if (cricket) {
+    const last = (log.data as { t?: unknown }[]).at(-1)?.t;
+    if (typeof last === "number" && last > Date.now() - run.issuedAt + TIMING_SLACK_MS)
+      return NextResponse.json({ error: "That game finished faster than real time allows" }, { status: 422 });
+    if (rejectedCricketRuns.has(run.jti)) return NextResponse.json({ error: "This game's log was already rejected" }, { status: 422 });
+    // A run already recorded is a duplicate whatever its log says: answer as the unique id below
+    // would, without replaying it first. (A primary-key read; a database outage just skips it.)
+    if (db && (await db.match.findUnique({ where: { id: run.jti }, select: { id: true } }).catch(() => null)))
+      return NextResponse.json({ error: "This game was already submitted" }, { status: 409 });
+  }
 
-  const verified = game.verify(run.seed, config.data, log.data);
-  if (!verified.ok) return NextResponse.json({ error: verified.reason }, { status: 422 });
+  // Cricket replays on the realtime service when CRICKET_VERIFIER_URL is set (Workers Free can't
+  // afford a T20/ODI replay); everything around the replay, and all persistence, stays here.
+  let remote: URL | null = null;
+  try {
+    remote = cricket ? cricketVerifierUrl() : null;
+  } catch (e) {
+    console.error((e as Error).message);
+    return NextResponse.json({ error: UNAVAILABLE }, { status: 503 });
+  }
+  let verified;
+  if (remote) {
+    const answer = await verifyCricketRemotely(remote, { sub: player.id, jti: run.jti }, parsed.data.token, log.data, authSecret());
+    if (!answer.ok && "unavailable" in answer) return NextResponse.json({ error: UNAVAILABLE }, { status: 503 });
+    verified = answer as Exclude<typeof answer, { unavailable: true }>;
+  } else verified = game.verify(run.seed, config.data, log.data);
+  if (!verified.ok) {
+    if (cricket) rememberRejected(run.jti);
+    return NextResponse.json({ error: verified.reason }, { status: 422 });
+  }
   const { result } = verified;
   const now = Date.now();
   if (result.durationMs > now - run.issuedAt + TIMING_SLACK_MS) {
@@ -73,7 +120,6 @@ async function handlePOST(req: Request) {
   }
 
   const response = { score: result.score, completed: result.completed, details: result.details, saved: false, earnedCoins: 0, unlocked: [] as { key: string; title: string }[], best: null as null | { best: number; today: number; played: number } };
-  const db = getDb();
   if (!db) return NextResponse.json(response);
   try {
     if ((run.gameId as string) === "cuisine-quest" && await activeBan(db, player.id)) return NextResponse.json({ error: "Your account is suspended." }, { status: 403 });

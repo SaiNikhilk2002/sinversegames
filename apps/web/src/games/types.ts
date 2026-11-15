@@ -22,6 +22,11 @@ export interface GameClient {
   Settings: ComponentType<GameSettingsProps>;
   /** Short summary of the current settings for non-hosts. */
   summarize: (config: Record<string, unknown>) => string[];
-  /** Optional game-specific reveal shown above the shared results panel. */
-  Results?: ComponentType<{ results: MatchResults; selfId: string }>;
+  /**
+   * Optional game-specific reveal shown above the shared results panel. `game` is the last game state
+   * this tab received (absent after a refresh, when only the recorded results remain).
+   */
+  Results?: ComponentType<{ results: MatchResults; selfId: string; game?: GameStatePayload | null; matchId?: string | null }>;
+  /** Named settings a link can start a private room with: /play/<slug>?preset=<name>. */
+  presets?: Record<string, Record<string, unknown>>;
 }
