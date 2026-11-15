@@ -11,8 +11,8 @@
 | Share-card name-order fix `ef29c1c` | **Completed and verified locally, not merged.** Blocked by GitHub access |
 | Production name-order check | **Not attempted:** waits on the merge |
 | Railway verifier endpoint | **Completed and production-verified:** live, refuses unsigned requests |
-| `CRICKET_VERIFIER_URL` Worker secret | **Blocked by account access:** Wrangler isn't logged in |
-| Cricket T20 and ODI through Railway in production | **Not attempted:** waits on the secret |
+| `CRICKET_VERIFIER_URL` Worker secret | **Set by the owner**, but the Worker can't get an answer from Railway (section 3) |
+| Cricket T20 and ODI through Railway in production | **Failing:** with the secret set, every cricket submission returns 503 and nothing saves (section 3) |
 | Guest sign-in | **Completed and production-verified** |
 | Email sign-in | **Requires user configuration:** turned off in production |
 | Google sign-in | **Requires user configuration:** turned off in production |
@@ -99,9 +99,41 @@ So they don't survive a Railway restart, and wouldn't be shared between several 
 
 **What that means in practice:** after a restart, a captured job could be replayed within its 60-second life. That only re-verifies the same run, and saving it is still refused by the database's primary key. **Durable single-use protection exists at the reward level, not at the job level.**
 
-### Production T20 and ODI submissions
+### Production T20 and ODI submissions (after the owner set the secret)
 
-**Not attempted.** They need the secret, and every valid submission permanently records a match and rewards for a real player. Cricket pages load in production (smoke test), and the Worker-side verification path is unchanged.
+The owner set `CRICKET_VERIFIER_URL` in Cloudflare and deployed. Tested at about 10:00 UTC.
+
+**Failed:** a real T20 played through the interface (West Indies v Afghanistan, simulated innings) got **HTTP 503** "Cricket results can't be verified right now" at Save, after 3.5 s. The run wasn't saved, so the ODI and the duplicate check weren't reached.
+
+**Diagnostic probes** (each run started fresh, and nothing saved):
+
+| Request | Expected if Railway answered | Got |
+|---|---|---|
+| A T20 with one innings missing | 422, a signed rejection | **503** in 2.46 s |
+| A malformed log | 422 | **503** in 2.41 s |
+| A third short log | 422 | **503** in 2.51 s |
+
+**Every call to the verifier ends as "unavailable"**, including logs Railway would reject with a 422. So the Worker isn't getting a valid answer from Railway at all.
+
+**Ruled out:**
+- **A missing replay worker:** the Docker image ships `dist/cricket-verify-worker.js`.
+- **The endpoint itself:** `POST /internal/cricket/verify` answers 401 directly over the internet.
+- **An `AUTH_SECRET` mismatch, almost certainly:** realtime rooms work, and the realtime server checks socket tokens with the same `AUTH_SECRET` that it uses for verifier jobs.
+
+**Still possible** (not confirmed):
+1. The secret's **value** isn't a clean `https://` URL, for example it includes quotes or a typo. The log reads "CRICKET_VERIFIER_URL must be an https URL".
+2. **A Cloudflare security feature** (Bot Fight Mode, a WAF or rate-limit rule) challenges the Worker's subrequest to `rt.sinversegames.com`. The log reads "cricket verifier refused the request 403".
+3. **The subrequest fails at the network level.** The log reads "cricket verifier unreachable <error name>".
+
+**Where the exact cause is:** Workers Logs (enabled, `observability.enabled: true`). Open Workers & Pages → `sinversegames` → Observability/Logs and filter for "cricket verifier" or "CRICKET_VERIFIER_URL".
+
+**Impact: every Sinverse Cricket result in production currently fails to save,** including the classic duels. The Worker sends every cricket run, of any format, to the verifier once the secret is set.
+
+**Quickest safe recovery:** delete the `CRICKET_VERIFIER_URL` secret. That restores the previous Worker-side verification exactly, with no data involved, and then the cause can be fixed and the secret re-added.
+
+The ODI, duplicate, forged-token and other-player checks are **not yet run in production**. They're covered locally (13 verifier tests, plus `e2e/cricket-release.spec.ts`).
+
+**Production records from these attempts:** guest players "Cricket QA" and "Cricket probe QA" and their unsubmitted run tokens. No matches or rewards.
 
 ## 4. Authentication
 
