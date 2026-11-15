@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { ArrowDown, Check, Crown, RotateCcw } from "lucide-react";
-import type { Ack, MatchResults, RoomSnapshot } from "@platform/shared";
+import { ArrowDown, Check, Crown, RotateCcw, Sparkles } from "lucide-react";
+import { insightsForResults, type Ack, type MatchResults, type RoomSnapshot } from "@platform/shared";
 import { sfx } from "@/lib/sound";
 import { GAME_THEME } from "../game-theme";
 import { Avatar, cn } from "../ui/primitives";
+import { ShareResult } from "./share-result";
 
 /**
  * The end-of-match sequence for multiplayer games. Everything shown comes
@@ -74,6 +75,8 @@ function Confetti({ colors }: { colors: string[] }) {
 
 export function ResultsPanel({ results, selfId, room, send }: { results: MatchResults; selfId: string; room?: RoomSnapshot; send?: (event: string, payload?: unknown) => Promise<Ack> }) {
   const theme = GAME_THEME[results.gameId];
+  // Deterministic, rules-based lines from the recorded results (packages/shared/src/insights.ts).
+  const insights = useMemo(() => insightsForResults(results, room?.matchId ?? String(results.endedAt)), [results, room?.matchId]);
   const me = results.entries.find((e) => e.playerId === selfId);
   const winners = results.entries.filter((e) => e.isWinner);
   const iWon = !!me?.isWinner;
@@ -184,6 +187,21 @@ export function ResultsPanel({ results, selfId, room, send }: { results: MatchRe
           </motion.li>
         ))}
       </ol>
+
+      {insights.length > 0 && (
+        <ul className="relative space-y-2 border-t-2 border-white/10 px-4 py-4 sm:px-6" data-testid="fun-insights" aria-label="Fun insights">
+          {insights.map((i, k) => (
+            <motion.li key={i.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 + k * 0.15 }} className="flex items-start gap-2 rounded-xl bg-white/8 px-3 py-2 text-sm font-semibold">
+              <Sparkles className="mt-0.5 size-4 shrink-0" style={{ color: theme.accent }} aria-hidden /> {i.text}
+            </motion.li>
+          ))}
+        </ul>
+      )}
+      {room?.matchId && results.reason === "completed" && (
+        <div className="relative flex justify-center border-t-2 border-white/10 px-4 py-4">
+          <ShareResult matchId={room.matchId} gameId={results.gameId} />
+        </div>
+      )}
 
       {room && send && (
         <div className="relative flex flex-wrap items-center justify-center gap-3 border-t-2 border-white/10 px-4 py-4">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ChevronRight, Gamepad2, Menu, Palette, Search, Settings2, Trophy, UserRound, KeyRound, X } from "lucide-react";
+import { ChevronRight, Gamepad2, Heart, Menu, Palette, Search, Settings2, Trophy, UserRound, KeyRound, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { GAMES, cosmeticTextColor } from "@platform/shared";
 import { CosmeticAvatar } from "../profile/cosmetic-avatar";
@@ -14,6 +14,7 @@ import { usePlayer } from "@/lib/player";
 
 const NAV = [
   { href: "/games", label: "Games", icon: Gamepad2 },
+  { href: "/couples", label: "Couples", icon: Heart },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/store", label: "Studio", icon: Palette },
   { href: "/profile", label: "Profile", icon: UserRound },

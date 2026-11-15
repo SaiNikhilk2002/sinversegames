@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Clock, Gamepad2, Play, Users } from "lucide-react";
-import { brand, GAME_CATEGORIES, GAME_MODE_LABELS, GAMES, getGameBySlug } from "@platform/shared";
+import { brand, categoriesOf, discoveryCategory, GAME_CATEGORIES, GAME_MODE_LABELS, GAMES, getGameBySlug } from "@platform/shared";
+import { categoryHref } from "@/components/games/category-nav";
 import { GameArt } from "@/components/brand";
 import { GAME_THEME } from "@/components/game-theme";
 import { durationRange, GameCard, playerRange } from "@/components/games/game-card";
@@ -78,6 +79,16 @@ export default async function GamePage({ params }: { params: Params }) {
               <p className="text-xs font-semibold tracking-[0.14em] uppercase opacity-70">{game.categories.map((c) => GAME_CATEGORIES[c]).join(" · ")}</p>
               <h1 className="type-title mt-3">{game.name}</h1>
               <p className="mt-3 text-lg leading-relaxed opacity-85">{game.tagline}</p>
+              {/* The same game, listed in every category it suits (docs/GAME_CATEGORY_DISCOVERY.md). */}
+              <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="Great for" data-testid="game-categories">
+                {categoriesOf(game).map((id) => discoveryCategory(id)!).map((c) => (
+                  <li key={c.id}>
+                    <Link href={categoryHref(c)} className="inline-block rounded-full border border-white/20 bg-black/15 px-3 py-1 text-xs font-semibold transition hover:border-white/50">
+                      {c.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
               <dl className="mt-7 grid grid-cols-3 divide-x divide-white/15 overflow-hidden rounded-2xl border border-white/15 bg-black/20 backdrop-blur-sm">
                 {[
                   { icon: Users, label: "Players", value: playerRange(game) },

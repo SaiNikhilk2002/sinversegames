@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Globe2, Lock, Radar, X } from "lucide-react";
 import { getGame, type MatchStatusPayload, type MultiplayerGameId, type RoomVisibility } from "@platform/shared";
@@ -11,6 +11,7 @@ import { Button, cn, Spinner } from "../ui/primitives";
 import { useToast } from "../ui/toast";
 import { ConnectionBadge } from "./connection-badge";
 import { realtime } from "@/lib/realtime/connection";
+import { GAME_CLIENTS } from "@/games/registry";
 import { useConnectionStatus } from "@/lib/realtime/use-room";
 
 function useConnected() {
@@ -23,6 +24,9 @@ export function PlayHub({ gameId }: { gameId: MultiplayerGameId }) {
   const game = getGame(gameId);
   const router = useRouter();
   const toast = useToast();
+  // A link can name a preset (e.g. /play/same-wavelength?preset=couples) for the private room it creates.
+  const presetName = useSearchParams().get("preset");
+  const preset = presetName ? GAME_CLIENTS[gameId].presets?.[presetName] : undefined;
   const status = useConnected();
   const [busy, setBusy] = useState<RoomVisibility | null>(null);
   const [match, setMatch] = useState<MatchStatusPayload>({ state: "idle" });
@@ -49,7 +53,7 @@ export function PlayHub({ gameId }: { gameId: MultiplayerGameId }) {
 
   async function createRoom(visibility: RoomVisibility) {
     setBusy(visibility);
-    const ack = await realtime.emit<{ code: string }>("room:create", { gameId, visibility });
+    const ack = await realtime.emit<{ code: string }>("room:create", { gameId, visibility, ...(visibility === "private" && preset ? { config: preset } : {}) });
     setBusy(null);
     if (!ack.ok) return toast(ack.error.message, "error");
     router.push(`/room/${ack.data!.code}`);

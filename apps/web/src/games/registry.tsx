@@ -9,6 +9,7 @@ import { BumperBlitzSettings, summarizeBumperBlitz } from "./bumper-blitz/settin
 import { ChefRivalsSettings, summarizeChefRivals } from "./chef-rivals/settings";
 import { KitchenCoopSettings, summarizeKitchenCoop } from "./kitchen-rush-coop/settings";
 import { TokenTrailSettings, summarizeTokenTrail } from "./token-trail/settings";
+import { SAME_WAVELENGTH_PRESETS, SameWavelengthSettings, summarizeSameWavelength } from "./same-wavelength/settings";
 import type { GameClient } from "./types";
 
 const loading = () => (
@@ -22,6 +23,13 @@ const loading = () => (
  * game they're playing. Adding a game = one entry here.
  */
 export const GAME_CLIENTS: Record<MultiplayerGameId, GameClient> = {
+  "same-wavelength": {
+    Game: dynamic(() => import("./same-wavelength/same-wavelength-game").then((m) => m.SameWavelengthGame), { ssr: false, loading }),
+    Settings: SameWavelengthSettings,
+    summarize: summarizeSameWavelength,
+    Results: dynamic(() => import("./same-wavelength/same-wavelength-results").then((m) => m.SameWavelengthResults), { ssr: false }),
+    presets: SAME_WAVELENGTH_PRESETS,
+  },
   "kitchen-rush-coop": {
     Game: dynamic(() => import("./kitchen-rush-coop/coop-game").then((m) => m.KitchenCoopGame), { ssr: false, loading }),
     Settings: KitchenCoopSettings,
